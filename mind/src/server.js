@@ -77,9 +77,11 @@ const server = http.createServer(async (req, res) => {
       const name = tidy(url.searchParams.get('name'), 24);
       return json(res, 200, memory.notes.filter(n => n.name === name).slice(-20).reverse().map(({ text, at, read, reply }) => ({ text, at, read, reply })));
     }
+    // the noticeboard: every note left for her, and what she said back. Public, newest first.
+    if (url.pathname === '/api/board') return json(res, 200, memory.notes.slice(-60).reverse().map(({ name, text, at, read, reply }) => ({ name, text, at, read, reply })));
     if (url.pathname === '/api/life') return json(res, 200, { ...life.summary(), decorList: life.s.decor });
     if (url.pathname === '/api/facts') return json(res, 200, { model: provider(), usage, daySeconds: DAY_SECONDS, bornAt: world.bornAt, visitors: Object.keys(memory.visitors).length });
-    if (url.pathname === '/') return json(res, 200, { ok: true, who: 'Nena', see: ['/api/now', '/api/feed', '/api/diary', '/api/memory', '/api/life', '/api/facts'] });
+    if (url.pathname === '/') return json(res, 200, { ok: true, who: 'Nena', see: ['/api/now', '/api/feed', '/api/board', '/api/diary', '/api/memory', '/api/life', '/api/facts'] });
   }
   if (req.method === 'POST' && url.pathname === '/api/notes') {
     const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;

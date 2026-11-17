@@ -45,3 +45,15 @@ textarea { min-height: 96px; resize: vertical; }
 #panel { z-index: 2; }
 #camhelp { position: fixed; bottom: 78px; left: 50%; transform: translateX(-50%); padding: 6px 14px; font-size: 12px; font-weight: 800; white-space: nowrap; }
 #visitors { font-size: 12px !important; }
+
+.gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.gallery figure { margin: 0; }
+.gallery canvas { width: 100%; height: auto; display: block; border: 3px solid var(--line); border-radius: 10px; background: #fff8ea; }
+.gallery figcaption { font-size: 12px; font-weight: 800; margin-top: 3px; line-height: 1.25; }
+.entry.built { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+button.inline { background: var(--paper); border: 2px solid var(--line); border-radius: 10px; padding: 3px 10px; font-size: 12px; box-shadow: 0 2px 0 var(--line); }
+.swatch { display: inline-block; width: 22px; height: 14px; border: 2px solid var(--line); border-radius: 3px; vertical-align: middle; }
+.note { background: #fff1d6; border: 2px solid #d9b48a; border-radius: 10px; padding: 8px 10px; margin: 8px 0; transform: rotate(-0.4deg); }
+.note:nth-child(even) { background: #ffeef1; transform: rotate(0.5deg); }
+.note p { margin: 4px 0; }
+.note .reply { border-top: 2px dashed #1d254533; padding-top: 5px; margin-top: 5px; font-size: 13px; font-weight: 700; }

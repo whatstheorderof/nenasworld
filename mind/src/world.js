@@ -90,7 +90,7 @@ export class World {
     else if (def.target === 'ripe') { const d = this.life.ripe(this.day); if (!d) return false; target = { x: d.x + 1.0, z: d.z + 0.4 }; }
     else if (def.target === 'free') { target = this.life.freeSpot(); if (!target) return false; a.at = target; target = { x: target.x + 1.1, z: target.z + 0.4 }; }
     else if (def.target) { const s = this.nearest(this.spots.filter(x => x.kind === def.target)); if (!s) return false; a.ref = s.id; a.at = def.target === 'glow' ? { x: s.x, z: s.z } : undefined; target = { x: s.x + 0.9, z: s.z + 0.3 }; }
-    else { for (let i = 0; i < 20; i++) { const ang = Math.random() * Math.PI * 2, r = 4 + Math.random() * 18; target = { x: Math.cos(ang) * r, z: Math.sin(ang) * r }; if (!blocked(target.x, target.z, 1.5)) break; } }
+    else { for (let i = 0; i < 20; i++) { const ang = Math.random() * Math.PI * 2, r = 4 + Math.random() * (WORLD.radius - 14); target = { x: Math.cos(ang) * r, z: Math.sin(ang) * r }; if (!blocked(target.x, target.z, 1.5)) break; } }
     if (action === 'boat_trip') a.islet = Math.floor(Math.random() * ISLETS.length);
     a.path = route(this.pos, target);
     let len = 0, prev = this.pos; for (const p of a.path) { len += Math.hypot(p.x - prev.x, p.z - prev.z); prev = p; }

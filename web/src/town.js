@@ -2,7 +2,8 @@
 // windows and signs at night. Everything is built from primitives here, and
 // positions come from shared/world.js so the mind and the picture agree.
 import * as THREE from 'three';
-import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, onPath, nearRiver as riverBand } from '../../shared/world.js';
+import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, BOARD, onPath, nearRiver as riverBand } from '../../shared/world.js';
+import { drawPicture } from './art.js';
 import { HOUSE_LOOKS, FLAGS } from '../../shared/data.js';
 
 const P = {
@@ -37,8 +38,8 @@ export function buildTown() {
   mesh(new THREE.CylinderGeometry(R - 6.5, R - 16, 5, 9), flat(P.rockDark), 0, -6.2, 0);
   const inBeach = (x, z) => { const a = Math.atan2(z, x); return a > BEACH.from - 0.08 && a < BEACH.to + 0.08 && Math.hypot(x, z) > BEACH.inner - 1; };
   const nearRiver = (x, z, pad) => riverBand(x, z, pad) || RIVER.some(([rx, rz]) => Math.hypot(rx - x, rz - z) < pad);
-  for (let i = 0; i < 30; i++) {
-    const a = rand() * 6.28, r = 4 + rand() * (R - 10), s = 1.5 + rand() * 3, x = Math.cos(a) * r, z = Math.sin(a) * r;
+  for (let i = 0; i < 44; i++) {
+    const a = rand() * 6.28, r = SQUARE + 2 + rand() * (R - SQUARE - 12), s = 1.5 + rand() * 3, x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (inBeach(x, z) || nearRiver(x, z, 4) || onPath(x, z, s * 0.6)) continue;
     const m = mesh(new THREE.CircleGeometry(s, 7), grassDarkMat, x, 0.01 + i * 0.001, z); m.rotation.x = -Math.PI / 2;
   }
@@ -48,14 +49,14 @@ export function buildTown() {
   { const bed = flat(0xe6dcc4), stones = [];
     const disc = (x, z, r, y) => ground(new THREE.CircleGeometry(r, 14), 0xe6dcc4, x, z, y);
     const lay = (x, z) => stones.push([x, z]);
-    disc(0, 0, 4.6, 0.05);
-    for (let ring = 0.45; ring < 4.4; ring += 0.36) { const n = Math.floor(ring * 2 * Math.PI / 0.36); for (let i = 0; i < n; i++) { const a = i / n * 6.283 + ring; lay(Math.cos(a) * ring, Math.sin(a) * ring); } }
+    disc(0, 0, SQUARE + 0.1, 0.05);
+    for (let ring = 0.45; ring < SQUARE - 0.2; ring += 0.36) { const n = Math.floor(ring * 2 * Math.PI / 0.36); for (let i = 0; i < n; i++) { const a = i / n * 6.283 + ring; lay(Math.cos(a) * ring, Math.sin(a) * ring); } }
     for (const line of PATHS) for (let i = 0; i < line.length - 1; i++) {
       const a = line[i], b = line[i + 1], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz); if (len < 0.05) continue;
       const strip = mesh(new THREE.PlaneGeometry(1.6, len), bed, (a.x + b.x) / 2, 0.052, (a.z + b.z) / 2); strip.rotation.x = -Math.PI / 2; strip.rotation.z = Math.atan2(dx, dz);
       disc(a.x, a.z, 0.8, 0.051); if (i === line.length - 2) disc(b.x, b.z, 0.8, 0.051);   // round off the bends and ends
       const nx = -dz / len, nz = dx / len;
-      for (let t = 0.1; t < len; t += 0.3) for (const off of [-0.54, -0.18, 0.18, 0.54]) { const j = rand() - 0.5, k = (rand() - 0.5) * 0.12, x = a.x + dx / len * (t + k) + nx * (off + j * 0.1), z = a.z + dz / len * (t + k) + nz * (off + j * 0.1); if (Math.hypot(x, z) > 4.3) lay(x, z); }
+      for (let t = 0.1; t < len; t += 0.3) for (const off of [-0.54, -0.18, 0.18, 0.54]) { const j = rand() - 0.5, k = (rand() - 0.5) * 0.12, x = a.x + dx / len * (t + k) + nx * (off + j * 0.1), z = a.z + dz / len * (t + k) + nz * (off + j * 0.1); if (Math.hypot(x, z) > SQUARE - 0.3) lay(x, z); }
     }
     const inst = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.2, 0), new THREE.MeshLambertMaterial({ flatShading: true }), stones.length), m = new THREE.Object3D(), c = new THREE.Color();
     const tones = [0xc9c2b4, 0xb4bfcb, 0xd9d0bf, 0xa9b2bc, 0xe4dccd, 0xcdc1ab, 0xbcc6cf];
@@ -149,7 +150,12 @@ export function buildTown() {
 
   hut('library', { w: 5.6, h: 3.8, depth: 4, label: 'BOOKS', wall: 0xf7b34a, roof: 0x2f7f9a });
   { const g = hut('studio', { w: 4.8, h: 3.4, depth: 4, label: 'STUDIO', wall: 0xff8f6b, roof: 0x6a2fc4 });
-    box(0.9, 1.1, 0.08, 0xfffaf0, 1.7, 1.35, 3.0, g).rotation.x = -0.2;                // easel
+    const easelCanvas = document.createElement('canvas'); easelCanvas.width = 300; easelCanvas.height = 200; drawPicture(easelCanvas, 'flowers', 1);
+    const easelTex = new THREE.CanvasTexture(easelCanvas); easelTex.colorSpace = THREE.SRGBColorSpace;
+    box(1.3, 0.95, 0.06, P.woodDark, 1.7, 1.45, 2.97, g).rotation.x = -0.2;
+    const pic = mesh(new THREE.PlaneGeometry(1.2, 0.8), new THREE.MeshBasicMaterial({ map: easelTex }), 1.7, 1.45, 3.01, g); pic.rotation.x = -0.2;   // easel, showing her latest drawing
+    town.userData.easel = { canvas: easelCanvas, tex: easelTex, key: '' };
+    box(1.4, 0.06, 0.2, P.woodDark, 1.7, 0.98, 3.05, g);
     for (const s of [-1, 1]) box(0.08, 1.7, 0.08, P.woodDark, 1.7 + s * 0.35, 0.85, 3.05, g); }
 
   // ---- museum -----------------------------------------------------------
@@ -187,7 +193,7 @@ export function buildTown() {
 
   // ---- festival things in the square, only out for events ------------------------------
   const festival = new THREE.Group(), lanternsG = new THREE.Group(); festival.visible = lanternsG.visible = false; town.add(festival, lanternsG);
-  { const poles = [[-4, -4], [4, -4], [4, 4], [-4, 4]];
+  { const poles = [[-5, -5], [5, -5], [5, 5], [-5, 5]];
     poles.forEach(([x, z]) => box(0.16, 4, 0.16, P.woodDark, x, 2, z, festival));
     poles.forEach(([x, z], i) => { const [nx, nz] = poles[(i + 1) % 4]; for (let k = 1; k < 8; k++) { const f = mesh(new THREE.ConeGeometry(0.22, 0.5, 3), flat([0xe8452c, 0xffd93b, 0x2fc6b3, 0x6a2fc4][k % 4]), x + (nx - x) * k / 8, 3.7 - Math.sin(k / 8 * Math.PI) * 0.5, z + (nz - z) * k / 8, festival); f.rotation.x = Math.PI; } });
     box(3, 0.4, 2, P.wood, -3, 0.2, 3, festival); box(1.6, 0.8, 0.8, 0xfffaf0, 3, 0.4, 3, festival);
@@ -204,9 +210,19 @@ export function buildTown() {
 
   // ---- flagpole in the square (she designs the flag) -------------------------------
   const flagMat = flat(FLAGS[0]);
-  { box(0.16, 5.2, 0.16, 0xfffaf0, -2.6, 2.6, 2.4); mesh(new THREE.BoxGeometry(1.6, 1.0, 0.06), flagMat, -1.75, 4.6, 2.4); box(0.5, 0.34, 0.07, 0xfffaf0, -1.75, 4.6, 2.4); box(0.6, 0.3, 0.6, P.rockDark, -2.6, 0.15, 2.4);
-    box(1.6, 1.3, 0.12, P.woodDark, 2.6, 1.25, 2.6).rotation.y = -0.5; box(1.4, 1.0, 0.06, 0xfff1d6, 2.56, 1.3, 2.67).rotation.y = -0.5; for (const s of [-1, 1]) box(0.12, 1.1, 0.12, P.woodDark, 2.6 + s * 0.6, 0.55, 2.6 + s * 0.33); }   // noticeboard
-
+  { box(0.16, 5.2, 0.16, 0xfffaf0, -3.8, 2.6, 3.6); mesh(new THREE.BoxGeometry(1.6, 1.0, 0.06), flagMat, -2.95, 4.6, 3.6); box(0.5, 0.34, 0.07, 0xfffaf0, -2.95, 4.6, 3.6); box(0.6, 0.3, 0.6, P.rockDark, -3.8, 0.15, 3.6); }
+  // ---- the noticeboard: click it to read the notes left for her ----------------------
+  const board = new THREE.Group();
+  { board.position.set(BOARD.x, 0, BOARD.z); board.rotation.y = Math.atan2(-BOARD.x, -BOARD.z); town.add(board);
+    for (const sd of [-1, 1]) box(0.16, 2.3, 0.16, P.woodDark, sd * 1.05, 1.15, 0, board);
+    box(2.3, 1.55, 0.14, P.woodDark, 0, 1.55, 0, board); box(2.05, 1.3, 0.06, 0xd9b48a, 0, 1.55, 0.07, board);
+    const gable = new THREE.Shape(); gable.moveTo(-1.35, 0); gable.lineTo(1.35, 0); gable.lineTo(0, 0.55); gable.closePath();
+    const roof = mesh(new THREE.ExtrudeGeometry(gable, { depth: 0.5, bevelEnabled: false }), flat(0xe8452c), 0, 2.35, -0.25, board); void roof;
+    [[-0.6, 1.85, 0xfff1d6], [0.1, 1.9, 0xffd9de], [0.65, 1.7, 0xdff3ff], [-0.45, 1.3, 0xfff3c4], [0.35, 1.25, 0xfff1d6], [-0.85, 1.1, 0xe2f5e0]].forEach(([x, y, c], i) => {
+      const n = box(0.48, 0.4, 0.02, c, x, y, 0.11, board); n.rotation.z = (i % 2 ? 1 : -1) * 0.08; box(0.06, 0.06, 0.03, 0xe8452c, x, y + 0.15, 0.13, board); });
+    sign('NOTICES', 1.5, board, 0, 2.62, 0.3, { bg: '#fff1d6', fg: '#e8452c' }); }
+  // the noticeboard reads as one thing to click
+  board.traverse(o => { o.userData.clickable = 'board'; });
   // ---- the painter's boat (only moored on some days) ---------------------------------
   const painter = new THREE.Group(); painter.visible = false; town.add(painter);
   { const a = 0.75, r = R + 3.2; painter.position.set(Math.cos(a) * r, -0.15, Math.sin(a) * r); painter.rotation.y = -a;
@@ -266,6 +282,7 @@ export function buildTown() {
       box(0.1, 0.1, 0.06, 0x1d2545, 0, 8.5, 1.38, face); void rim;
     } }
   function setObservatory(night, using, t) { dome.rotation.y = night > 0.5 ? Math.sin(t * 0.05) * 1.2 : 0; scopeLight.emissiveIntensity = using ? 1.8 : night * 0.4; }
+  function setEasel(d) { const e = town.userData.easel, key = d ? `${d.seed}` : ''; if (!d || key === e.key) return; e.key = key; drawPicture(e.canvas, d.title, d.seed); e.tex.needsUpdate = true; }
   function setClock(hour) { const h = -(hour % 12) / 12 * 6.283, m = -(hour % 1) * 6.283; for (const c of clockHands) { c.hour.rotation.z = h; c.minute.rotation.z = m; } }
 
   // ---- clothes shop: striped awning, a mannequin and a hat stand out front -------------------
@@ -390,14 +407,14 @@ export function buildTown() {
   // ---- mailbox and lamps -----------------------------------------------------------------
   { box(0.2, 1.1, 0.2, P.woodDark, 1.5, 0.55, -0.6); box(0.7, 0.5, 0.95, 0xe8452c, 1.5, 1.3, -0.6);
     town.userData.flag = box(0.08, 0.5, 0.3, 0xffd93b, 1.9, 1.5, -0.6); }
-  lamp(-2.4, -2.0);
+  lamp(-4.4, -3.4); lamp(3.6, -5.2); lamp(-5.6, 3.2);
   for (const key of ['home', 'fish', 'library', 'studio', 'lookout', 'cinema', 'beach', 'museum', 'shop', 'tailor', 'observatory']) { const p = PLACES[key], l = Math.hypot(p.x, p.z); lamp(p.x * 0.6 + (p.z / l) * 1.5, p.z * 0.6 - (p.x / l) * 1.5); }
 
   // ---- decoration round the edge ------------------------------------------------------------
   const extraObs = [site('cafe'), CLOCK, BIG_ROCK, ...NEIGHBOURS.flatMap(n => n.hobbies.filter(h => h.at).map(h => h.at)), ...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home)];
   const clear = (x, z, pad) => !onPath(x, z, 1.8) && !inBeach(x, z) && !nearRiver(x, z, 3.2) && extraObs.every(o => Math.hypot(o.x - x, o.z - z) > 3.6) && Object.keys(PLACES).every(k => { const s = site(k); return Math.hypot(s.x - x, s.z - z) > (s.r || 2.5) + pad && Math.hypot(PLACES[k].x - x, PLACES[k].z - z) > 3; });
   let placed = 0;
-  for (let i = 0; i < 900 && placed < 52; i++) {
+  for (let i = 0; i < 1400 && placed < 80; i++) {
     const a = rand() * 6.28, r = R * 0.5 + rand() * (R * 0.45), x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (!clear(x, z, 1.6)) continue;
     const kind = placed % 4;
@@ -432,5 +449,5 @@ export function buildTown() {
   function setAway(islet) { isletBoats.forEach((b, i) => { b.visible = islet === i; }); beachBoat.visible = islet == null; }
   function setEvent(show) { festival.visible = !!show; lanternsG.visible = show === 'lanterns'; }
   setHouse(0, 1);
-  return { town, setNight, setSeason, setHouse, setEvent, setIsland, setAway, setClock, setObservatory, pond, flag: town.userData.flag };
+  return { town, board, setEasel, setNight, setSeason, setHouse, setEvent, setIsland, setAway, setClock, setObservatory, pond, flag: town.userData.flag };
 }

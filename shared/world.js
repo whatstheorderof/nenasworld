@@ -3,9 +3,13 @@
 // the thing itself (building, pond...) sits `d` metres further out from the island centre
 // and blocks a circle of radius `r`, which she walks around.
 // K stretches the whole layout: buildings stay the same size, the island and the gaps between things grow.
-export const K = 1.35;
-export const WORLD = { size: 88, radius: 30 * K, name: "Nena's World", layout: 4 };
-const DZ = 12 * K + 7.2 - 19.2;   // how far south the river moved when the island grew (the pond's centre is 12K + 7.2)
+export const K = 1.65;
+// The scale each saved layout was drawn at, so her things can be moved out when the island grows.
+export const LAYOUT_K = { 1: 1, 2: 1.35, 3: 1.35, 4: 1.35, 5: 1.65 };
+export const SQUARE = 7.5;   // radius of the round pebble town square
+export const WORLD = { size: 88, radius: 30 * K, name: "Nena's World", layout: 5 };
+const POND_Z = 9.7 * K + 10.3;     // centre of the pond
+const DZ = POND_Z - 19.2;           // the river runs out of the pond, so it moves with it
 
 export const PLACES = {
   home:    { label: 'House',        x: -13,   z: -9,    d: 4.7, r: 3.1 },
@@ -43,9 +47,9 @@ export function site(key) {
 // Each has hobbies: things they go and do on their own, which she can join in with.
 export const NEIGHBOURS = [
   { name: 'Bo',   kind: 'seal',   home: { x: 8.5 * K,   z: 24 * K },   says: ['the tide was loud last night.', 'i found a warm rock. it is mine now.', 'you smell like fish. that is a compliment.'],
-    hobbies: [{ doing: 'sunbathing', at: { x: 13 * K, z: 22.5 * K }, anim: 'lie' }, { doing: 'watching the pond', at: { x: 10.6, z: 16.5 }, anim: 'sit' }, { doing: 'fishing', at: { x: -12.5 * K, z: 16.3 + DZ }, anim: 'sit' }] },
+    hobbies: [{ doing: 'sunbathing', at: { x: 13 * K, z: 22.5 * K }, anim: 'lie' }, { doing: 'watching the pond', at: { x: 10.6, z: POND_Z - 6.9 }, anim: 'sit' }, { doing: 'fishing', at: { x: -12.5 * K, z: 16.3 + DZ }, anim: 'sit' }] },
   { name: 'Pip',  kind: 'puffin', home: { x: 10 * K,    z: -22 * K },  says: ['i counted the fence planks again. still a lot.', 'have you seen the sky from the tower?', 'i am collecting interesting sticks.'],
-    hobbies: [{ doing: 'jogging round the square', anim: 'jog', loop: 6.5 }, { doing: 'doing star jumps', at: { x: -3.5, z: 3.5 }, anim: 'jump' }, { doing: 'collecting sticks', at: { x: 6 * K, z: -8 * K }, anim: 'peck' }] },
+    hobbies: [{ doing: 'jogging round the square', anim: 'jog', loop: SQUARE - 1 }, { doing: 'doing star jumps', at: { x: -4.5, z: 4.5 }, anim: 'jump' }, { doing: 'collecting sticks', at: { x: 6 * K, z: -8 * K }, anim: 'peck' }] },
   { name: 'Suvi', kind: 'fox',    home: { x: -25.5 * K, z: 6.5 * K },  says: ['the snow by the igloo squeaks. did you notice?', 'i heard something in the river. probably a fish.', 'i like your scarf.'],
     hobbies: [{ doing: 'singing by the bridge', at: { x: -16.5 * K, z: 16.4 + DZ }, anim: 'sing' }, { doing: 'reading outside the library', at: { x: -12.5 * K, z: 10.5 * K }, anim: 'sit' }, { doing: 'smelling the flowers', at: { x: 5.2 * K, z: -2.2 * K }, anim: 'peck' }] },
 ];
@@ -59,14 +63,15 @@ export const CAMPERS = [
 ];
 // Little islands out past the foam that she rows to.
 export const ISLETS = [
-  { name: 'Blossom Islet', a: 0.3, r: 66, gives: ['blossom petals', 'fruit', 'stick'] },
-  { name: 'Stone Islet', a: 0.95, r: 70, gives: ['stone', 'ore', 'clay'] },
-  { name: 'Mushroom Islet', a: 1.6, r: 66, gives: ['mushroom', 'sea glass', 'hum seed'] },
+  { name: 'Blossom Islet', a: 0.3, r: 30 * K + 24, gives: ['blossom petals', 'fruit', 'stick'] },
+  { name: 'Stone Islet', a: 0.95, r: 30 * K + 28, gives: ['stone', 'ore', 'clay'] },
+  { name: 'Mushroom Islet', a: 1.6, r: 30 * K + 24, gives: ['mushroom', 'sea glass', 'hum seed'] },
 ];
 export const isletPos = i => ({ x: Math.cos(ISLETS[i].a) * ISLETS[i].r, z: Math.sin(ISLETS[i].a) * ISLETS[i].r });
 export const ORCHARD_TREES = [[-0.6, 2.4], [2.2, -1.4], [-2.2, -2.4]].map(([x, z]) => [PLACES.orchard.x + x, PLACES.orchard.z + z]);
 export const BIG_ROCK = { x: PLACES.rock.x - 2, z: PLACES.rock.z };
-export const CLOCK = { x: 2.5, z: 7.8 };   // the clocktower, just off the square
+export const CLOCK = { x: 3.4, z: SQUARE + 2.6 };   // the clocktower, just off the square
+export const BOARD = { x: 5.6, z: 1.4 };            // the noticeboard, on the square
 
 // Things she cannot walk through.
 export const OBSTACLES = [
@@ -74,6 +79,7 @@ export const OBSTACLES = [
   { key: 'mailbox', x: 1.5, z: -0.6, r: 0.6 },
   { key: 'bigrock', ...BIG_ROCK, r: 1.3 },
   { key: 'clock', ...CLOCK, r: 1.5 },
+  { key: 'board', ...BOARD, r: 0.9 },
   ...ORCHARD_TREES.map(([x, z]) => ({ key: 'tree', x, z, r: 0.9 })),
   ...NEIGHBOURS.map(n => ({ key: 'tent', x: n.home.x, z: n.home.z, r: 1.9 })),
 ];
@@ -121,7 +127,7 @@ export function freeNear(at, others = [], gap = 2.0, rand = Math.random) {
 // Pebble paths: from the square to every place, bending around buildings.
 // A ring path round the middle of the island, four paths in from the square, and a short spur
 // from the ring out to each place. Every stretch is routed around buildings.
-export const RING = 16;
+export const RING = 12 * K;
 export const PATHS = (() => {
   const ring = [];
   for (let i = 0; i < 40; i++) { const a = i / 40 * 6.283, x = Math.cos(a) * RING, z = Math.sin(a) * RING; if (!blocked(x, z, 1.4)) ring.push({ x, z, a }); }
@@ -129,12 +135,12 @@ export const PATHS = (() => {
   for (let i = 0; i < ring.length; i++) { const a = ring[i], b = ring[(i + 1) % ring.length]; lines.push([a, ...route(a, b)]); }
   for (const deg of [45, 135, 225, 315]) {   // in from the square, between the main buildings
     const a = deg * Math.PI / 180, end = ring.reduce((best, r) => Math.abs(Math.atan2(Math.sin(r.a - a), Math.cos(r.a - a))) < Math.abs(Math.atan2(Math.sin(best.a - a), Math.cos(best.a - a))) ? r : best);
-    const start = { x: Math.cos(end.a) * 4.4, z: Math.sin(end.a) * 4.4 }; lines.push([start, ...route(start, end)]);
+    const start = { x: Math.cos(end.a) * (SQUARE - 0.2), z: Math.sin(end.a) * (SQUARE - 0.2) }; lines.push([start, ...route(start, end)]);
   }
   for (const [k, p] of Object.entries(PLACES)) {
     if (k === 'plaza') continue;
     const d = Math.hypot(p.x, p.z);
-    if (d < RING - 3) { const a = Math.atan2(p.z, p.x), start = { x: Math.cos(a) * 4.4, z: Math.sin(a) * 4.4 }; lines.push([start, ...route(start, p)]); continue; }   // close in: straight from the square
+    if (d < RING - 3) { const a = Math.atan2(p.z, p.x), start = { x: Math.cos(a) * (SQUARE - 0.2), z: Math.sin(a) * (SQUARE - 0.2) }; lines.push([start, ...route(start, p)]); continue; }   // close in: straight from the square
     const a = Math.atan2(p.z, p.x), from = ring.reduce((best, r) => Math.hypot(r.x - p.x, r.z - p.z) < Math.hypot(best.x - p.x, best.z - p.z) ? r : best);
     void a; lines.push([from, ...route(from, p)]);
   }
@@ -146,7 +152,7 @@ export function onPath(x, z, pad = 1.2) {
     const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / l2));
     if (Math.hypot(a.x + dx * t - x, a.z + dz * t - z) < pad) return true;
   }
-  return Math.hypot(x, z) < 4.5 + pad - 1;   // the round pebble square
+  return Math.hypot(x, z) < SQUARE + pad - 1;   // the round pebble square
 }
 // An open bit of grass: on the island, off the beach and river, clear of buildings and of `others`.
 export function freeSpot(others = [], gap = 2.6, rand = Math.random) {

@@ -78,7 +78,7 @@ export class Brain {
   async #afterwards(a) {
     const w = this.world, m = this.memory;
     if (a.action === 'read' && a.detail) { m.bumpInterest(a.detail); w.bump(0.1); }
-    if (a.action === 'draw' && a.detail) { m.bumpInterest(a.detail, 0.15); this.todayLog.push({ made: `drew ${a.detail}` }); w.bump(0.15); }
+    if (a.action === 'draw' && a.detail) { m.bumpInterest(a.detail, 0.15); w.bump(0.15); }
     if (a.action === 'watch_film' && a.detail) { this.todayLog.push({ made: `watched "${a.detail}" at the cinema` }); w.bump(0.15); }
     if (a.action === 'read_mail') await this.#readMail();
     if (a.action === 'sleep') await this.#sleepOnIt();

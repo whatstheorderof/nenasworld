@@ -6,11 +6,12 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { PLACES, NEEDS, ISLETS, WORLD, isletPos, site } from '../../shared/world.js';
-import { SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
+import { FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
 import { buildNena, buildRobot } from './nena.js';
 import { buildTown } from './town.js';
 import { buildDynamic } from './dynamic.js';
 import { startLocalMind } from './localmind.js';
+import { drawPicture, playTune } from './art.js';
 
 const MIND = (import.meta.env.VITE_MIND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const qs = new URLSearchParams(location.search);   // ?hour=23&weather=aurora&season=winter&show=fireworks to preview a look
@@ -21,13 +22,13 @@ const canvas = $('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x7fe9ff, 100, 240);
-const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 600);
+scene.fog = new THREE.Fog(0x7fe9ff, 130, 320);
+const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 800);
 camera.position.set(PLACES.home.x + 10, 9, PLACES.home.z + 15);
 const controls = new OrbitControls(camera, canvas);
 controls.target.set(PLACES.home.x, 1, PLACES.home.z);
 controls.enableDamping = true; controls.enablePan = false;
-controls.minDistance = 8; controls.maxDistance = 110; controls.maxPolarAngle = 1.45;
+controls.minDistance = 8; controls.maxDistance = 140; controls.maxPolarAngle = 1.45;
 
 const hemi = new THREE.HemisphereLight(0xffffff, 0x9fd27a, 1.5); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2d8, 2.0); sun.position.set(20, 30, 12); scene.add(sun);
@@ -59,7 +60,7 @@ const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xff
   const inst = new THREE.InstancedMesh(puff, cloudMat, N * PER), m = new THREE.Object3D();
   let seed = 3; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   for (let c = 0, k = 0; c < N; c++) {
-    const below = c < 26, a = rnd() * 6.283, r = below ? 35 + rnd() * 110 : 110 + rnd() * 100, y = below ? -28 - rnd() * 24 : -18 + rnd() * 40, size = below ? 7 + rnd() * 6 : 6 + rnd() * 8;
+    const below = c < 26, a = rnd() * 6.283, r = below ? 40 + rnd() * 130 : 130 + rnd() * 120, y = below ? -30 - rnd() * 26 : -18 + rnd() * 44, size = below ? 7 + rnd() * 6 : 6 + rnd() * 8;
     const cx = Math.cos(a) * r, cz = Math.sin(a) * r;
     for (let i = 0; i < PER; i++, k++) {
       const s = size * (0.55 + rnd() * 0.5) * (i === 0 ? 1.3 : 1);
@@ -124,7 +125,7 @@ function setSky(hour, weather, dt, show) {
   for (const key of Object.keys(wx)) wx[key] += ((weather === key ? 1 : 0) - wx[key]) * k;
   if (wx.mist > 0.01) sky.lerp(new THREE.Color(d > 0.5 ? 0xd8eef5 : 0x232a45), wx.mist * 0.6);
   scene.background = sky; scene.fog.color.copy(sky);
-  scene.fog.near = 100 - wx.mist * 90; scene.fog.far = 240 - wx.mist * 170;
+  scene.fog.near = 130 - wx.mist * 118; scene.fog.far = 320 - wx.mist * 240;
   hemi.intensity = 0.28 + d * 1.25; hemi.color.set(d > 0.5 ? 0xffffff : 0x8fa8ff); hemi.groundColor.set(d > 0.5 ? 0x9fd27a : 0x1d2545);
   sun.intensity = d * 2.0 + n * 0.25; sun.color.set(d > 0.5 ? 0xfff2d8 : 0x9bb4ff);
   stars.material.opacity = n * (1 - wx.mist) * 0.95;
@@ -186,7 +187,7 @@ const clockText = h => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 async function refreshLife() {
-  try { lifeData = local ? local.life() : await api('/api/life'); dyn.setDecor(lifeData.decorList || [], now?.day || 1); if (openPanel === 'things') show('things'); } catch {}
+  try { lifeData = local ? local.life() : await api('/api/life'); dyn.setDecor(lifeData.decorList || [], now?.day || 1); if (openPanel === 'things' || openPanel === 'makes') show(openPanel); } catch {}
 }
 function apply(n, snap) {
   now = n;
@@ -212,6 +213,7 @@ function apply(n, snap) {
   town.setAway(n.activity.phase === 'doing' && n.activity.anim === 'sail' ? n.activity.islet ?? 0 : null);
   dyn.setSpots(n.spots || []);
   if (n.lifeVersion !== lifeVersion) { lifeVersion = n.lifeVersion; refreshLife(); }
+  if (lifeData?.drawings?.length) town.setEasel(lifeData.drawings[lifeData.drawings.length - 1]);
 }
 
 // ---- panels ------------------------------------------------------------------
@@ -251,6 +253,31 @@ async function show(name) {
         <h3>Travels and travellers</h3><p>Islets rowed to: ${l.islets.map(esc).join(', ') || 'none yet'} (${l.islets.length}/${ISLETS.length}). Campers met: ${l.metCampers.map(esc).join(', ') || 'none yet'}.${l.camper ? ` ${esc(l.camper.name)} the ${esc(l.camper.kind)} is at the campsite today.` : ''}</p>
         <h3>Neighbours</h3>${Object.entries(l.friends).map(([k, v]) => `<div class="entry">${esc(k)}<div class="meter"><i style="width:${v * 10}%"></i></div></div>`).join('')}
         <h3>Museum ${got}/${l.total}</h3><div class="meter"><i style="width:${got / l.total * 100}%"></i></div>${cats}`;
+    } else if (name === 'board') {
+      if (local) { body.innerHTML = `<h2>The noticeboard</h2>${standIn}`; return; }
+      const notes = await api('/api/board');
+      const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
+      body.innerHTML = `<h2>The noticeboard</h2><p class="dim">Everything people have left for Nena, and what she said back.</p>` +
+        (notes.map(n => `<div class="note"><div class="note-from"><b>${esc(n.name)}</b> <span class="dim">${ago(n.at)}</span></div><p>${esc(n.text)}</p>${n.read ? `<div class="reply"><b>Nena:</b> ${esc(n.reply)}</div>` : '<div class="dim">Still in her mailbox. She has not read it yet.</div>'}</div>`).join('') || '<p>Nothing pinned up yet. Be the first to leave her something.</p>') +
+        `<p><button class="inline" id="board-leave">Leave her something</button></p>`;
+      $('board-leave').onclick = () => show('leave');
+    } else if (name === 'makes') {
+      const l = lifeData; if (!l) { body.innerHTML = '<h2>What she has made</h2><p>Nothing yet.</p>'; return; }
+      const built = {}; for (const d of l.decorList || []) (built[d.kind] ||= []).push(d);
+      const names = { flowers: ['flower patch', 'flower patches'], 'stepping stones': ['set of stepping stones', 'sets of stepping stones'], 'stick fence': ['stick fence', 'stick fences'], 'wind chime': ['wind chime', 'wind chimes'] };
+      const named = (k, n) => names[k] ? names[k][n > 1 ? 1 : 0] : n > 1 ? (k.endsWith('s') ? k : k.endsWith('h') ? k + 'es' : k + 's') : k;
+      body.innerHTML = `<h2>What she has made</h2>
+        <h3>Drawings ${l.drawings.length ? `(${l.drawings.length})` : ''}</h3>${l.drawings.length ? `<p class="dim">Her latest is on the easel outside the studio.</p><div class="gallery">${[...l.drawings].reverse().slice(0, 12).map((d, i) => `<figure><canvas width="240" height="160" data-draw="${i}"></canvas><figcaption>${esc(d.title)}<span class="dim"> · day ${d.day}</span></figcaption></figure>`).join('')}</div>` : '<p>No drawings yet. She draws at the studio.</p>'}
+        <h3>Photos ${l.photoLog.length ? `(${l.photoLog.length})` : ''}</h3>${l.photoLog.length ? `<p class="dim">Taken from where she stood, shown in today's light.</p><div class="gallery">${[...l.photoLog].reverse().slice(0, 6).map((p, i) => `<figure><canvas width="240" height="160" data-photo="${i}"></canvas><figcaption>day ${p.day}, ${clockText(p.hour)}</figcaption></figure>`).join('')}</div>` : '<p>No photos yet.</p>'}
+        <h3>Things she built and planted</h3>${Object.keys(built).length ? Object.entries(built).map(([k, list]) => `<div class="entry built"><span>${list.length} ${esc(named(k, list.length))}</span><button class="inline" data-fly="${esc(k)}">Show me</button></div>`).join('') : '<p>Nothing out on the island yet.</p>'}
+        <h3>Her island tune</h3>${l.tune ? `<p>${esc(l.tune)} <button class="inline" id="play-tune">Play it</button></p>` : '<p>She has not made one up yet.</p>'}
+        <h3>Her flag</h3><p><span class="swatch" style="background:#${(FLAGS[l.flag] ?? FLAGS[0]).toString(16).padStart(6, '0')}"></span> flying in the square</p>
+        ${l.dishes.length ? `<h3>Things she has cooked</h3><p>${[...l.dishes].reverse().slice(0, 10).map(d => esc(d.name)).join(' · ')}</p>` : ''}`;
+      const ds = [...l.drawings].reverse(), ps = [...l.photoLog].reverse();
+      body.querySelectorAll('canvas[data-draw]').forEach(c => { const d = ds[+c.dataset.draw]; drawPicture(c, d.title, d.seed); });
+      body.querySelectorAll('canvas[data-photo]').forEach(c => renderPhoto(c, ps[+c.dataset.photo]));
+      body.querySelectorAll('[data-fly]').forEach(b => b.onclick = () => { const list = built[b.dataset.fly], p = nena.root.position; const d = list.reduce((a, x) => Math.hypot(x.x - p.x, x.z - p.z) < Math.hypot(a.x - p.x, a.z - p.z) ? x : a); flyTo(d.x, d.z); });
+      if ($('play-tune')) $('play-tune').onclick = () => playTune(l.tune);
     } else if (name === 'memory') {
       if (local) { body.innerHTML = `<h2>What she is carrying</h2>${standIn}`; return; }
       const m = await api('/api/memory');
@@ -260,7 +287,7 @@ async function show(name) {
     } else if (name === 'leave') {
       if (local) { body.innerHTML = `<h2>Leave her something</h2>${standIn}`; return; }
       const mine = await api(`/api/notes?name=${encodeURIComponent(myName())}`).catch(() => []);
-      body.innerHTML = `<h2>Leave her something</h2><p>It goes in her mailbox. She reads it in her own time and remembers who left it.</p>
+      body.innerHTML = `<h2>Leave her something</h2><p>It goes in her mailbox. She reads it in her own time and remembers who left it. Notes and her replies are pinned to the noticeboard in the square, where everyone can read them.</p>
         <form id="note"><input name="name" maxlength="24" value="${esc(myName())}" aria-label="Your name" /><textarea name="text" maxlength="240" placeholder="A message for Nena" required></textarea><button>Put it in the mailbox</button><p id="note-msg" class="dim"></p></form>
         ${mine.length ? '<h3>What you have left</h3>' + mine.map(n => `<div class="entry">${esc(n.text)}<div class="dim">${n.read ? `She said: "${esc(n.reply)}"` : 'Still in the mailbox.'}</div></div>`).join('') : ''}`;
       $('note').onsubmit = async e => {
@@ -283,11 +310,41 @@ addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());
 $('cam').onclick = () => {
   freeCam = !freeCam;
-  controls.enablePan = freeCam; controls.maxDistance = freeCam ? 240 : 110; controls.maxPolarAngle = freeCam ? 1.55 : 1.45;
+  controls.enablePan = freeCam; controls.maxDistance = freeCam ? 300 : 140; controls.maxPolarAngle = freeCam ? 1.55 : 1.45;
   $('cam').textContent = freeCam ? 'Follow Nena' : 'Free camera';
   $('camhelp').hidden = !freeCam;
   if (!freeCam) { const p = nena.root.position; const off = camera.position.clone().sub(controls.target).setLength(22); controls.target.set(p.x, 1, p.z); camera.position.copy(controls.target).add(off); if (camera.position.y < 6) camera.position.y = 6; }
 };
+
+// ---- photos: render the view from where she stood ------------------------------------
+const photoCam = new THREE.PerspectiveCamera(50, 1.5, 0.5, 800);
+function renderPhoto(canvas, p) {
+  const w = renderer.domElement.width, h = renderer.domElement.height;
+  photoCam.aspect = w / h; photoCam.updateProjectionMatrix();
+  photoCam.position.set(p.x, 1.7, p.z); photoCam.lookAt(p.x + Math.sin(p.h) * 12, 1.3, p.z + Math.cos(p.h) * 12);
+  const hid = nena.root.visible; nena.root.visible = false;
+  renderer.render(scene, photoCam);
+  const g = canvas.getContext('2d'), cw = canvas.width, ch = canvas.height, sw = Math.min(w, h * cw / ch), sh = sw * ch / cw;
+  g.drawImage(renderer.domElement, (w - sw) / 2, (h - sh) / 2, sw, sh, 0, 0, cw, ch);
+  nena.root.visible = hid;
+}
+
+// ---- show me: fly the camera to something on the island ----------------------------------
+function flyTo(x, z) {
+  if (!freeCam) $('cam').click();
+  const off = new THREE.Vector3(6, 6, 9);
+  flight = { from: controls.target.clone(), fromCam: camera.position.clone(), to: new THREE.Vector3(x, 0.6, z), toCam: new THREE.Vector3(x, 0.6, z).add(off), t: 0 };
+}
+let flight = null;
+
+// ---- the noticeboard is clickable ---------------------------------------------------------
+const pickRay = new THREE.Raycaster(), ptr = new THREE.Vector2();
+const clickableAt = e => { ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); pickRay.setFromCamera(ptr, camera); const hit = pickRay.intersectObject(town.board, true)[0]; return hit?.object.userData.clickable || null; };
+let downAt = null;
+canvas.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+canvas.addEventListener('pointerup', e => { if (downAt && Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) < 6 && clickableAt(e) === 'board') show('board'); downAt = null; });
+let hoverT = 0;
+canvas.addEventListener('pointermove', e => { if (performance.now() - hoverT < 80) return; hoverT = performance.now(); canvas.style.cursor = clickableAt(e) ? 'pointer' : ''; });
 
 // ---- visitors: your gull ----------------------------------------------------------------
 const ray = new THREE.Raycaster(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -335,6 +392,7 @@ function frame() {
   const sp = snow.geometry.attributes.position;
   if (wx.snow > 0.02) { for (let i = 0; i < SNOW; i++) { let y = sp.getY(i) - dt * (1.5 + (i % 5) * 0.3); if (y < 0) y = 30; sp.setY(i, y); } sp.needsUpdate = true; }
 
+  if (flight) { flight.t = Math.min(1, flight.t + dt * 0.7); const e = flight.t * flight.t * (3 - 2 * flight.t); controls.target.lerpVectors(flight.from, flight.to, e); camera.position.lerpVectors(flight.fromCam, flight.toCam, e); if (flight.t >= 1 || keys.size) flight = null; }
   if (freeCam) {
     const sp = (keys.has('shift') ? 40 : 16) * dt, f = new THREE.Vector3(); camera.getWorldDirection(f); f.y = 0; f.normalize(); const r = new THREE.Vector3(-f.z, 0, f.x), mv = new THREE.Vector3();
     if (keys.has('w') || keys.has('arrowup')) mv.add(f); if (keys.has('s') || keys.has('arrowdown')) mv.sub(f); if (keys.has('d') || keys.has('arrowright')) mv.add(r); if (keys.has('a') || keys.has('arrowleft')) mv.sub(r);

@@ -2,13 +2,13 @@
 // what she has built and where she put it, her house, her scarves, her friendships.
 // Pure logic with an injected store, so the same code runs on the server and in the browser.
 import { SPECIES, MATERIAL_VALUE, RECIPES, SHOP, SCARVES, HOUSE_LOOKS, HOUSE_LOAN, SEASON_FIND, SONGS, STAMPS, FLAGS, BLOOMS, HATS, CLOTHES_PRICE, SKY, SKY_RARE, GLASSES, crossBloom, catchOne, calendar } from './data.js';
-import { NEIGHBOURS, CAMPERS, ISLETS, WORLD, K, freeSpot, freeNear, blocked } from './world.js';
+import { NEIGHBOURS, CAMPERS, ISLETS, WORLD, K, LAYOUT_K, freeSpot, freeNear, blocked } from './world.js';
 
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const an = w => (/^[aeiou]/.test(w) ? `an ${w}` : `a ${w}`);
 const DEFAULT = () => ({
-  coins: 0, items: {}, museum: { fish: [], bug: [], sea: [], fossil: [], art: [] }, decor: [], songs: [], stamps: [], n: {}, golden: {}, fakes: {}, cosy: 0, crops: 0, rides: 0, tune: null, hot: 'shell', blooms: [], camper: null, metCampers: [], islets: [],
+  coins: 0, items: {}, museum: { fish: [], bug: [], sea: [], fossil: [], art: [] }, decor: [], songs: [], stamps: [], n: {}, golden: {}, fakes: {}, cosy: 0, crops: 0, rides: 0, tune: null, hot: 'shell', blooms: [], camper: null, metCampers: [], islets: [], drawings: [], photoLog: [], dishes: [],
   look: { scarf: 0, scarves: [0], house: 0, hat: 0, hats: [0], glasses: 0, glasses_owned: [0] }, sky: [], house: { level: 1, paid: 0 },
   friends: Object.fromEntries(NEIGHBOURS.map(n => [n.name, 0])),
   turnips: { n: 0, paid: 0 }, turnipPrice: 100, shaken: 0, photos: 0, version: 0,
@@ -17,7 +17,8 @@ const DEFAULT = () => ({
 export class Life {
   constructor(store) { this.store = store; const d = DEFAULT(), l = store.load() || {}; this.s = { ...d, ...l, museum: { ...d.museum, ...l.museum }, look: { ...d.look, ...l.look } };
     const was = this.s.layout || 1;
-    if (was < 2) for (const x of this.s.decor) { x.x = Math.round(x.x * K * 10) / 10; x.z = Math.round(x.z * K * 10) / 10; }   // the island grew: move her things out with it
+    const grow = K / (LAYOUT_K[was] || 1);
+    if (grow !== 1) for (const x of [...this.s.decor, ...(this.s.photoLog || [])]) { x.x = Math.round(x.x * grow * 10) / 10; x.z = Math.round(x.z * grow * 10) / 10; }   // the island grew: move her things out with it
     if (was < WORLD.layout) for (const x of this.s.decor) if (blocked(x.x, x.z, 0.6)) { const at = freeSpot(this.s.decor); if (at) { x.x = at.x; x.z = at.z; } }   // something new was built where it stood
     this.s.layout = WORLD.layout;
   }
@@ -67,6 +68,11 @@ export class Life {
     return { ...(r || {}), text: [r?.text, ...extra].filter(Boolean).join('. '), lift: (r?.lift || 0) + 0.3, say: r?.say || 'a stamp!' };
   }
   outcome(action, a, w) {
+    const r = this.outcome2(action, a, w);
+    if (action === 'cook' && r?.text) { (this.s.dishes ||= []).push({ name: r.text.replace(/^(cooked|made) (the )?/, ''), day: w.day }); if (this.s.dishes.length > 30) this.s.dishes.shift(); }
+    return r;
+  }
+  outcome2(action, a, w) {
     const s = this.s, day = w.day, season = calendar(day).season;
     const caught = (cat, where) => {
       const name = catchOne(cat, where, season, cat === 'fish' ? s.golden.rod : cat === 'bug' ? s.golden.net : false), first = !this.has(name) && !this.count(name);
@@ -174,7 +180,8 @@ export class Life {
       case 'boat_trip': { s.boatDay = day; const isl = ISLETS[a.islet ?? 0]; if (!s.islets.includes(isl.name)) s.islets.push(isl.name); const finds = [pick(isl.gives), pick(['shell', 'sea glass', ...isl.gives])]; for (const k of finds) this.add(k, rint(1, 2));
         const saw = pick(['a rock shaped like a sleeping whale', 'an islet with one tree and nobody on it', 'a buoy with a bell that nobody rings', 'the island from far away. it is small', 'something large under the boat, going the other way']);
         return { text: `rowed out to ${isl.name} and came back with ${finds.join(' and ')}. on the way she saw ${saw}`, remember: `i rowed to ${isl.name}. on the way i saw ${saw}`, lift: 0.35 }; }
-      case 'take_photo': { s.photos++; return { text: 'took a photo of the view' }; }
+      case 'take_photo': { s.photos++; (s.photoLog ||= []).push({ x: Math.round(w.pos.x * 10) / 10, z: Math.round(w.pos.z * 10) / 10, h: Math.round(w.heading * 100) / 100, day, hour: Math.round(w.hour * 10) / 10 }); if (s.photoLog.length > 24) s.photoLog.shift(); return { text: 'took a photo of the view' }; }
+      case 'draw': { const title = a.detail || 'something she saw'; (s.drawings ||= []).push({ title, day, seed: Math.floor(Math.random() * 1e9) }); if (s.drawings.length > 40) s.drawings.shift(); return { text: `finished a drawing: ${title}` }; }
       case 'wish': return { text: 'wished on a shooting star', remember: 'i made a wish on a falling star. i am not saying what.', lift: 0.3 };
       case 'event': { const e = a.event; if (!e) return null; let extra = ''; s.eventDone = `${day}:${e.id}`;
         if (e.prize === 'fish') { const k = catchOne('fish', 'river', season); this.add(k); const c = rint(150, 400); s.coins += c; extra = `, landed ${an(k)} and won ${c} coins`; }
@@ -189,7 +196,7 @@ export class Life {
 
   summary() {
     const s = this.s;
-    return { coins: s.coins, items: s.items, museum: s.museum, total: Object.keys(SPECIES).length, decor: s.decor.length, house: s.house, loan: HOUSE_LOAN[s.house.level] || null, friends: s.friends, turnips: s.turnips, turnipPrice: s.turnipPrice, photos: s.photos, shaken: s.shaken, songs: s.songs, stamps: s.stamps, cosy: s.cosy, tune: s.tune, hot: s.hot, golden: s.golden, rides: s.rides, blooms: s.blooms, camper: s.camper, metCampers: s.metCampers, islets: s.islets, sky: s.sky || [], hats: s.look.hats || [0], glasses: s.look.glasses_owned || [0] };
+    return { coins: s.coins, items: s.items, museum: s.museum, total: Object.keys(SPECIES).length, decor: s.decor.length, house: s.house, loan: HOUSE_LOAN[s.house.level] || null, friends: s.friends, turnips: s.turnips, turnipPrice: s.turnipPrice, photos: s.photos, shaken: s.shaken, songs: s.songs, stamps: s.stamps, cosy: s.cosy, tune: s.tune, hot: s.hot, golden: s.golden, rides: s.rides, blooms: s.blooms, camper: s.camper, metCampers: s.metCampers, islets: s.islets, sky: s.sky || [], hats: s.look.hats || [0], glasses: s.look.glasses_owned || [0], drawings: s.drawings || [], photoLog: s.photoLog || [], dishes: s.dishes || [], flag: s.look.flag || 0 };
   }
   freeSpot() { return freeSpot(this.s.decor); }
 }
