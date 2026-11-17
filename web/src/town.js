@@ -256,7 +256,35 @@ export function buildTown() {
       clockHands.push({ hour: mk(0.5, 0.11, 0x1d2545), minute: mk(0.78, 0.07, 0xe8452c) });
       box(0.1, 0.1, 0.06, 0x1d2545, 0, 8.5, 1.38, face); void rim;
     } }
+  function setObservatory(night, using, t) { dome.rotation.y = night > 0.5 ? Math.sin(t * 0.05) * 1.2 : 0; scopeLight.emissiveIntensity = using ? 1.8 : night * 0.4; }
   function setClock(hour) { const h = -(hour % 12) / 12 * 6.283, m = -(hour % 1) * 6.283; for (const c of clockHands) { c.hour.rotation.z = h; c.minute.rotation.z = m; } }
+
+  // ---- clothes shop: striped awning, a mannequin and a hat stand out front -------------------
+  { const g = hut('tailor', { w: 5, h: 3.4, depth: 4, label: 'CLOTHES', wall: 0xffd9de, roof: 0x2f7f9a, trim: 0xe8452c });
+    for (let i = 0; i < 6; i++) { const st = box(0.84, 0.1, 1.2, i % 2 ? 0xfffaf0 : 0xe8452c, -2.1 + i * 0.84, 2.12, 2.5, g); st.rotation.x = 0.4; }
+    const dummy = new THREE.Group(); dummy.position.set(-3.4, 0, 2.6); g.add(dummy);
+    box(0.08, 0.9, 0.08, P.woodDark, 0, 0.45, 0, dummy); const torso = mesh(new THREE.SphereGeometry(0.42, 8, 6), flat(0xfff1d6), 0, 1.25, 0, dummy); torso.scale.set(0.9, 1.15, 0.7);
+    const sc = mesh(new THREE.TorusGeometry(0.36, 0.08, 5, 10), flat(0x6a2fc4), 0, 1.55, 0, dummy); sc.rotation.x = Math.PI / 2;
+    mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.3, 9), flat(0xe8452c), 0, 1.95, 0, dummy); mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.05, 12), flat(0xe8452c), 0, 1.8, 0, dummy);
+    const stand = new THREE.Group(); stand.position.set(3.3, 0, 2.5); g.add(stand);
+    box(0.1, 1.7, 0.1, P.woodDark, 0, 0.85, 0, stand); mesh(new THREE.CylinderGeometry(0.4, 0.45, 0.08, 8), flat(P.woodDark), 0, 0.04, 0, stand);
+    mesh(new THREE.ConeGeometry(0.2, 0.5, 7), flat(0xffd93b), 0.25, 1.65, 0, stand).rotation.z = -0.5; const bh = mesh(new THREE.SphereGeometry(0.26, 8, 5), flat(0x2fc6b3), -0.24, 1.45, 0.05, stand); bh.scale.y = 0.6; }
+
+  // ---- observatory: a round tower with a dome that turns at night ----------------------------
+  let dome = null, scopeLight = null;
+  { const g = at('observatory');
+    mesh(new THREE.CylinderGeometry(3.0, 3.2, 0.5, 14), flat(P.rockDark), 0, 0.25, 0, g);
+    mesh(new THREE.CylinderGeometry(2.6, 2.7, 3.6, 14), flat(0xf4efe2), 0, 2.3, 0, g);
+    mesh(new THREE.CylinderGeometry(2.75, 2.75, 0.25, 14), flat(0x3c2a86), 0, 4.2, 0, g);
+    box(1.1, 1.9, 0.2, 0x3c2a86, 0, 1.45, 2.55, g); for (const sd of [-1, 1]) box(0.7, 0.7, 0.14, glow(0x9cf6ff, 0xdff3ff), sd * 1.6, 2.6, 2.05, g).rotation.y = sd * -0.6;
+    dome = new THREE.Group(); dome.position.y = 4.3; g.add(dome);
+    mesh(new THREE.SphereGeometry(2.6, 14, 7, 0, 6.283, 0, Math.PI / 2), flat(0x8fa3b8), 0, 0, 0, dome);
+    box(0.9, 2.7, 0.3, 0x1d2545, 0, 1.25, 2.1, dome).rotation.x = -0.75;                                   // the slit
+    const scope = mesh(new THREE.CylinderGeometry(0.28, 0.38, 3.0, 8), flat(0xfff1d6), 0, 1.9, 2.0, dome); scope.rotation.x = 0.95;
+    mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.2, 8), flat(0x3c2a86), 0, 2.75, 3.1, dome).rotation.x = 0.95;
+    const sm = new THREE.MeshLambertMaterial({ color: 0xdff3ff, emissive: 0x9cf6ff, emissiveIntensity: 0 }); scopeLight = sm;
+    mesh(new THREE.CircleGeometry(0.34, 10), sm, 0, 2.86, 3.25, dome).rotation.x = 0.95 - Math.PI / 2;
+    sign('OBSERVATORY', 3.6, g, 0, 3.35, 2.68, { bg: '#3c2a86', fg: '#fffaf0' }); }
 
   // ---- cinema ------------------------------------------------------------
   const marquee = [];
@@ -346,7 +374,7 @@ export function buildTown() {
   { box(0.2, 1.1, 0.2, P.woodDark, 1.5, 0.55, -0.6); box(0.7, 0.5, 0.95, 0xe8452c, 1.5, 1.3, -0.6);
     town.userData.flag = box(0.08, 0.5, 0.3, 0xffd93b, 1.9, 1.5, -0.6); }
   lamp(-2.4, -2.0);
-  for (const key of ['home', 'fish', 'library', 'studio', 'lookout', 'cinema', 'beach', 'museum', 'shop']) { const p = PLACES[key], l = Math.hypot(p.x, p.z); lamp(p.x * 0.6 + (p.z / l) * 1.5, p.z * 0.6 - (p.x / l) * 1.5); }
+  for (const key of ['home', 'fish', 'library', 'studio', 'lookout', 'cinema', 'beach', 'museum', 'shop', 'tailor', 'observatory']) { const p = PLACES[key], l = Math.hypot(p.x, p.z); lamp(p.x * 0.6 + (p.z / l) * 1.5, p.z * 0.6 - (p.x / l) * 1.5); }
 
   // ---- decoration round the edge ------------------------------------------------------------
   const extraObs = [site('cafe'), CLOCK, BIG_ROCK, ...NEIGHBOURS.flatMap(n => n.hobbies.filter(h => h.at).map(h => h.at)), ...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home)];
@@ -387,5 +415,5 @@ export function buildTown() {
   function setAway(islet) { isletBoats.forEach((b, i) => { b.visible = islet === i; }); beachBoat.visible = islet == null; }
   function setEvent(show) { festival.visible = !!show; lanternsG.visible = show === 'lanterns'; }
   setHouse(0, 1);
-  return { town, setNight, setSeason, setHouse, setEvent, setIsland, setAway, setClock, pond, flag: town.userData.flag };
+  return { town, setNight, setSeason, setHouse, setEvent, setIsland, setAway, setClock, setObservatory, pond, flag: town.userData.flag };
 }

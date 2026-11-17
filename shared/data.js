@@ -70,6 +70,9 @@ export const STAMPS = [
   { id: 'host', name: 'Good Host', coins: 300, test: s => s.metCampers.length >= 4 },
   { id: 'traveller', name: 'Seen Them All', coins: 400, test: s => s.islets.length >= 3 },
   { id: 'joiner', name: 'Joins In', coins: 200, test: s => (s.n.join_hobby || 0) >= 8 },
+  { id: 'wardrobe', name: 'Full Wardrobe', coins: 300, test: s => (s.look.hats || []).length >= 5 },
+  { id: 'starchart', name: 'Star Chart', coins: 400, test: s => (s.sky || []).length >= 6 },
+  { id: 'comet', name: 'Saw Something Rare', coins: 500, test: s => (s.sky || []).some(x => SKY_RARE.includes(x)) },
   { id: 'rider', name: 'Robot Rider', coins: 100, test: s => (s.rides || 0) >= 20 },
 ];
 export function catchOne(cat, where, season, lucky = false, rand = Math.random) {
@@ -88,8 +91,14 @@ export const RECIPES = {
   'stepping stones': { stone: 2 }, 'clay pot': { clay: 2 }, 'stick fence': { stick: 4 }, 'blossom wreath': { 'blossom petals': 3 }, 'mushroom stool': { mushroom: 3 },
   'snow globe': { snowflake: 3, 'sea glass': 1 }, 'pearl lamp': { pearl: 1, ore: 1 }, 'gold trophy': { 'gold nugget': 1 },
 };
-export const SHOP = { 'flower seeds': 40, sapling: 60, gift: 80, furnishing: 120, scarf: 150 };
+export const SHOP = { 'flower seeds': 40, sapling: 60, gift: 80, furnishing: 120 };
 export const FLAGS = [0xe8452c, 0x2fc6b3, 0xffd93b, 0x6a2fc4, 0xff7fa3, 0x2f7f9a];
+// Hats she can own. 0 is none.
+export const HATS = ['none', 'beanie', 'sun hat', 'bow', 'flower crown', 'beret', 'bucket hat', 'party hat', 'pom-pom hat'];
+export const CLOTHES_PRICE = { scarf: 150, hat: 180 };
+// What she can find through the telescope. Named by her, not by anyone else.
+export const SKY = ['the Sleeping Fish', 'the Kettle', 'the Long Scarf', 'Two Lamps', 'the Penguin Who Waits', 'the Ladder', 'the Broken Oar', 'the Snail', 'the Open Door', 'the Little Boat'];
+export const SKY_RARE = ['a comet with a green tail', 'a ringed planet', 'a red planet', 'a star that blinked twice'];
 export const SCARVES = [0x2fc6b3, 0xe8452c, 0xffd93b, 0x6a2fc4, 0xff7fa3, 0xfffaf0, 0x2f7f9a];
 export const HOUSE_LOOKS = [{ wall: 0xfff1d6, roof: 0xe8452c }, { wall: 0xcfe6f7, roof: 0x2f7f9a }, { wall: 0xffd9de, roof: 0x6a2fc4 }, { wall: 0xfff3c4, roof: 0x2f8f7a }, { wall: 0xf7b34a, roof: 0x1d2545 }];
 export const HOUSE_LOAN = [0, 1200, 3500];   // coins to reach level 2, then level 3
@@ -145,7 +154,11 @@ export const ACTIONS = {
   plant_tree: A('planting a tree', '@free', 35, { calm: 0.25, joy: 0.2 }, 'peck', c => c.life.count('sapling') > 0 && c.cal.season !== 3, 'she has a sapling', ['a tree here. it will take a while.']),
   garden:     A('watering the garden', 'garden', 45, { calm: 0.3, joy: 0.2 }, 'peck', c => c.day && c.weather !== 'snow', 'the flowers want water', ['the yellow one looked thirsty.']),
   redecorate: A('repainting her house', 'home', 60, { joy: 0.35, energy: -0.08 }, 'flap', c => c.day && c.life.s.coins >= 60 && c.dayN - (c.life.s.look.painted || -9) > 6, 'the house could be a different colour', ['i am tired of this roof colour.']),
-  change_outfit: A('changing her scarf', 'home', 25, { joy: 0.25 }, 'inside', c => c.life.s.look.scarves.length > 1 && c.dayN !== c.life.s.look.changed, 'she owns more than one scarf', ['different scarf today.']),
+  change_outfit: A('changing her outfit', 'home', 25, { joy: 0.25 }, 'inside', c => (c.life.s.look.scarves.length > 1 || (c.life.s.look.hats || []).length > 1) && c.dayN !== c.life.s.look.changed, 'she has more than one thing to wear', ['different look today.']),
+  buy_clothes: A('buying clothes', 'tailor', 40, { joy: 0.35 }, 'stand', c => c.day && c.life.s.coins >= 150 && c.life.s.clothesDay !== c.dayN && c.life.unownedClothes() > 0, 'the clothes shop has things she has not got', ['there was a hat in the window. i keep thinking about it.']),
+  try_on:     A('trying things on at the clothes shop', 'tailor', 35, { joy: 0.3, calm: 0.1 }, 'flap', c => c.day && c.life.s.tryDay !== c.dayN, 'trying things on costs nothing', ['i am only looking. probably.']),
+  observe:    A('looking through the telescope', 'observatory', 70, { wonder: 0.6, calm: 0.25, energy: -0.05 }, 'lookup', c => c.night && c.weather !== 'snow' && c.weather !== 'mist' && c.life.s.observeDay !== c.dayN, 'the observatory is open and the sky is clear', ['the sky is clear. the telescope is waiting.']),
+  tour_observatory: A('looking round the observatory', 'observatory', 45, { wonder: 0.3, calm: 0.15 }, 'stand', c => c.day && (c.life.s.sky || []).length > 0, 'see her star charts in daylight', ['i want to look at my star chart again.']),
   pay_home:   A('putting coins toward a bigger house', 'home', 25, { calm: 0.2, joy: 0.15 }, 'stand', c => c.life.s.house.level < 3 && c.life.s.coins >= 300, 'she has savings and the house is small', ['a bigger house costs coins. i have coins.']),
   // neighbours
   chat:       A('chatting with a neighbour', '@npc', 30, { joy: 0.3, calm: 0.1 }, 'stand', c => !!c.npc && (c.life.s.chats?.[0] !== c.dayN || c.life.s.chats[1] < 4), 'a neighbour is out and about', ['someone to talk to.']),

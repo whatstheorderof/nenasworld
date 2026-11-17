@@ -1,22 +1,25 @@
 // Nena's belongings and what comes of the things she does: pockets, coins, the museum,
 // what she has built and where she put it, her house, her scarves, her friendships.
 // Pure logic with an injected store, so the same code runs on the server and in the browser.
-import { SPECIES, MATERIAL_VALUE, RECIPES, SHOP, SCARVES, HOUSE_LOOKS, HOUSE_LOAN, SEASON_FIND, SONGS, STAMPS, FLAGS, BLOOMS, crossBloom, catchOne, calendar } from './data.js';
-import { NEIGHBOURS, CAMPERS, ISLETS, WORLD, K, freeSpot, freeNear } from './world.js';
+import { SPECIES, MATERIAL_VALUE, RECIPES, SHOP, SCARVES, HOUSE_LOOKS, HOUSE_LOAN, SEASON_FIND, SONGS, STAMPS, FLAGS, BLOOMS, HATS, CLOTHES_PRICE, SKY, SKY_RARE, crossBloom, catchOne, calendar } from './data.js';
+import { NEIGHBOURS, CAMPERS, ISLETS, WORLD, K, freeSpot, freeNear, blocked } from './world.js';
 
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const an = w => (/^[aeiou]/.test(w) ? `an ${w}` : `a ${w}`);
 const DEFAULT = () => ({
   coins: 0, items: {}, museum: { fish: [], bug: [], sea: [], fossil: [], art: [] }, decor: [], songs: [], stamps: [], n: {}, golden: {}, fakes: {}, cosy: 0, crops: 0, rides: 0, tune: null, hot: 'shell', blooms: [], camper: null, metCampers: [], islets: [],
-  look: { scarf: 0, scarves: [0], house: 0 }, house: { level: 1, paid: 0 },
+  look: { scarf: 0, scarves: [0], house: 0, hat: 0, hats: [0] }, sky: [], house: { level: 1, paid: 0 },
   friends: Object.fromEntries(NEIGHBOURS.map(n => [n.name, 0])),
   turnips: { n: 0, paid: 0 }, turnipPrice: 100, shaken: 0, photos: 0, version: 0,
 });
 
 export class Life {
   constructor(store) { this.store = store; const d = DEFAULT(), l = store.load() || {}; this.s = { ...d, ...l, museum: { ...d.museum, ...l.museum }, look: { ...d.look, ...l.look } };
-    if (this.s.layout !== WORLD.layout) { for (const x of this.s.decor) { x.x = Math.round(x.x * K * 10) / 10; x.z = Math.round(x.z * K * 10) / 10; } this.s.layout = WORLD.layout; }   // the island grew: move her things out with it
+    const was = this.s.layout || 1;
+    if (was < 2) for (const x of this.s.decor) { x.x = Math.round(x.x * K * 10) / 10; x.z = Math.round(x.z * K * 10) / 10; }   // the island grew: move her things out with it
+    if (was < WORLD.layout) for (const x of this.s.decor) if (blocked(x.x, x.z, 0.6)) { const at = freeSpot(this.s.decor); if (at) { x.x = at.x; x.z = at.z; } }   // something new was built where it stood
+    this.s.layout = WORLD.layout;
   }
   save() { this.s.version++; this.store.save(this.s); }
 
@@ -45,6 +48,7 @@ export class Life {
   decorHeld() { return Object.keys(RECIPES).filter(k => this.count(k) > 0); }
   giftable() { return this.count('gift') > 0 || this.count('fruit') > 0 || this.count('shell') > 0; }
   fruitReady(day) { return this.s.shaken !== day; }
+  unownedClothes() { const l = this.s.look; return (SCARVES.length - l.scarves.length) + (HATS.length - (l.hats || [0]).length); }
   patches() { return this.s.decor.filter(d => d.kind === 'flowers'); }
   ripe(day) { return this.s.decor.find(d => d.kind === 'coin tree' && day - d.day >= 3) || null; }
   newDay(day) { this.s.turnipPrice = rint(45, 190); this.s.hot = pick(['shell', 'fruit', 'ore', 'clay', 'veg', 'mushroom', 'sea glass']);
@@ -92,9 +96,8 @@ export class Life {
         return { text: `gave the museum ${finds.join(', ')} (${this.museumCount()} of ${Object.keys(SPECIES).length} now)`, remember: finds.length > 1 ? `the museum has ${this.museumCount()} of my finds now` : null, lift: 0.3 }; }
       case 'visit_museum': return { text: `walked round all ${this.museumCount()} things in the museum` };
       case 'sell': { let total = 0; for (const [k, n, v] of this.spare()) { total += n * v; this.add(k, -n); } s.coins += total; return { text: `sold spare things for ${total} coins`, lift: 0.15 }; }
-      case 'buy': { const can = Object.entries(SHOP).filter(([k, c]) => c <= s.coins && !(k === 'scarf' && s.look.scarves.length >= SCARVES.length)); if (!can.length) return { text: 'looked round the shop and bought nothing' };
+      case 'buy': { const can = Object.entries(SHOP).filter(([, c]) => c <= s.coins); if (!can.length) return { text: 'looked round the shop and bought nothing' };
         const wanted = can.filter(([k]) => this.count(k) < 2); const [k, c] = pick(wanted.length ? wanted : can); s.coins -= c; s.shopDay = day;
-        if (k === 'scarf') { const fresh = SCARVES.map((_, i) => i).filter(i => !s.look.scarves.includes(i)); s.look.scarves.push(pick(fresh)); return { text: `bought a new scarf for ${c} coins`, say: 'new scarf.', lift: 0.3 }; }
         this.add(k); return { text: `bought ${k === 'furnishing' ? 'something for the house' : k} for ${c} coins`, lift: 0.15 }; }
       case 'buy_turnips': { const price = rint(90, 110), n = Math.floor(Math.min(s.coins, 600) / price); if (!n) return null; s.coins -= n * price; s.turnips = { n, paid: price }; return { text: `bought ${n} turnips at ${price} coins each`, remember: `i bought turnips at ${price}. sell them before the week ends.` }; }
       case 'sell_turnips': { const t = s.turnips, got = t.n * s.turnipPrice, diff = got - t.n * t.paid; s.coins += got; s.turnips = { n: 0, paid: 0 };
@@ -120,7 +123,22 @@ export class Life {
         if (this.count('veg') && (fish || this.count('fruit'))) { this.add('veg', -1); if (fish) this.add(fish, -1); else this.add('fruit', -1); return { text: fish ? `made ${fish} and vegetable stew` : 'made a vegetable and fruit pie', lift: 0.15 }; }
         if (fish && (this.has(fish) || !this.count('fruit'))) { this.add(fish, -1); return { text: `cooked the ${fish}` }; } if (this.count('fruit')) { this.add('fruit', -1); return { text: 'made a fruit bake' }; } this.add('veg', -1); return { text: 'made vegetable soup' }; }
       case 'redecorate': { s.coins -= 60; s.look.house = (s.look.house + rint(1, HOUSE_LOOKS.length - 1)) % HOUSE_LOOKS.length; s.look.painted = day; return { text: 'repainted the house', say: 'better.', lift: 0.2 }; }
-      case 'change_outfit': { s.look.scarf = pick(s.look.scarves.filter(i => i !== s.look.scarf)); s.look.changed = day; return { text: 'changed her scarf' }; }
+      case 'change_outfit': { const l = s.look; l.changed = day; const parts = [];
+        if (l.scarves.length > 1 && Math.random() < 0.7) { l.scarf = pick(l.scarves.filter(i => i !== l.scarf)); parts.push('scarf'); }
+        if ((l.hats || []).length > 1 && (Math.random() < 0.7 || !parts.length)) { l.hat = pick(l.hats.filter(i => i !== l.hat)); parts.push('hat'); }
+        return { text: `changed her ${parts.join(' and ') || 'scarf'}${l.hat ? ` (${HATS[l.hat]} today)` : ''}` }; }
+      case 'buy_clothes': { const l = s.look; s.clothesDay = day; const hats = HATS.map((_, i) => i).filter(i => i && !l.hats.includes(i)), scarves = SCARVES.map((_, i) => i).filter(i => !l.scarves.includes(i));
+        const wantHat = hats.length && (!scarves.length || Math.random() < 0.6);
+        if (wantHat && s.coins >= CLOTHES_PRICE.hat) { const h = pick(hats); s.coins -= CLOTHES_PRICE.hat; l.hats.push(h); l.hat = h; return { text: `bought ${an(HATS[h])} for ${CLOTHES_PRICE.hat} coins and wore it out of the shop`, say: `${an(HATS[h])}. yes.`, remember: Math.random() < 0.4 ? `i bought ${an(HATS[h])}. i look good in it.` : null, lift: 0.35 }; }
+        if (scarves.length && s.coins >= CLOTHES_PRICE.scarf) { const c = pick(scarves); s.coins -= CLOTHES_PRICE.scarf; l.scarves.push(c); l.scarf = c; return { text: `bought a new scarf for ${CLOTHES_PRICE.scarf} coins and put it on`, say: 'new scarf.', lift: 0.3 }; }
+        return { text: 'looked at everything in the clothes shop and bought nothing' }; }
+      case 'try_on': { s.tryDay = day; const h = pick(HATS.slice(1)); return { text: `tried on ${an(h)} at the clothes shop`, say: Math.random() < 0.4 ? `${an(h)}? maybe.` : null, lift: 0.15 }; }
+      case 'observe': { s.observeDay = day; const known = s.sky || (s.sky = []);
+        if (Math.random() < 0.12) { const r = pick(SKY_RARE.filter(x => !known.includes(x))); if (r) { known.push(r); return { text: `saw ${r} through the telescope`, say: 'oh. oh!', remember: `i saw ${r} through the telescope on day ${day}`, lift: 0.6 }; } }
+        const left = SKY.filter(x => !known.includes(x));
+        if (left.length) { const c = pick(left); known.push(c); return { text: `found a shape in the stars and named it ${c}`, remember: `there is a constellation called ${c}. i named it.`, lift: 0.35 }; }
+        return { text: 'looked at all her stars again. they were all still there', lift: 0.1 }; }
+      case 'tour_observatory': return { text: `looked over her star chart (${(s.sky || []).length} things on it)` };
       case 'pay_home': { const need = HOUSE_LOAN[s.house.level] - s.house.paid, pay = Math.min(need, s.coins); s.coins -= pay; s.house.paid += pay;
         if (s.house.paid >= HOUSE_LOAN[s.house.level]) { s.house.level++; s.house.paid = 0; return { text: 'paid for the house to be made bigger', say: 'more house!', remember: `my house got bigger on day ${day}`, lift: 0.5 }; }
         return { text: `put ${pay} coins toward a bigger house (${need - pay} to go)` }; }
@@ -163,7 +181,7 @@ export class Life {
 
   summary() {
     const s = this.s;
-    return { coins: s.coins, items: s.items, museum: s.museum, total: Object.keys(SPECIES).length, decor: s.decor.length, house: s.house, loan: HOUSE_LOAN[s.house.level] || null, friends: s.friends, turnips: s.turnips, turnipPrice: s.turnipPrice, photos: s.photos, shaken: s.shaken, songs: s.songs, stamps: s.stamps, cosy: s.cosy, tune: s.tune, hot: s.hot, golden: s.golden, rides: s.rides, blooms: s.blooms, camper: s.camper, metCampers: s.metCampers, islets: s.islets };
+    return { coins: s.coins, items: s.items, museum: s.museum, total: Object.keys(SPECIES).length, decor: s.decor.length, house: s.house, loan: HOUSE_LOAN[s.house.level] || null, friends: s.friends, turnips: s.turnips, turnipPrice: s.turnipPrice, photos: s.photos, shaken: s.shaken, songs: s.songs, stamps: s.stamps, cosy: s.cosy, tune: s.tune, hot: s.hot, golden: s.golden, rides: s.rides, blooms: s.blooms, camper: s.camper, metCampers: s.metCampers, islets: s.islets, sky: s.sky || [], hats: s.look.hats || [0] };
   }
   freeSpot() { return freeSpot(this.s.decor); }
 }

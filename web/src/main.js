@@ -6,7 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { PLACES, NEEDS, ISLETS, WORLD, isletPos, site } from '../../shared/world.js';
-import { SCARVES, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
+import { SCARVES, HATS, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
 import { buildNena, buildRobot } from './nena.js';
 import { buildTown } from './town.js';
 import { buildDynamic } from './dynamic.js';
@@ -51,6 +51,24 @@ const aurora = new THREE.Group(); scene.add(aurora);
   for (let i = 0; i < 3; i++) { const geo = new THREE.PlaneGeometry(190, 42, 40, 1); const p = geo.attributes.position; for (let j = 0; j < p.count; j++) p.setZ(j, Math.sin(p.getX(j) * 0.05 + i * 2) * 14);
     const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
     m.position.set(-10 + i * 12, 62 + i * 9, -120 - i * 22); aurora.add(m); } }
+
+// clouds: it is a sky island, so a ring of slow clouds around and below it
+const clouds = new THREE.Group(); scene.add(clouds);
+const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.45, flatShading: true });
+{ const puff = new THREE.IcosahedronGeometry(1, 1), N = 80, PER = 7;
+  const inst = new THREE.InstancedMesh(puff, cloudMat, N * PER), m = new THREE.Object3D();
+  let seed = 3; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (let c = 0, k = 0; c < N; c++) {
+    const below = c < 26, a = rnd() * 6.283, r = below ? 35 + rnd() * 110 : 110 + rnd() * 100, y = below ? -28 - rnd() * 24 : -18 + rnd() * 40, size = below ? 7 + rnd() * 6 : 6 + rnd() * 8;
+    const cx = Math.cos(a) * r, cz = Math.sin(a) * r;
+    for (let i = 0; i < PER; i++, k++) {
+      const s = size * (0.55 + rnd() * 0.5) * (i === 0 ? 1.3 : 1);
+      m.position.set(cx + (rnd() - 0.5) * size * 2.4, y + rnd() * size * 0.35, cz + (rnd() - 0.5) * size * 1.4);
+      m.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); m.scale.set(s, s * 0.62, s); m.updateMatrix(); inst.setMatrixAt(k, m.matrix);
+    }
+  }
+  clouds.add(inst); }
+const CLOUD = { day: new THREE.Color(0xffffff), dusk: new THREE.Color(0xffc2b0), night: new THREE.Color(0x2a3263) };
 
 // snow, and sparks used for both shooting stars and fireworks
 const points = (n, size, color) => { const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3)); const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: color ?? 0xffffff, size, transparent: true, opacity: 0, fog: false, vertexColors: color === null })); if (color === null) geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3), 3)); scene.add(p); return p; };
@@ -112,6 +130,8 @@ function setSky(hour, weather, dt, show) {
   stars.material.opacity = n * (1 - wx.mist) * 0.95;
   aurora.children.forEach((m, i) => { m.material.opacity = n * wx.aurora * (0.55 + 0.2 * Math.sin(performance.now() / 1700 + i * 2)); });
   snow.material.opacity = wx.snow * 0.9;
+  cloudMat.color.copy(CLOUD.night).lerp(CLOUD.day, d).lerp(CLOUD.dusk, 4 * d * (1 - d) * 0.6); if (wx.mist > 0.01) cloudMat.color.lerp(sky, wx.mist * 0.5); cloudMat.emissive.copy(cloudMat.color);
+  clouds.rotation.y += dt * 0.004;
   bloom.strength = n * 0.45;
   document.body.style.background = `#${sky.getHexString()}`;
 
@@ -182,6 +202,7 @@ function apply(n, snap) {
   for (const k of NEEDS) $(`need-${k}`).style.width = `${Math.round(n.needs[k] * 100)}%`;
   town.flag.rotation.z = n.mail ? 0 : -1.4; town.flag.position.y = n.mail ? 1.5 : 1.25;
   nena.setScarf(SCARVES[n.look.scarf] ?? SCARVES[0]);
+  nena.setHat(qs.get('hat') || HATS[n.look.hat || 0]);
   town.setHouse(n.look.house, n.look.level);
   town.setIsland(n.look.flag, n.painter, n.crops);
   parked.visible = !n.activity.ride;
@@ -224,6 +245,8 @@ async function show(name) {
         <h3>Stamps ${l.stamps.length}/${STAMPS.length}</h3><p>${STAMPS.map(st => l.stamps.includes(st.id) ? esc(st.name) : '<span class="dim">?</span>').join(' · ')}</p>
         ${l.songs.length ? `<h3>Records</h3><p>${l.songs.map(esc).join(' · ')}</p>` : ''}
         <h3>Flower colours ${l.blooms.length}/${Object.keys(BLOOMS).length}</h3><p>${Object.keys(BLOOMS).map(k => l.blooms.includes(k) ? `<span style="display:inline-block;width:12px;height:12px;border-radius:6px;border:2px solid #1d2545;background:#${BLOOMS[k].toString(16).padStart(6, '0')}"></span> ${k}` : '<span class="dim">?</span>').join(' · ')}</p>
+        <h3>Wardrobe</h3><p>Hats: ${(l.hats || [0]).filter(i => i).map(i => esc(HATS[i])).join(', ') || 'none yet'}.</p>
+        <h3>Star chart ${(l.sky || []).length}/${SKY_LIST.length + SKY_RARE.length}</h3><p>${(l.sky || []).map(esc).join(' · ') || 'nothing yet'}</p>
         <h3>Travels and travellers</h3><p>Islets rowed to: ${l.islets.map(esc).join(', ') || 'none yet'} (${l.islets.length}/${ISLETS.length}). Campers met: ${l.metCampers.map(esc).join(', ') || 'none yet'}.${l.camper ? ` ${esc(l.camper.name)} the ${esc(l.camper.kind)} is at the campsite today.` : ''}</p>
         <h3>Neighbours</h3>${Object.entries(l.friends).map(([k, v]) => `<div class="entry">${esc(k)}<div class="meter"><i style="width:${v * 10}%"></i></div></div>`).join('')}
         <h3>Museum ${got}/${l.total}</h3><div class="meter"><i style="width:${got / l.total * 100}%"></i></div>${cats}`;
@@ -304,6 +327,7 @@ function frame() {
   town.setSeason(qs.get('season') || now?.season || 'summer', !lifeData || lifeData.shaken !== now?.day);
   town.setEvent(showEv);
   town.setClock(hour);
+  town.setObservatory(nightness, doing && act.action === 'observe', elapsed);
   dots.uniforms.amount.value = 1 - nightness * 0.5;   // lighter touch at night so the glow reads
   dyn.update(dt, elapsed, now?.npcs, nightness);
   dyn.setVisitors(now?.visitors || [], elapsed, dt);

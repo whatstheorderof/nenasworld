@@ -203,7 +203,7 @@ export class World {
       needs: this.needs, mood: this.mood().label,
       npcs: this.npcs.map(n => ({ name: n.name, kind: n.kind, x: n.x, z: n.z, heading: n.heading, out: n.out, moving: n.path.length > 0 && Date.now() >= n.hold, doing: n.doing || null, anim: n.anim || null })),
       camper: s.camper && !this.isNight ? { name: s.camper.name, kind: s.camper.kind } : null, visitors: this.visitors,
-      spots: this.spots, coins: s.coins, look: { scarf: s.look.scarf, house: s.look.house, level: s.house.level, flag: s.look.flag || 0 }, lifeVersion: s.version,
+      spots: this.spots, coins: s.coins, look: { scarf: s.look.scarf, hat: s.look.hat || 0, house: s.look.house, level: s.house.level, flag: s.look.flag || 0 }, lifeVersion: s.version,
       painter: painterIn(c, this.hour), crops: s.crops ? Math.min(2, this.day - s.crops) + 1 : 0,
     };
   }

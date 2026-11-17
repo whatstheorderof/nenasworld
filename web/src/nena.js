@@ -116,5 +116,21 @@ export function buildNena() {
   }
 
   const setScarf = hex => { scarf.material.color.set(hex); tail.material.color.set(hex); };
-  return { root, animate, setScarf };
+
+  // hats sit on the crown of her head
+  const hatSlot = new THREE.Group(); hatSlot.position.set(0, 1.47, 0.02); body.add(hatSlot);
+  const part = (geo, color, x = 0, y = 0, z = 0, parent = hatSlot) => { const m = new THREE.Mesh(geo, mat(color)); m.position.set(x, y, z); parent.add(m); return m; };
+  const HAT = {
+    beanie: () => { part(new THREE.SphereGeometry(0.42, 9, 6, 0, 6.283, 0, 1.6), 0xe8452c, 0, -0.08); part(new THREE.CylinderGeometry(0.43, 0.43, 0.14, 10), 0xfffaf0, 0, -0.07); },
+    'sun hat': () => { part(new THREE.CylinderGeometry(0.75, 0.8, 0.05, 12), 0xf7dc8f, 0, -0.03); part(new THREE.CylinderGeometry(0.3, 0.36, 0.28, 10), 0xf7dc8f, 0, 0.1); part(new THREE.CylinderGeometry(0.37, 0.37, 0.08, 10), 0xe8452c, 0, 0.0); },
+    bow: () => { for (const sd of [-1, 1]) { const m = part(new THREE.ConeGeometry(0.16, 0.3, 4), 0xff7fa3, sd * 0.17, 0.02, 0.05); m.rotation.z = sd * Math.PI / 2; } part(new THREE.SphereGeometry(0.08, 6, 5), 0xff7fa3, 0, 0.02, 0.05); hatSlot.position.x = 0.18; },
+    'flower crown': () => { for (let i = 0; i < 7; i++) { const a = i / 7 * 6.283; part(new THREE.ConeGeometry(0.1, 0.12, 5), [0xffd93b, 0xff7fa3, 0xfffaf0][i % 3], Math.cos(a) * 0.36, -0.05, Math.sin(a) * 0.36).rotation.x = Math.PI; } const ring = part(new THREE.TorusGeometry(0.36, 0.04, 4, 12), 0x4fae52, 0, -0.08); ring.rotation.x = Math.PI / 2; },
+    beret: () => { const m = part(new THREE.SphereGeometry(0.42, 10, 5), 0x6a2fc4, 0.06, 0.0); m.scale.set(1, 0.32, 1); part(new THREE.CylinderGeometry(0.03, 0.03, 0.1, 5), 0x6a2fc4, 0.06, 0.15); },
+    'bucket hat': () => { part(new THREE.CylinderGeometry(0.34, 0.4, 0.3, 10), 0x58b7e8, 0, 0.08); part(new THREE.CylinderGeometry(0.52, 0.58, 0.05, 12), 0x58b7e8, 0, -0.06); },
+    'party hat': () => { part(new THREE.ConeGeometry(0.24, 0.62, 8), 0xffd93b, 0, 0.26); part(new THREE.SphereGeometry(0.08, 6, 5), 0xe8452c, 0, 0.6); for (let i = 0; i < 3; i++) part(new THREE.TorusGeometry(0.2 - i * 0.06, 0.025, 4, 8), 0xe8452c, 0, 0.06 + i * 0.16).rotation.x = Math.PI / 2; },
+    'pom-pom hat': () => { part(new THREE.SphereGeometry(0.42, 9, 6, 0, 6.283, 0, 1.6), 0x2fc6b3, 0, -0.08); for (let i = 0; i < 3; i++) part(new THREE.CylinderGeometry(0.43, 0.43, 0.05, 10), 0xfffaf0, 0, -0.04 + i * 0.13); part(new THREE.SphereGeometry(0.13, 7, 5), 0xfffaf0, 0, 0.37); },
+  };
+  let hatNow = null;
+  const setHat = name => { if (name === hatNow) return; hatNow = name; hatSlot.clear(); hatSlot.position.x = 0; if (HAT[name]) HAT[name](); };
+  return { root, animate, setScarf, setHat };
 }

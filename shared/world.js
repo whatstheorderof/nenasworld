@@ -4,7 +4,7 @@
 // and blocks a circle of radius `r`, which she walks around.
 // K stretches the whole layout: buildings stay the same size, the island and the gaps between things grow.
 export const K = 1.35;
-export const WORLD = { size: 88, radius: 30 * K, name: "Nena's World", layout: 2 };
+export const WORLD = { size: 88, radius: 30 * K, name: "Nena's World", layout: 3 };
 const DZ = 12 * K + 7.2 - 19.2;   // how far south the pond (and so the river) moved
 
 export const PLACES = {
@@ -20,6 +20,8 @@ export const PLACES = {
   shop:    { label: 'Shop',         x: 20,    z: -3,    d: 4.6, r: 3.0 },
   igloo:   { label: 'Igloo',        x: -20,   z: -1,    d: 5.4, r: 3.3 },
   cafe:    { label: 'Cocoa Cart',   x: 4.6,   z: 5.2,   d: 1.9, r: 1.3 },
+  tailor:  { label: 'Clothes Shop', x: 16.8,  z: -8.9,  d: 4.4, r: 2.9 },
+  observatory: { label: 'Observatory', x: 3.6, z: -20.7, d: 4.8, r: 3.3 },
   camp:    { label: 'Campsite',     x: 21.5,  z: 3.4,   d: 3.6, r: 2.0 },
   garden:  { label: 'Garden',       x: 7,     z: -3,    d: 0,   r: 0   },
   orchard: { label: 'Orchard',      x: 3.6,   z: -9.4,  d: 0,   r: 0   },
