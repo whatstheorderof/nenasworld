@@ -64,16 +64,18 @@ export function drawPicture(canvas, title, seed) {
 
 // A tune is a string of syllables. Play it on a soft bell.
 const NOTE = { do: 0, re: 2, mi: 4, fa: 5, so: 7, la: 9, ti: 11, pip: 12, bo: -5, su: 7, na: 4, ne: 2, lo: -3 };
-let audio = null;
+import { sound } from './sound.js';
 export function playTune(tune) {
   if (!tune) return;
-  audio ||= new (window.AudioContext || window.webkitAudioContext)();
+  const sc = sound.context(); if (!sc) return false;
+  const audio = sc.ctx; if (audio.state === 'suspended') audio.resume();
   const t0 = audio.currentTime + 0.05;
   tune.split('-').forEach((syl, i) => {
     const semis = NOTE[syl] ?? 0, f = 523.25 * Math.pow(2, semis / 12), t = t0 + i * 0.32;
     const o = audio.createOscillator(), o2 = audio.createOscillator(), gain = audio.createGain();
     o.type = 'triangle'; o.frequency.value = f; o2.type = 'sine'; o2.frequency.value = f * 2;
     gain.gain.setValueAtTime(0.0001, t); gain.gain.exponentialRampToValueAtTime(0.18, t + 0.02); gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
-    o.connect(gain); o2.connect(gain); gain.connect(audio.destination); o.start(t); o2.start(t); o.stop(t + 0.55); o2.stop(t + 0.55);
+    o.connect(gain); o2.connect(gain); gain.connect(sc.out); o.start(t); o2.start(t); o.stop(t + 0.55); o2.stop(t + 0.55);
   });
+  return true;
 }

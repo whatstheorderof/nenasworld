@@ -106,6 +106,7 @@ function label(text, y = 2.6) {
   return sp;
 }
 
+export const display = { labels: true, bubbles: true };
 export function buildDynamic(scene) {
   const decorG = new THREE.Group(), spotG = new THREE.Group(), npcG = new THREE.Group(); scene.add(decorG, spotG, npcG);
   const glows = [], spots = new Map(), npcs = new Map();
@@ -123,6 +124,7 @@ export function buildDynamic(scene) {
     for (const s of list) if (!spots.has(s.id)) { const m = spotModel(s.kind); m.position.set(s.x, 0, s.z); spotG.add(m); spots.set(s.id, m); }
   }
   function update(dt, t, npcList, night) {
+    if (camperMesh) { const cl = camperMesh.getObjectByName('label'); if (cl) cl.visible = display.labels; }
     for (const m of glows) m.emissiveIntensity = 0.3 + night * 1.6;
     for (const m of spots.values()) { const f = m.getObjectByName('float'); if (f) { f.position.y = Math.sin(t * 1.2) * 0.4; f.rotation.y = t * 0.4; } const pu = m.getObjectByName('pulse'); if (pu) pu.scale.setScalar(1 + Math.sin(t * 3) * 0.2); }
     for (const d of decorG.children) if (d.userData.sing) d.rotation.z = Math.sin(t * 3 + d.id) * 0.12;
@@ -141,8 +143,8 @@ export function buildDynamic(scene) {
       else if (n.anim === 'peck') { b.rotation.x = Math.max(0, Math.sin(ph * 3)) * 0.4; }
       else if (n.anim === 'lie') { b.rotation.z = 1.2; b.position.y = 0.25; }
       else b.position.y = Math.sin(ph * 2) * 0.01;
-      let tag = m.getObjectByName('label'); const want = n.doing ? `${n.name}: ${n.doing}` : n.name;
-      if (!tag || tag.userData.text !== want) { if (tag) m.remove(tag); tag = label(want, 2.2); tag.userData.text = want; m.add(tag); }
+      let tag = m.getObjectByName('label'); if (tag) tag.visible = display.labels; const want = n.doing ? `${n.name}: ${n.doing}` : n.name;
+      if (!tag || tag.userData.text !== want) { if (tag) m.remove(tag); tag = label(want, 2.2); tag.userData.text = want; tag.visible = display.labels; m.add(tag); }
     }
   }
   // whoever is at the campsite today
@@ -151,7 +153,7 @@ export function buildDynamic(scene) {
     const key = c ? c.name : ''; if (key === camperKey) return; camperKey = key;
     if (camperMesh) { scene.remove(camperMesh); camperMesh = null; }
     if (!c) return;
-    const s = site('camp'), p = PLACES.camp; camperMesh = critter(c.kind); const lx = -1.6, lz = 2.6; camperMesh.position.set(s.x + lx * Math.cos(s.ry) + lz * Math.sin(s.ry), 0, s.z - lx * Math.sin(s.ry) + lz * Math.cos(s.ry)); camperMesh.rotation.y = s.ry; camperMesh.add(label(c.name, 2.2)); scene.add(camperMesh);
+    const s = site('camp'), p = PLACES.camp; camperMesh = critter(c.kind); const lx = -1.6, lz = 2.6; camperMesh.position.set(s.x + lx * Math.cos(s.ry) + lz * Math.sin(s.ry), 0, s.z - lx * Math.sin(s.ry) + lz * Math.cos(s.ry)); camperMesh.rotation.y = s.ry; const cl = label(c.name, 2.2); camperMesh.add(cl); scene.add(camperMesh);
   }
   // visitors' gulls
   const gulls = new Map(), gullG = new THREE.Group(); scene.add(gullG);
@@ -165,10 +167,10 @@ export function buildDynamic(scene) {
       const waving = Date.now() - v.wave < 2500, b = m.userData.body;
       b.position.y = flying ? 2.6 + Math.sin(t * 3 + v.id) * 0.2 : 0.35 + (waving ? Math.abs(Math.sin(t * 9)) * 0.5 : 0);
       m.userData.wings.forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * (flying || waving ? Math.sin(t * 14) * 0.7 : -0.9); });
-      m.getObjectByName('label').position.y = b.position.y + 1.0;
+      const lab = m.getObjectByName('label'); lab.position.y = b.position.y + 1.0; lab.visible = display.labels;
       const talking = v.say && Date.now() - v.sayAt < 9000; let say = m.getObjectByName('say');
       if (talking && (!say || say.userData.text !== v.say)) { if (say) m.remove(say); say = bubbleSprite(v.say); say.userData.text = v.say; m.add(say); }
-      if (say) { say.visible = !!talking; say.position.y = b.position.y + 1.6 + say.scale.y / 2; }
+      if (say) { say.visible = !!talking && display.bubbles; say.position.y = b.position.y + 1.6 + say.scale.y / 2; }
     }
   }
   return { setDecor, setSpots, setCamper, setVisitors, update };
