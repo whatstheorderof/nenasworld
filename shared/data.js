@@ -71,6 +71,7 @@ export const STAMPS = [
   { id: 'traveller', name: 'Seen Them All', coins: 400, test: s => s.islets.length >= 3 },
   { id: 'joiner', name: 'Joins In', coins: 200, test: s => (s.n.join_hobby || 0) >= 8 },
   { id: 'wardrobe', name: 'Full Wardrobe', coins: 300, test: s => (s.look.hats || []).length >= 5 },
+  { id: 'shades', name: 'Throwing Shade', coins: 200, test: s => (s.look.glasses_owned || []).length >= 4 },
   { id: 'starchart', name: 'Star Chart', coins: 400, test: s => (s.sky || []).length >= 6 },
   { id: 'comet', name: 'Saw Something Rare', coins: 500, test: s => (s.sky || []).some(x => SKY_RARE.includes(x)) },
   { id: 'rider', name: 'Robot Rider', coins: 100, test: s => (s.rides || 0) >= 20 },
@@ -95,7 +96,8 @@ export const SHOP = { 'flower seeds': 40, sapling: 60, gift: 80, furnishing: 120
 export const FLAGS = [0xe8452c, 0x2fc6b3, 0xffd93b, 0x6a2fc4, 0xff7fa3, 0x2f7f9a];
 // Hats she can own. 0 is none.
 export const HATS = ['none', 'beanie', 'sun hat', 'bow', 'flower crown', 'beret', 'bucket hat', 'party hat', 'pom-pom hat'];
-export const CLOTHES_PRICE = { scarf: 150, hat: 180 };
+export const GLASSES = ['none', 'round sunglasses', 'heart sunglasses', 'star sunglasses', 'cat-eye sunglasses', 'visor shades'];
+export const CLOTHES_PRICE = { scarf: 150, hat: 180, glasses: 160 };
 // What she can find through the telescope. Named by her, not by anyone else.
 export const SKY = ['the Sleeping Fish', 'the Kettle', 'the Long Scarf', 'Two Lamps', 'the Penguin Who Waits', 'the Ladder', 'the Broken Oar', 'the Snail', 'the Open Door', 'the Little Boat'];
 export const SKY_RARE = ['a comet with a green tail', 'a ringed planet', 'a red planet', 'a star that blinked twice'];

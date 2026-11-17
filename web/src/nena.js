@@ -132,5 +132,28 @@ export function buildNena() {
   };
   let hatNow = null;
   const setHat = name => { if (name === hatNow) return; hatNow = name; hatSlot.clear(); hatSlot.position.x = 0; if (HAT[name]) HAT[name](); };
-  return { root, animate, setScarf, setHat };
+
+  // sunglasses sit over her eye patches
+  const glassSlot = new THREE.Group(); glassSlot.position.set(0, 1.18, 0.52); body.add(glassSlot);
+  const lensMat = color => new THREE.MeshLambertMaterial({ color, flatShading: true });
+  const lensShape = kind => { const sh = new THREE.Shape();
+    if (kind === 'heart') { sh.moveTo(0, -0.13); sh.bezierCurveTo(-0.2, 0, -0.14, 0.15, 0, 0.06); sh.bezierCurveTo(0.14, 0.15, 0.2, 0, 0, -0.13); }
+    else if (kind === 'star') { for (let i = 0; i < 10; i++) { const a = i / 10 * 6.283 + Math.PI / 2, r = i % 2 ? 0.07 : 0.16; sh[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r); } }
+    else if (kind === 'cat') { sh.moveTo(-0.15, 0.06); sh.lineTo(0.15, 0.1); sh.lineTo(0.13, -0.06); sh.quadraticCurveTo(0, -0.14, -0.12, -0.07); sh.closePath(); }
+    else sh.absarc(0, 0, 0.13, 0, Math.PI * 2);
+    return new THREE.ShapeGeometry(sh); };
+  const GLASS = {
+    'round sunglasses': ['round', 0x1d2545, 0xffd93b], 'heart sunglasses': ['heart', 0xd23a6a, 0xff7fa3], 'star sunglasses': ['star', 0x3c2a86, 0xffd93b], 'cat-eye sunglasses': ['cat', 0x141833, 0xe8452c],
+  };
+  let glassNow = null;
+  const setGlasses = name => {
+    if (name === glassNow) return; glassNow = name; glassSlot.clear();
+    if (name === 'visor shades') { const v = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.14, 0.05), lensMat(0x2fc6b3)); v.position.z = 0.02; glassSlot.add(v); const top = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.03, 0.07), lensMat(0xfffaf0)); top.position.set(0, 0.08, 0.02); glassSlot.add(top); }
+    else if (GLASS[name]) { const [kind, lens, frame] = GLASS[name];
+      for (const sd of [-1, 1]) { const back = new THREE.Mesh(lensShape(kind), lensMat(frame)); back.scale.setScalar(1.18); back.position.set(sd * 0.19, 0, 0); glassSlot.add(back);
+        const l = new THREE.Mesh(lensShape(kind), lensMat(lens)); l.position.set(sd * 0.19, 0, 0.012); if (kind === 'cat') l.scale.x = back.scale.x = sd; glassSlot.add(l);
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.36), lensMat(frame)); arm.position.set(sd * 0.33, 0.02, -0.17); arm.rotation.y = sd * 0.35; glassSlot.add(arm); }
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 0.03), lensMat(frame)); bridge.position.set(0, 0.04, 0.01); glassSlot.add(bridge); }
+  };
+  return { root, animate, setScarf, setHat, setGlasses };
 }

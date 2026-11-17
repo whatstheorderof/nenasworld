@@ -2,7 +2,7 @@
 // windows and signs at night. Everything is built from primitives here, and
 // positions come from shared/world.js so the mind and the picture agree.
 import * as THREE from 'three';
-import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, nearRiver as riverBand } from '../../shared/world.js';
+import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, onPath, nearRiver as riverBand } from '../../shared/world.js';
 import { HOUSE_LOOKS, FLAGS } from '../../shared/data.js';
 
 const P = {
@@ -39,19 +39,28 @@ export function buildTown() {
   const nearRiver = (x, z, pad) => riverBand(x, z, pad) || RIVER.some(([rx, rz]) => Math.hypot(rx - x, rz - z) < pad);
   for (let i = 0; i < 30; i++) {
     const a = rand() * 6.28, r = 4 + rand() * (R - 10), s = 1.5 + rand() * 3, x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (inBeach(x, z) || nearRiver(x, z, 4)) continue;
+    if (inBeach(x, z) || nearRiver(x, z, 4) || onPath(x, z, s * 0.6)) continue;
     const m = mesh(new THREE.CircleGeometry(s, 7), grassDarkMat, x, 0.01 + i * 0.001, z); m.rotation.x = -Math.PI / 2;
   }
   // snowfield around the igloo
   { const s = site('igloo'); ground(new THREE.CircleGeometry(7.5, 9), P.snow, s.x + 2, s.z, 0.03); ground(new THREE.CircleGeometry(4, 7), P.snowShade, s.x + 6, s.z + 3, 0.035); }
-  // trodden paths from the mailbox to each place
-  for (const key of Object.keys(PLACES)) {
-    if (key === 'plaza') continue;
-    const p = PLACES[key], len = Math.hypot(p.x, p.z);
-    const path = ground(new THREE.PlaneGeometry(1.3, len), P.path, p.x / 2, p.z / 2, 0.05);
-    path.rotation.z = -Math.atan2(p.x, p.z);
-  }
-
+  // pebble paths: a gravel bed with stones pressed into it, and a round pebble square in the middle
+  { const bed = flat(0xe6dcc4), stones = [];
+    const disc = (x, z, r, y) => ground(new THREE.CircleGeometry(r, 14), 0xe6dcc4, x, z, y);
+    const lay = (x, z) => stones.push([x, z]);
+    disc(0, 0, 4.6, 0.05);
+    for (let ring = 0.45; ring < 4.4; ring += 0.36) { const n = Math.floor(ring * 2 * Math.PI / 0.36); for (let i = 0; i < n; i++) { const a = i / n * 6.283 + ring; lay(Math.cos(a) * ring, Math.sin(a) * ring); } }
+    for (const line of PATHS) for (let i = 0; i < line.length - 1; i++) {
+      const a = line[i], b = line[i + 1], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz); if (len < 0.05) continue;
+      const strip = mesh(new THREE.PlaneGeometry(1.6, len), bed, (a.x + b.x) / 2, 0.052, (a.z + b.z) / 2); strip.rotation.x = -Math.PI / 2; strip.rotation.z = Math.atan2(dx, dz);
+      disc(a.x, a.z, 0.8, 0.051); if (i === line.length - 2) disc(b.x, b.z, 0.8, 0.051);   // round off the bends and ends
+      const nx = -dz / len, nz = dx / len;
+      for (let t = 0.1; t < len; t += 0.3) for (const off of [-0.54, -0.18, 0.18, 0.54]) { const j = rand() - 0.5, k = (rand() - 0.5) * 0.12, x = a.x + dx / len * (t + k) + nx * (off + j * 0.1), z = a.z + dz / len * (t + k) + nz * (off + j * 0.1); if (Math.hypot(x, z) > 4.3) lay(x, z); }
+    }
+    const inst = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.2, 0), new THREE.MeshLambertMaterial({ flatShading: true }), stones.length), m = new THREE.Object3D(), c = new THREE.Color();
+    const tones = [0xc9c2b4, 0xb4bfcb, 0xd9d0bf, 0xa9b2bc, 0xe4dccd, 0xcdc1ab, 0xbcc6cf];
+    stones.forEach(([x, z], i) => { const sc = 0.7 + rand() * 0.45; m.position.set(x, 0.07, z); m.rotation.set(0, rand() * 6.283, 0); m.scale.set(sc, sc * 0.3, sc * (0.75 + rand() * 0.35)); m.updateMatrix(); inst.setMatrixAt(i, m.matrix); inst.setColorAt(i, c.set(tones[Math.floor(rand() * tones.length)])); });
+    town.add(inst); }
   // ---- reusable bits ---------------------------------------------------
   // A sign is its own lit board, so it reads by day and glows at night.
   function sign(text, w, parent, x, y, z, { bg = '#1d2545', fg = '#ffd66b' } = {}) {
@@ -268,7 +277,13 @@ export function buildTown() {
     mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.3, 9), flat(0xe8452c), 0, 1.95, 0, dummy); mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.05, 12), flat(0xe8452c), 0, 1.8, 0, dummy);
     const stand = new THREE.Group(); stand.position.set(3.3, 0, 2.5); g.add(stand);
     box(0.1, 1.7, 0.1, P.woodDark, 0, 0.85, 0, stand); mesh(new THREE.CylinderGeometry(0.4, 0.45, 0.08, 8), flat(P.woodDark), 0, 0.04, 0, stand);
-    mesh(new THREE.ConeGeometry(0.2, 0.5, 7), flat(0xffd93b), 0.25, 1.65, 0, stand).rotation.z = -0.5; const bh = mesh(new THREE.SphereGeometry(0.26, 8, 5), flat(0x2fc6b3), -0.24, 1.45, 0.05, stand); bh.scale.y = 0.6; }
+    mesh(new THREE.ConeGeometry(0.2, 0.5, 7), flat(0xffd93b), 0.25, 1.65, 0, stand).rotation.z = -0.5;
+    // a rail of scarves along the front
+    box(2.6, 0.08, 0.08, P.woodDark, 0.3, 1.55, 2.95, g); for (const sd of [-1, 1]) box(0.08, 1.55, 0.08, P.woodDark, 0.3 + sd * 1.3, 0.78, 2.95, g);
+    [0x2fc6b3, 0xffd93b, 0x6a2fc4, 0xff7fa3, 0xe8452c].forEach((col, i) => box(0.32, 0.9, 0.06, col, -0.7 + i * 0.5, 1.08, 2.95, g));
+    // a little table of sunglasses
+    box(1.1, 0.7, 0.6, P.wood, 2.0, 0.35, 3.2, g); box(1.2, 0.08, 0.7, 0xfffaf0, 2.0, 0.72, 3.2, g);
+    for (let i = 0; i < 3; i++) { const gx = 1.65 + i * 0.36, col = [0x1d2545, 0xff7fa3, 0xffd93b][i]; for (const sd of [-1, 1]) { const l = mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.03, 8), flat(col), gx + sd * 0.08, 0.8, 3.2, g); l.rotation.x = Math.PI / 2 - 0.4; } } const bh = mesh(new THREE.SphereGeometry(0.26, 8, 5), flat(0x2fc6b3), -0.24, 1.45, 0.05, stand); bh.scale.y = 0.6; }
 
   // ---- observatory: a round tower with a dome that turns at night ----------------------------
   let dome = null, scopeLight = null;
@@ -319,12 +334,14 @@ export function buildTown() {
 
   // ---- ice pond ----------------------------------------------------------------
   const pond = site('pond');
-  { mesh(new THREE.CylinderGeometry(6.0, 6.0, 0.24, 7), flat(P.snowShade), pond.x, 0.0, pond.z);
-    mesh(new THREE.CylinderGeometry(5.3, 5.3, 0.26, 7), flat(P.water), pond.x, 0.0, pond.z);
-    for (let i = 0; i < 6; i++) { const a = rand() * 6.28, r = 1 + rand() * 3.2; const f = mesh(new THREE.CylinderGeometry(0.5 + rand() * 0.4, 0.5, 0.1, 5), flat(P.ice), pond.x + Math.cos(a) * r, 0.16, pond.z + Math.sin(a) * r); f.rotation.y = rand() * 6; } }
+  { const R0 = PLACES.pond.r;
+    mesh(new THREE.CylinderGeometry(R0, R0, 0.24, 9), flat(P.snowShade), pond.x, 0.0, pond.z);
+    mesh(new THREE.CylinderGeometry(R0 - 0.8, R0 - 0.8, 0.26, 9), flat(P.water), pond.x, 0.0, pond.z);
+    for (let i = 0; i < 12; i++) { const a = rand() * 6.28, r = 1.5 + rand() * (R0 - 3.2); const f = mesh(new THREE.CylinderGeometry(0.5 + rand() * 0.6, 0.55, 0.1, 5), flat(P.ice), pond.x + Math.cos(a) * r, 0.16, pond.z + Math.sin(a) * r); f.rotation.y = rand() * 6; }
+    for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283 + 0.3; if (Math.cos(a) < -0.6) continue; rock(pond.x + Math.cos(a) * (R0 + 0.4), pond.z + Math.sin(a) * (R0 + 0.4), 0.35 + rand() * 0.35); } }
 
   // ---- river: pond -> waterfall on the west rim ------------------------------------
-  { const pts = [[pond.x - 4.5, pond.z], ...RIVER].map(([x, z]) => new THREE.Vector3(x, 0, z));
+  { const pts = [[pond.x - PLACES.pond.r + 1.5, pond.z], ...RIVER].map(([x, z]) => new THREE.Vector3(x, 0, z));
     const curve = new THREE.CatmullRomCurve3(pts);
     const ribbon = (width, color, y) => {
       const N = 40, pos = [], idx = [];
@@ -378,7 +395,7 @@ export function buildTown() {
 
   // ---- decoration round the edge ------------------------------------------------------------
   const extraObs = [site('cafe'), CLOCK, BIG_ROCK, ...NEIGHBOURS.flatMap(n => n.hobbies.filter(h => h.at).map(h => h.at)), ...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home)];
-  const clear = (x, z, pad) => !inBeach(x, z) && !nearRiver(x, z, 3.2) && extraObs.every(o => Math.hypot(o.x - x, o.z - z) > 3.6) && Object.keys(PLACES).every(k => { const s = site(k); return Math.hypot(s.x - x, s.z - z) > (s.r || 2.5) + pad && Math.hypot(PLACES[k].x - x, PLACES[k].z - z) > 3; });
+  const clear = (x, z, pad) => !onPath(x, z, 1.8) && !inBeach(x, z) && !nearRiver(x, z, 3.2) && extraObs.every(o => Math.hypot(o.x - x, o.z - z) > 3.6) && Object.keys(PLACES).every(k => { const s = site(k); return Math.hypot(s.x - x, s.z - z) > (s.r || 2.5) + pad && Math.hypot(PLACES[k].x - x, PLACES[k].z - z) > 3; });
   let placed = 0;
   for (let i = 0; i < 900 && placed < 52; i++) {
     const a = rand() * 6.28, r = R * 0.5 + rand() * (R * 0.45), x = Math.cos(a) * r, z = Math.sin(a) * r;

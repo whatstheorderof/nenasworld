@@ -6,7 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { PLACES, NEEDS, ISLETS, WORLD, isletPos, site } from '../../shared/world.js';
-import { SCARVES, HATS, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
+import { SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
 import { buildNena, buildRobot } from './nena.js';
 import { buildTown } from './town.js';
 import { buildDynamic } from './dynamic.js';
@@ -203,6 +203,7 @@ function apply(n, snap) {
   town.flag.rotation.z = n.mail ? 0 : -1.4; town.flag.position.y = n.mail ? 1.5 : 1.25;
   nena.setScarf(SCARVES[n.look.scarf] ?? SCARVES[0]);
   nena.setHat(qs.get('hat') || HATS[n.look.hat || 0]);
+  nena.setGlasses(qs.get('glasses') || (n.night ? 'none' : GLASSES[n.look.glasses || 0]));   // sunglasses come off at night
   town.setHouse(n.look.house, n.look.level);
   town.setIsland(n.look.flag, n.painter, n.crops);
   parked.visible = !n.activity.ride;
@@ -245,7 +246,7 @@ async function show(name) {
         <h3>Stamps ${l.stamps.length}/${STAMPS.length}</h3><p>${STAMPS.map(st => l.stamps.includes(st.id) ? esc(st.name) : '<span class="dim">?</span>').join(' · ')}</p>
         ${l.songs.length ? `<h3>Records</h3><p>${l.songs.map(esc).join(' · ')}</p>` : ''}
         <h3>Flower colours ${l.blooms.length}/${Object.keys(BLOOMS).length}</h3><p>${Object.keys(BLOOMS).map(k => l.blooms.includes(k) ? `<span style="display:inline-block;width:12px;height:12px;border-radius:6px;border:2px solid #1d2545;background:#${BLOOMS[k].toString(16).padStart(6, '0')}"></span> ${k}` : '<span class="dim">?</span>').join(' · ')}</p>
-        <h3>Wardrobe</h3><p>Hats: ${(l.hats || [0]).filter(i => i).map(i => esc(HATS[i])).join(', ') || 'none yet'}.</p>
+        <h3>Wardrobe</h3><p>Hats: ${(l.hats || [0]).filter(i => i).map(i => esc(HATS[i])).join(', ') || 'none yet'}. Sunglasses: ${(l.glasses || [0]).filter(i => i).map(i => esc(GLASSES[i])).join(', ') || 'none yet'}.</p>
         <h3>Star chart ${(l.sky || []).length}/${SKY_LIST.length + SKY_RARE.length}</h3><p>${(l.sky || []).map(esc).join(' · ') || 'nothing yet'}</p>
         <h3>Travels and travellers</h3><p>Islets rowed to: ${l.islets.map(esc).join(', ') || 'none yet'} (${l.islets.length}/${ISLETS.length}). Campers met: ${l.metCampers.map(esc).join(', ') || 'none yet'}.${l.camper ? ` ${esc(l.camper.name)} the ${esc(l.camper.kind)} is at the campsite today.` : ''}</p>
         <h3>Neighbours</h3>${Object.entries(l.friends).map(([k, v]) => `<div class="entry">${esc(k)}<div class="meter"><i style="width:${v * 10}%"></i></div></div>`).join('')}
@@ -308,7 +309,7 @@ function frame() {
   const pos = nena.root.position, k = 1 - Math.exp(-dt * 6), doing = act.phase === 'doing';
 
   const goal = target.clone();
-  if (doing && act.anim === 'swim') { swimT += dt * 0.9; goal.set(town.pond.x + Math.cos(swimT) * 3, 0.12, town.pond.z + Math.sin(swimT) * 3); heading = -swimT; }            // circles on the pond
+  if (doing && act.anim === 'swim') { swimT += dt * 0.55; goal.set(town.pond.x + Math.cos(swimT) * 5.5, 0.12, town.pond.z + Math.sin(swimT) * 5.5); heading = -swimT; }            // circles on the pond
   else if (doing && act.anim === 'dive') { swimT += dt * 0.5; const l = Math.hypot(target.x, target.z); goal.set(target.x / l * (WORLD.radius + 3.5) + Math.cos(swimT) * 2, 0, target.z / l * (WORLD.radius + 3.5) + Math.sin(swimT) * 2); heading = -swimT; }   // out in the sea
   else if (doing && act.anim === 'sail') { swimT += dt * 0.5; const ip = isletPos(act.islet ?? 0); goal.set(ip.x + Math.cos(swimT) * 1.6, 0.35, ip.z + Math.sin(swimT) * 1.6); heading = -swimT; if (pos.distanceTo(goal) > 12) pos.copy(goal); }   // ashore on a little island
   else if (doing && act.anim === 'inside' && act.place) { const s = site(act.place); goal.set(s.x, 0, s.z); heading = 0; }                                           // indoors

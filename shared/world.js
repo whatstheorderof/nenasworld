@@ -4,13 +4,13 @@
 // and blocks a circle of radius `r`, which she walks around.
 // K stretches the whole layout: buildings stay the same size, the island and the gaps between things grow.
 export const K = 1.35;
-export const WORLD = { size: 88, radius: 30 * K, name: "Nena's World", layout: 3 };
-const DZ = 12 * K + 7.2 - 19.2;   // how far south the pond (and so the river) moved
+export const WORLD = { size: 88, radius: 30 * K, name: "Nena's World", layout: 4 };
+const DZ = 12 * K + 7.2 - 19.2;   // how far south the river moved when the island grew (the pond's centre is 12K + 7.2)
 
 export const PLACES = {
   home:    { label: 'House',        x: -13,   z: -9,    d: 4.7, r: 3.1 },
   fish:    { label: 'Fish Stall',   x: 10,    z: -11,   d: 3.2, r: 2.2 },
-  pond:    { label: 'Ice Pond',     x: 0,     z: 12,    d: 7.2, r: 6.0 },
+  pond:    { label: 'Ice Pond',     x: 0,     z: 9.7,   d: 10.3, r: 9.5 },
   library: { label: 'Library',      x: -15,   z: 9,     d: 4.9, r: 3.3 },
   studio:  { label: 'Studio',       x: 15,    z: 8,     d: 4.6, r: 3.0 },
   plaza:   { label: 'Mailbox',      x: 0,     z: 0,     d: 0,   r: 0   },
@@ -43,7 +43,7 @@ export function site(key) {
 // Each has hobbies: things they go and do on their own, which she can join in with.
 export const NEIGHBOURS = [
   { name: 'Bo',   kind: 'seal',   home: { x: 8.5 * K,   z: 24 * K },   says: ['the tide was loud last night.', 'i found a warm rock. it is mine now.', 'you smell like fish. that is a compliment.'],
-    hobbies: [{ doing: 'sunbathing', at: { x: 13 * K, z: 22.5 * K }, anim: 'lie' }, { doing: 'watching the pond', at: { x: 5.6, z: 12 * K + 7.2 - 5.6 }, anim: 'sit' }, { doing: 'fishing', at: { x: -12.5 * K, z: 16.3 + DZ }, anim: 'sit' }] },
+    hobbies: [{ doing: 'sunbathing', at: { x: 13 * K, z: 22.5 * K }, anim: 'lie' }, { doing: 'watching the pond', at: { x: 10.6, z: 16.5 }, anim: 'sit' }, { doing: 'fishing', at: { x: -12.5 * K, z: 16.3 + DZ }, anim: 'sit' }] },
   { name: 'Pip',  kind: 'puffin', home: { x: 10 * K,    z: -22 * K },  says: ['i counted the fence planks again. still a lot.', 'have you seen the sky from the tower?', 'i am collecting interesting sticks.'],
     hobbies: [{ doing: 'jogging round the square', anim: 'jog', loop: 6.5 }, { doing: 'doing star jumps', at: { x: -3.5, z: 3.5 }, anim: 'jump' }, { doing: 'collecting sticks', at: { x: 6 * K, z: -8 * K }, anim: 'peck' }] },
   { name: 'Suvi', kind: 'fox',    home: { x: -25.5 * K, z: 6.5 * K },  says: ['the snow by the igloo squeaks. did you notice?', 'i heard something in the river. probably a fish.', 'i like your scarf.'],
@@ -54,7 +54,7 @@ export const CAMPERS = [
   { name: 'Odo', kind: 'otter', from: 'a river with too many bridges', says: 'every bridge has a troll. most of them are nice.' },
   { name: 'Mirren', kind: 'hare', from: 'a hill where the wind never stops', says: 'you get used to leaning.' },
   { name: 'Tuck', kind: 'owl', from: 'a forest that is mostly night', says: 'the trick is to like the dark first.' },
-  { name: 'Fen', kind: 'walrus', from: 'an ice shelf further north than north', says: 'your pond is very small. i like it.' },
+  { name: 'Fen', kind: 'walrus', from: 'an ice shelf further north than north', says: 'your pond is a good size. i checked.' },
   { name: 'Lark', kind: 'hare', from: 'a town built on a very slow tortoise', says: 'we move house without moving house.' },
 ];
 // Little islands out past the foam that she rows to.
@@ -112,17 +112,47 @@ export function route(a, b) {
   return pts.slice(1);
 }
 export const blocked = (x, z, pad = 1) => OBSTACLES.some(o => Math.hypot(o.x - x, o.z - z) < o.r + pad);
-const openAt = (x, z, others, gap) => Math.hypot(x, z) < WORLD.radius - 3 && !blocked(x, z, 1.8) && !inBeach(x, z) && !nearRiver(x, z, 2.5) && !Object.values(PLACES).some(p => Math.hypot(p.x - x, p.z - z) < 2.6) && !others.some(o => Math.hypot(o.x - x, o.z - z) < gap);
+const openAt = (x, z, others, gap) => Math.hypot(x, z) < WORLD.radius - 3 && !onPath(x, z, 1.3) && !blocked(x, z, 1.8) && !inBeach(x, z) && !nearRiver(x, z, 2.5) && !Object.values(PLACES).some(p => Math.hypot(p.x - x, p.z - z) < 2.6) && !others.some(o => Math.hypot(o.x - x, o.z - z) < gap);
 // A free spot close to a point (for things that grow next to other things).
 export function freeNear(at, others = [], gap = 2.0, rand = Math.random) {
   for (let i = 0; i < 40; i++) { const a = rand() * 6.283, r = 2.2 + rand() * 2.5, x = at.x + Math.cos(a) * r, z = at.z + Math.sin(a) * r; if (openAt(x, z, others, gap)) return { x: Math.round(x * 10) / 10, z: Math.round(z * 10) / 10 }; }
   return null;
 }
+// Pebble paths: from the square to every place, bending around buildings.
+// A ring path round the middle of the island, four paths in from the square, and a short spur
+// from the ring out to each place. Every stretch is routed around buildings.
+export const RING = 16;
+export const PATHS = (() => {
+  const ring = [];
+  for (let i = 0; i < 40; i++) { const a = i / 40 * 6.283, x = Math.cos(a) * RING, z = Math.sin(a) * RING; if (!blocked(x, z, 1.4)) ring.push({ x, z, a }); }
+  const lines = [];
+  for (let i = 0; i < ring.length; i++) { const a = ring[i], b = ring[(i + 1) % ring.length]; lines.push([a, ...route(a, b)]); }
+  for (const deg of [45, 135, 225, 315]) {   // in from the square, between the main buildings
+    const a = deg * Math.PI / 180, end = ring.reduce((best, r) => Math.abs(Math.atan2(Math.sin(r.a - a), Math.cos(r.a - a))) < Math.abs(Math.atan2(Math.sin(best.a - a), Math.cos(best.a - a))) ? r : best);
+    const start = { x: Math.cos(end.a) * 4.4, z: Math.sin(end.a) * 4.4 }; lines.push([start, ...route(start, end)]);
+  }
+  for (const [k, p] of Object.entries(PLACES)) {
+    if (k === 'plaza') continue;
+    const d = Math.hypot(p.x, p.z);
+    if (d < RING - 3) { const a = Math.atan2(p.z, p.x), start = { x: Math.cos(a) * 4.4, z: Math.sin(a) * 4.4 }; lines.push([start, ...route(start, p)]); continue; }   // close in: straight from the square
+    const a = Math.atan2(p.z, p.x), from = ring.reduce((best, r) => Math.hypot(r.x - p.x, r.z - p.z) < Math.hypot(best.x - p.x, best.z - p.z) ? r : best);
+    void a; lines.push([from, ...route(from, p)]);
+  }
+  return lines;
+})();
+export function onPath(x, z, pad = 1.2) {
+  for (const line of PATHS) for (let i = 0; i < line.length - 1; i++) {
+    const a = line[i], b = line[i + 1], dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / l2));
+    if (Math.hypot(a.x + dx * t - x, a.z + dz * t - z) < pad) return true;
+  }
+  return Math.hypot(x, z) < 4.5 + pad - 1;   // the round pebble square
+}
 // An open bit of grass: on the island, off the beach and river, clear of buildings and of `others`.
 export function freeSpot(others = [], gap = 2.6, rand = Math.random) {
   for (let i = 0; i < 80; i++) {
     const a = rand() * Math.PI * 2, r = 5 + rand() * (WORLD.radius - 9), x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (blocked(x, z, 1.8) || inBeach(x, z) || nearRiver(x, z, 2.5)) continue;
+    if (blocked(x, z, 1.8) || inBeach(x, z) || nearRiver(x, z, 2.5) || onPath(x, z, 1.3)) continue;
     if (Object.values(PLACES).some(p => Math.hypot(p.x - x, p.z - z) < 2.6)) continue;
     if (others.some(o => Math.hypot(o.x - x, o.z - z) < gap)) continue;
     return { x: Math.round(x * 10) / 10, z: Math.round(z * 10) / 10 };
