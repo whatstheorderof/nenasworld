@@ -16,6 +16,7 @@ export const PLACES = {
   museum:  { label: 'Museum',       x: -9.6,  z: -16.7, d: 4.9, r: 3.3 },
   shop:    { label: 'Shop',         x: 20,    z: -3,    d: 4.6, r: 3.0 },
   igloo:   { label: 'Igloo',        x: -20,   z: -1,    d: 5.4, r: 3.3 },
+  cafe:    { label: 'Cocoa Cart',   x: 4.6,   z: 5.2,   d: 1.9, r: 1.3 },
   garden:  { label: 'Garden',       x: 7,     z: -3,    d: 0,   r: 0   },
   orchard: { label: 'Orchard',      x: 3.6,   z: -9.4,  d: 0,   r: 0   },
   rock:    { label: 'Big Rock',     x: -8.6,  z: 2.6,   d: 0,   r: 0   },

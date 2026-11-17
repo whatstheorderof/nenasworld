@@ -34,24 +34,52 @@ export const SPECIES = {
   ladybird: { cat: 'bug', v: 20, s: [0, 1] }, 'blue butterfly': { cat: 'bug', v: 50, s: [0, 1] }, cricket: { cat: 'bug', v: 30, s: [1, 2] }, 'stag beetle': { cat: 'bug', v: 110, s: [1] },
   firefly: { cat: 'bug', v: 60, s: [1] }, 'snow moth': { cat: 'bug', v: 70, s: [3] }, 'pond skater': { cat: 'bug', v: 35 }, 'emerald dragonfly': { cat: 'bug', v: 350, rare: 1 },
   'sea star': { cat: 'sea', v: 30 }, urchin: { cat: 'sea', v: 45 }, scallop: { cat: 'sea', v: 60 }, 'sea cucumber': { cat: 'sea', v: 40 }, 'pearl oyster': { cat: 'sea', v: 450, rare: 1 },
+  'Pond at Dusk': { cat: 'art', v: 300 }, 'Fence, Forty Planks': { cat: 'art', v: 300 }, 'Portrait of a Fish': { cat: 'art', v: 300 }, 'The Long Night': { cat: 'art', v: 300 }, 'Two Tents': { cat: 'art', v: 300 }, 'Sea, Mostly': { cat: 'art', v: 300 },
   ammonite: { cat: 'fossil', v: 150 }, trilobite: { cat: 'fossil', v: 160 }, 'fern imprint': { cat: 'fossil', v: 120 }, 'old tooth': { cat: 'fossil', v: 180 }, 'giant feather': { cat: 'fossil', v: 220 }, 'tiny skull': { cat: 'fossil', v: 260 },
 };
-export const CATS = { fish: 'Fish', bug: 'Bugs', sea: 'Sea creatures', fossil: 'Fossils' };
-export function catchOne(cat, where, season, rand = Math.random) {
+export const CATS = { fish: 'Fish', bug: 'Bugs', sea: 'Sea creatures', fossil: 'Fossils', art: 'Paintings' };
+export const SEASON_FIND = ['blossom petals', 'sea glass', 'mushroom', 'snowflake'];
+export const SONGS = ['Slow Tide', 'Lamp Post Waltz', 'Fish Stall Shuffle', 'Snow Squeak', 'Two Left Flippers', 'Aurora Hum', 'Bo Is Asleep', 'Long Way Round'];
+// The painter's boat calls on these weekdays. Some of what he sells is not what he says it is.
+export const painterIn = (cal, hour) => (cal.weekday === 2 || cal.weekday === 5) && hour >= 8 && hour < 19;
+// Stamps: small goals she ticks off just by living. Each pays a few coins; two give her a lucky golden tool.
+export const STAMPS = [
+  { id: 'first', name: 'First Catch', coins: 50, test: s => (s.n.go_fishing || 0) + (s.n.sea_fishing || 0) >= 1 },
+  { id: 'angler', name: 'Patient Angler', coins: 300, gold: 'rod', test: s => (s.n.go_fishing || 0) + (s.n.sea_fishing || 0) >= 20 },
+  { id: 'bugs', name: 'Friend of Small Things', coins: 300, gold: 'net', test: s => (s.n.catch_bugs || 0) >= 15 },
+  { id: 'diver', name: 'Deep Breath', coins: 200, test: s => (s.n.dive || 0) >= 10 },
+  { id: 'curator', name: 'Junior Curator', coins: 500, test: s => Object.values(s.museum).reduce((t, a) => t + a.length, 0) >= 10 },
+  { id: 'fullmuseum', name: 'Nothing Left To Find', coins: 3000, test: s => Object.values(s.museum).reduce((t, a) => t + a.length, 0) >= Object.keys(SPECIES).length },
+  { id: 'maker', name: 'Maker', coins: 200, test: s => (s.n.craft || 0) >= 5 },
+  { id: 'designer', name: 'Island Designer', coins: 300, test: s => (s.n.decorate || 0) >= 10 },
+  { id: 'green', name: 'Green Flippers', coins: 200, test: s => (s.n.plant_tree || 0) + (s.n.plant_flowers || 0) + (s.n.harvest || 0) >= 6 },
+  { id: 'neighbour', name: 'Good Neighbour', coins: 300, test: s => Object.values(s.friends).every(v => v >= 5) },
+  { id: 'best', name: 'Best Friends', coins: 500, test: s => Object.values(s.friends).some(v => v >= 10) },
+  { id: 'home', name: 'Room To Waddle', coins: 500, test: s => s.house.level >= 3 },
+  { id: 'cocoa', name: 'Regular', coins: 150, test: s => (s.n.drink_cocoa || 0) >= 10 },
+  { id: 'sailor', name: 'Sea Legs', coins: 300, test: s => (s.n.boat_trip || 0) >= 5 },
+  { id: 'songs', name: 'Record Collection', coins: 300, test: s => s.songs.length >= 5 },
+  { id: 'party', name: 'Never Misses A Party', coins: 300, test: s => (s.n.event || 0) >= 5 },
+  { id: 'rider', name: 'Robot Rider', coins: 100, test: s => (s.rides || 0) >= 20 },
+];
+export function catchOne(cat, where, season, lucky = false, rand = Math.random) {
   const pool = Object.entries(SPECIES).filter(([, s]) => s.cat === cat && (!where || s.where === where) && (!s.s || s.s.includes(season)));
-  const total = pool.reduce((t, [, s]) => t + (s.rare ? 0.12 : 1), 0);
+  const total = pool.reduce((t, [, s]) => t + (s.rare ? (lucky ? 0.4 : 0.12) : 1), 0);
   let r = rand() * total;
-  for (const [name, s] of pool) { r -= s.rare ? 0.12 : 1; if (r <= 0) return name; }
+  for (const [name, s] of pool) { r -= s.rare ? (lucky ? 0.4 : 0.12) : 1; if (r <= 0) return name; }
   return pool[0][0];
 }
-export const MATERIAL_VALUE = { shell: 15, fruit: 12, weeds: 3, wood: 8, stone: 10, ore: 40, dish: 30 };
+export const MATERIAL_VALUE = { shell: 15, fruit: 12, weeds: 3, wood: 8, stone: 10, ore: 40, clay: 12, stick: 4, veg: 20, 'blossom petals': 18, 'sea glass': 22, mushroom: 25, snowflake: 20 };
 
 // ---- crafting: what she can build and put out on the island --------------------------
 export const RECIPES = {
   bench: { wood: 3 }, lantern: { wood: 1, ore: 1 }, cairn: { stone: 3 }, 'shell arch': { shell: 4 }, birdbath: { stone: 2, ore: 1 },
   scarecrow: { wood: 2, weeds: 2 }, signpost: { wood: 2 }, campfire: { wood: 2, stone: 2 }, 'wind chime': { shell: 2, wood: 1 }, 'log stool': { wood: 1 },
+  'stepping stones': { stone: 2 }, 'clay pot': { clay: 2 }, 'stick fence': { stick: 4 }, 'blossom wreath': { 'blossom petals': 3 }, 'mushroom stool': { mushroom: 3 },
+  'snow globe': { snowflake: 3, 'sea glass': 1 }, 'pearl lamp': { pearl: 1, ore: 1 }, 'gold trophy': { 'gold nugget': 1 },
 };
-export const SHOP = { 'flower seeds': 40, sapling: 60, gift: 80, scarf: 150 };
+export const SHOP = { 'flower seeds': 40, sapling: 60, gift: 80, furnishing: 120, scarf: 150 };
+export const FLAGS = [0xe8452c, 0x2fc6b3, 0xffd93b, 0x6a2fc4, 0xff7fa3, 0x2f7f9a];
 export const SCARVES = [0x2fc6b3, 0xe8452c, 0xffd93b, 0x6a2fc4, 0xff7fa3, 0xfffaf0, 0x2f7f9a];
 export const HOUSE_LOOKS = [{ wall: 0xfff1d6, roof: 0xe8452c }, { wall: 0xcfe6f7, roof: 0x2f7f9a }, { wall: 0xffd9de, roof: 0x6a2fc4 }, { wall: 0xfff3c4, roof: 0x2f8f7a }, { wall: 0xf7b34a, roof: 0x1d2545 }];
 export const HOUSE_LOAN = [0, 1200, 3500];   // coins to reach level 2, then level 3
@@ -61,7 +89,7 @@ export const HOUSE_LOAN = [0, 1200, 3500];   // coins to reach level 2, then lev
 // dur: real seconds. effects: total change to needs. anim: how she moves while doing it.
 // ok(c): is it on offer right now? c = { n: needs, day, night, weather, cal, event, life, has(spotKind), npc }
 // why: things she might think when the scripted mind picks it.
-const A = (label, where, dur, effects, anim, ok, offer, why) => ({ label, ...(where.startsWith('@') ? { target: where.slice(1) } : { place: where || null }), dur, effects, anim, ok, offer, why });
+const A = (label, where, dur, effects, anim, ok, offer, why) => ({ label, ...(where.startsWith('@') ? { target: where.slice(1).split(':')[0], who: where.split(':')[1] || null } : { place: where || null }), dur, effects, anim, ok, offer, why });
 const any = () => true;
 export const ACTIONS = {
   // everyday
@@ -113,6 +141,22 @@ export const ACTIONS = {
   chat:       A('chatting with a neighbour', '@npc', 30, { joy: 0.3, calm: 0.1 }, 'stand', c => !!c.npc && (c.life.s.chats?.[0] !== c.dayN || c.life.s.chats[1] < 4), 'a neighbour is out and about', ['someone to talk to.']),
   give_gift:  A('giving a neighbour a present', '@npc', 30, { joy: 0.4 }, 'flap', c => !!c.npc && c.life.giftable() && c.life.s.giftDay !== c.dayN, 'she has something a neighbour would like', ['i think they would like this.']),
   write_letter: A('writing a letter', 'home', 40, { calm: 0.25, joy: 0.15 }, 'sit', c => c.n.energy > 0.2, 'write to a neighbour', ['i have been meaning to write.']),
+  // more of island life
+  forage:     A('foraging', '@free', 30, { wonder: 0.2, calm: 0.15 }, 'peck', c => c.day, 'the season leaves things lying about', ['there is always something on the ground if you look.']),
+  drink_cocoa: A('having a cocoa', 'cafe', 40, { calm: 0.35, energy: 0.12, joy: 0.12 }, 'sit', c => c.day || c.hour < 23, 'the cocoa cart is open', ['something warm. sit. watch the square.']),
+  daily_board: A('checking the noticeboard', 'plaza', 15, { wonder: 0.1, joy: 0.1 }, 'stand', c => c.day && c.life.s.boardDay !== c.dayN, 'the noticeboard and lost-property box change every day', ['see what the board says today.']),
+  trade_pearl: A('trading a scallop with Bo', '@npc:Bo', 30, { joy: 0.35 }, 'flap', c => c.life.count('scallop') > 0 && c.out('Bo'), 'Bo swaps scallops for pearls', ['Bo wants scallops. i want what Bo has.']),
+  bury_coins: A('planting coins in the glowing spot', '@glow', 25, { wonder: 0.25 }, 'peck', c => c.has('glow') && c.life.s.coins >= 150, 'the ground is glowing somewhere', ['the ground is glowing. coins go in. apparently.']),
+  pick_coins: A('picking her coin tree', '@ripe', 25, { joy: 0.45 }, 'flap', c => !!c.life.ripe(c.dayN), 'the coin tree has grown', ['the coin tree is ready!']),
+  plant_hum:  A('planting a humming seed', '@free', 25, { wonder: 0.3 }, 'peck', c => c.life.count('hum seed') > 0, 'she has a seed that hums', ['it hums. i am going to plant it and see.']),
+  tend_crops: A('sowing the vegetable patch', 'garden', 40, { calm: 0.3 }, 'peck', c => c.day && c.cal.season !== 3 && !c.life.s.crops, 'the vegetable patch is empty', ['the patch is bare. that will not do.']),
+  harvest:    A('harvesting vegetables', 'garden', 35, { joy: 0.3, calm: 0.15 }, 'peck', c => c.life.s.crops && c.dayN - c.life.s.crops >= 2, 'the vegetables are ready', ['they are ready. i grew those.']),
+  buy_art:    A("looking at the painter's boat", 'beach', 40, { wonder: 0.35 }, 'stand', c => c.painter && c.life.s.coins >= 250 && c.life.s.artDay !== c.dayN, "the painter's boat is in", ['the painter is back. i never know if he is honest.']),
+  play_record: A('playing a record at home', 'home', 50, { joy: 0.35, calm: 0.2 }, 'inside', c => c.life.s.songs.length > 0, 'she has records', ['i want to hear that one again.']),
+  furnish_home: A('arranging her house', 'home', 45, { calm: 0.3, joy: 0.2 }, 'inside', c => c.life.count('furnishing') > 0, 'she has something new for the house', ['this goes by the window. no. there.']),
+  design_flag: A('designing the island flag', 'studio', 60, { joy: 0.3, wonder: 0.15 }, 'flap', c => c.dayN - (c.life.s.look.flagDay || -9) > 5, 'the flag in the square could change', ['the flag should look like how the island feels.']),
+  compose_tune: A('making up the island tune', 'home', 50, { joy: 0.3, wonder: 0.2 }, 'inside', c => c.dayN - (c.life.s.tuneDay || -9) > 7, 'the island could have a new tune', ['there is a tune in my head and it belongs to nobody else.']),
+  boat_trip:  A('out in the rowing boat', 'beach', 110, { wonder: 0.55, joy: 0.2, energy: -0.2 }, 'sail', c => c.day && c.hour < 16 && c.weather === 'clear' && c.cal.season !== 3 && c.n.energy > 0.5 && c.life.s.boatDay !== c.dayN, 'the rowing boat is on the sand and the sea is calm', ['i want to see what is out past the foam.']),
   // skies and seasons
   wish:       A('wishing on shooting stars', 'lookout', 40, { wonder: 0.5, joy: 0.2 }, 'lookup', c => c.weather === 'meteors', 'shooting stars tonight', ['a star fell. quick. wish.']),
   event:      A('at the event', '', 80, { joy: 0.5, wonder: 0.2 }, 'flap', c => !!c.event && c.life.s.eventDone !== `${c.dayN}:${c.event.id}`, 'something is on today', ['i am not missing this.']),

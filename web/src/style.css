@@ -43,3 +43,4 @@ textarea { min-height: 96px; resize: vertical; }
 #offline { max-width: min(520px, 60vw); text-align: center; font-size: 12px; opacity: .92; }
 [hidden] { display: none !important; }
 #panel { z-index: 2; }
+#camhelp { position: fixed; bottom: 78px; left: 50%; transform: translateX(-50%); padding: 6px 14px; font-size: 12px; font-weight: 800; white-space: nowrap; }

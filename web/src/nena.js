@@ -4,6 +4,18 @@ import * as THREE from 'three';
 const mat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
 const C = { coat: 0x232a4d, belly: 0xfdfaf2, beak: 0xffa62b, feet: 0xff8a1f, scarf: 0x2fc6b3, eye: 0xffffff, pupil: 0x141833, cheek: 0xff9aa8 };
 
+// Her little round robot. She stands on it for longer trips.
+export function buildRobot() {
+  const g = new THREE.Group();
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.78, 0.82, 0.2, 14), mat(0x3b4252)); disc.position.y = 0.14; g.add(disc);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.04, 14), mat(0x5b657a)); top.position.y = 0.26; g.add(top);
+  const bumper = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.12, 0.2), mat(0x2fc6b3)); bumper.position.set(0, 0.14, 0.72); g.add(bumper);
+  const eye = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.1), new THREE.MeshBasicMaterial({ color: 0x9cf6ff })); eye.position.set(0, 0.27, 0.48); g.add(eye);
+  const brush = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.03, 0.06), mat(0xffd93b)); brush.position.set(0.55, 0.04, 0.5); g.add(brush);
+  g.userData.brush = brush;
+  return g;
+}
+
 export function buildNena() {
   const root = new THREE.Group();          // position + heading
   const body = new THREE.Group();          // animated: waddle, tilt, lie down
@@ -57,6 +69,12 @@ export function buildNena() {
     sp.visible = false; root.add(sp); return sp;
   });
 
+  const robot = buildRobot(); robot.visible = false; root.add(robot);
+  const boat = new THREE.Group(); boat.visible = false; root.add(boat);
+  { const hull = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 2.6), mat(0x2f7f9a)); hull.position.y = 0.2; boat.add(hull);
+    const rim = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.12, 2.8), mat(0xfffaf0)); rim.position.y = 0.48; boat.add(rim);
+    for (const sd of [-1, 1]) { const oar = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.14), mat(0xc9531c)); oar.position.set(sd * 1.2, 0.5, 0); oar.rotation.z = sd * -0.3; boat.add(oar); } }
+
   let t = Math.random() * 10;
   // state: { phase:'walking'|'doing'|'idle', action }
   function animate(dt, state) {
@@ -67,7 +85,12 @@ export function buildNena() {
     const to = (obj, prop, v) => { obj[prop] += (v - obj[prop]) * k; };
 
     let roll = 0, pitch = 0, y = 0, flap = 0.25, footSwing = 0;
-    if (walking) { const w = Math.sin(t * 9); roll = w * 0.16; y = Math.abs(w) * 0.05; footSwing = w * 0.16; flap = 0.5 + Math.abs(w) * 0.15; }
+    const riding = walking && state.ride;
+    robot.visible = riding; boat.visible = act === 'sail';
+    if (riding) robot.userData.brush.rotation.y = t * 14;
+    if (riding) { y = 0.2; pitch = 0.1; roll = Math.sin(t * 3) * 0.04; flap = 0.75 + Math.sin(t * 6) * 0.08; }
+    else if (act === 'sail') { y = 0.32; roll = Math.sin(t * 1.3) * 0.06; flap = 0.6 + Math.sin(t * 2.5) * 0.4; }
+    else if (walking) { const w = Math.sin(t * 9); roll = w * 0.16; y = Math.abs(w) * 0.05; footSwing = w * 0.16; flap = 0.5 + Math.abs(w) * 0.15; }
     else if (act === 'peck') { pitch = Math.max(0, Math.sin(t * 4)) * 0.55; flap = 0.4; }
     else if (act === 'flap') { roll = Math.sin(t * 2) * 0.05; flap = 0.9 + Math.sin(t * 10) * 0.35; y = Math.abs(Math.sin(t * 5)) * 0.04; }
     else if (act === 'swim') { pitch = 1.35; y = -0.42; flap = 1.2 + Math.sin(t * 8) * 0.2; }
@@ -83,7 +106,8 @@ export function buildNena() {
     flippers.forEach((f, i) => to(f.rotation, 'z', (i ? 1 : -1) * flap));
     const inside = act === 'inside';   // she has gone indoors
     body.visible = shadow.visible = !inside;
-    feet.forEach((f, i) => { f.position.z = 0.14 + (i ? 1 : -1) * footSwing; f.visible = !inside && !['swim', 'lie', 'dive'].includes(act); });
+    feet.forEach((f, i) => { f.position.z = 0.14 + (i ? 1 : -1) * footSwing; f.visible = !inside && !['swim', 'lie', 'dive', 'sail'].includes(act); f.position.y = riding ? 0.3 : 0.045; });
+    shadow.visible = !inside && act !== 'sail';
     zs.forEach((z, i) => {
       z.visible = inside && state.action === 'sleep';
       const p = (t * 0.35 + i / 3) % 1;

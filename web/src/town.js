@@ -3,7 +3,7 @@
 // positions come from shared/world.js so the mind and the picture agree.
 import * as THREE from 'three';
 import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, site } from '../../shared/world.js';
-import { HOUSE_LOOKS } from '../../shared/data.js';
+import { HOUSE_LOOKS, FLAGS } from '../../shared/data.js';
 
 const P = {
   grass: 0xb4dc5a, grassDark: 0x79c653, cliff: 0x5aa84a, snow: 0xf6fcff, snowShade: 0xcfe6f7,
@@ -184,6 +184,36 @@ export function buildTown() {
     box(3, 0.4, 2, P.wood, -3, 0.2, 3, festival); box(1.6, 0.8, 0.8, 0xfffaf0, 3, 0.4, 3, festival);
     for (let i = 0; i < 16; i++) { const a = i / 16 * 6.283, r = 6 + (i % 2) * 5; const m = new THREE.MeshLambertMaterial({ color: 0xff8a1f, emissive: 0xff8a1f, emissiveIntensity: 1.6, flatShading: true }); box(0.5, 0.6, 0.5, m, Math.cos(a) * r, 0.5, Math.sin(a) * r, lanternsG); box(0.08, 0.5, 0.08, P.woodDark, Math.cos(a) * r, 0.1, Math.sin(a) * r, lanternsG); } }
 
+  // ---- cocoa cart ----------------------------------------------------------
+  { const g = at('cafe');
+    box(2.2, 1.0, 1.2, 0x8a5a3a, 0, 0.6, 0, g); box(2.4, 0.12, 1.4, 0xfff1d6, 0, 1.15, 0, g);
+    for (const s of [-1, 1]) { box(0.12, 1.5, 0.12, P.woodDark, s * 1.0, 1.9, 0, g); const wh = mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.12, 8), flat(0x1d2545), s * 1.0, 0.32, 0.65, g); wh.rotation.x = Math.PI / 2; }
+    for (let i = 0; i < 5; i++) box(0.5, 0.12, 1.7, i % 2 ? 0xfffaf0 : 0x8a5a3a, -1.0 + i * 0.5, 2.7, 0.1, g).rotation.x = 0.2;
+    mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.26, 7), flat(0xfffaf0), -0.5, 1.35, 0.2, g); mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.5, 7), glow(0xffb45a, 0xe8452c), 0.5, 1.46, 0, g);
+    sign('COCOA', 1.5, g, 0, 0.62, 0.62, { bg: '#fff1d6', fg: '#8a5a3a' });
+    for (const [x, z] of [[-1.9, 1.9], [1.9, 2.1]]) mesh(new THREE.CylinderGeometry(0.34, 0.38, 0.45, 7), flat(P.wood), x, 0.22, z, g); }
+
+  // ---- flagpole in the square (she designs the flag) -------------------------------
+  const flagMat = flat(FLAGS[0]);
+  { box(0.16, 5.2, 0.16, 0xfffaf0, -2.6, 2.6, 2.4); mesh(new THREE.BoxGeometry(1.6, 1.0, 0.06), flagMat, -1.75, 4.6, 2.4); box(0.5, 0.34, 0.07, 0xfffaf0, -1.75, 4.6, 2.4); box(0.6, 0.3, 0.6, P.rockDark, -2.6, 0.15, 2.4);
+    box(1.6, 1.3, 0.12, P.woodDark, 2.6, 1.25, 2.6).rotation.y = -0.5; box(1.4, 1.0, 0.06, 0xfff1d6, 2.56, 1.3, 2.67).rotation.y = -0.5; for (const s of [-1, 1]) box(0.12, 1.1, 0.12, P.woodDark, 2.6 + s * 0.6, 0.55, 2.6 + s * 0.33); }   // noticeboard
+
+  // ---- the painter's boat (only moored on some days) ---------------------------------
+  const painter = new THREE.Group(); painter.visible = false; town.add(painter);
+  { const a = 0.75, r = R + 3.2; painter.position.set(Math.cos(a) * r, -0.15, Math.sin(a) * r); painter.rotation.y = -a;
+    box(2.2, 0.9, 5.0, 0x3c2a86, 0, 0.3, 0, painter); box(2.5, 0.16, 5.3, 0xffd93b, 0, 0.8, 0, painter); box(1.5, 1.3, 1.8, 0xfff1d6, 0, 1.5, -1.2, painter); box(1.8, 0.16, 2.1, 0xe8452c, 0, 2.2, -1.2, painter);
+    box(0.12, 3.4, 0.12, P.woodDark, 0, 2.5, 0.9, painter); box(1.3, 1.0, 0.06, 0xff9aa8, 0.72, 3.5, 0.9, painter);
+    for (let i = 0; i < 3; i++) box(0.7, 0.9, 0.08, [0x58b7e8, 0xf59b2f, 0x2f8f7a][i], -0.8 + i * 0.8, 1.35, 1.9, painter).rotation.x = -0.25; }
+
+  // ---- vegetable patch beside the garden: sown, sprouting, ready ---------------------------
+  const cropStages = [new THREE.Group(), new THREE.Group(), new THREE.Group()];
+  { const p = PLACES.garden, g = new THREE.Group(); g.position.set(p.x + 0.4, 0, p.z + 3.4); g.rotation.y = 0.4; town.add(g);
+    box(3.2, 0.16, 1.8, 0x6e4a30, 0, 0.07, 0, g); cropStages.forEach(c => { c.visible = false; g.add(c); });
+    for (let i = 0; i < 8; i++) { const x = -1.2 + (i % 4) * 0.8, z = -0.4 + Math.floor(i / 4) * 0.8;
+      box(0.12, 0.06, 0.12, 0x3f9a4a, x, 0.18, z, cropStages[0]);
+      mesh(new THREE.ConeGeometry(0.14, 0.4, 4), flat(0x3f9a4a), x, 0.35, z, cropStages[1]);
+      mesh(new THREE.ConeGeometry(0.2, 0.5, 5), flat(0x3f9a4a), x, 0.4, z, cropStages[2]); mesh(new THREE.SphereGeometry(0.2, 6, 5), flat(i % 2 ? 0xff8a1f : 0xe8452c), x, 0.24, z + 0.16, cropStages[2]); } }
+
   // ---- cinema ------------------------------------------------------------
   const marquee = [];
   { const g = at('cinema');
@@ -254,8 +284,8 @@ export function buildTown() {
     ground(new THREE.RingGeometry(R + 0.05, R + 0.8, 24, 1, -BEACH.to, len), 0xffffff, 0, 0, -0.08);   // foam line
     town.userData.sea = sea;
     const b = PLACES.beach, g = new THREE.Group(); g.position.set(b.x, 0, b.z); g.rotation.y = Math.atan2(-b.x, -b.z); town.add(g);
-    box(0.14, 3.0, 0.14, 0xfffaf0, -2.6, 1.5, -2.0, g); const um = mesh(new THREE.ConeGeometry(2.0, 0.9, 8), flat(0xe8452c), -2.6, 3.2, -2.0, g); um.rotation.z = 0.12;
-    box(1.3, 0.06, 2.4, 0x2fc6b3, -2.4, 0.08, -1.0, g); box(1.3, 0.07, 0.4, 0xfffaf0, -2.4, 0.09, -1.0, g);                 // towel
+    box(0.14, 3.0, 0.14, 0xfffaf0, -4.6, 1.5, -2.4, g); const um = mesh(new THREE.ConeGeometry(2.0, 0.9, 8), flat(0xe8452c), -4.6, 3.2, -2.4, g); um.rotation.z = 0.12;
+    box(1.3, 0.06, 2.4, 0x2fc6b3, -4.4, 0.08, -1.4, g); box(1.3, 0.07, 0.4, 0xfffaf0, -4.4, 0.09, -1.4, g);                 // towel
     for (const [x, z, s] of [[2.6, -1.8, 1], [3.3, -1.2, 0.7], [2.2, -1.0, 0.6]]) { mesh(new THREE.CylinderGeometry(0.45 * s, 0.55 * s, 0.7 * s, 6), flat(P.sandDark), x, 0.35 * s, z, g); mesh(new THREE.ConeGeometry(0.4 * s, 0.5 * s, 6), flat(P.sand), x, 0.95 * s, z, g); }  // sandcastle
     for (let i = 0; i < 9; i++) { const sh = mesh(new THREE.ConeGeometry(0.16, 0.3, 5), flat([0xff9aa8, 0xfffaf0, 0xffb45a][i % 3]), -5 + rand() * 10, 0.1, -5.5 + rand() * 3.5, g); sh.rotation.set(1.4, rand() * 6, 0); }
     box(2.4, 0.5, 1.0, 0x2f7f9a, 4.6, 0.3, -3.4, g).rotation.y = 0.5; box(0.1, 1.6, 0.1, P.woodDark, 4.6, 1.0, -3.4, g); }  // little boat
@@ -270,7 +300,7 @@ export function buildTown() {
   // ---- mailbox and lamps -----------------------------------------------------------------
   { box(0.2, 1.1, 0.2, P.woodDark, 1.5, 0.55, -0.6); box(0.7, 0.5, 0.95, 0xe8452c, 1.5, 1.3, -0.6);
     town.userData.flag = box(0.08, 0.5, 0.3, 0xffd93b, 1.9, 1.5, -0.6); }
-  lamp(-1.8, -1.2);
+  lamp(-2.4, -2.0);
   for (const key of ['home', 'fish', 'library', 'studio', 'lookout', 'cinema', 'beach', 'museum', 'shop']) { const p = PLACES[key], l = Math.hypot(p.x, p.z); lamp(p.x * 0.6 + (p.z / l) * 1.5, p.z * 0.6 - (p.x / l) * 1.5); }
 
   // ---- decoration round the edge ------------------------------------------------------------
@@ -308,7 +338,8 @@ export function buildTown() {
     fruit.forEach(f => { f.visible = fruitReady && name !== 'winter'; });
   }
   function setHouse(look, level) { const l = HOUSE_LOOKS[look] || HOUSE_LOOKS[0]; house.wall.color.set(l.wall); house.roof.color.set(l.roof); house.extras[0].visible = level >= 2; house.extras[1].visible = level >= 3; }
+  function setIsland(flag, painterIn, crops) { flagMat.color.set(FLAGS[flag] ?? FLAGS[0]); painter.visible = !!painterIn; cropStages.forEach((c, i) => { c.visible = crops === i + 1; }); }
   function setEvent(show) { festival.visible = !!show; lanternsG.visible = show === 'lanterns'; }
   setHouse(0, 1);
-  return { town, setNight, setSeason, setHouse, setEvent, pond, flag: town.userData.flag };
+  return { town, setNight, setSeason, setHouse, setEvent, setIsland, pond, flag: town.userData.flag };
 }

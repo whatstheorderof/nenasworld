@@ -5,8 +5,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { PLACES, NEEDS, site } from '../../shared/world.js';
-import { SCARVES, CATS, SPECIES, todaysEvent } from '../../shared/data.js';
-import { buildNena } from './nena.js';
+import { SCARVES, CATS, SPECIES, STAMPS, todaysEvent } from '../../shared/data.js';
+import { buildNena, buildRobot } from './nena.js';
 import { buildTown } from './town.js';
 import { buildDynamic } from './dynamic.js';
 import { startLocalMind } from './localmind.js';
@@ -35,6 +35,7 @@ const town = buildTown(); scene.add(town.town);
 const dyn = buildDynamic(scene);
 const nena = buildNena(); nena.root.scale.setScalar(1.45); scene.add(nena.root);
 nena.root.position.set(PLACES.home.x, 0, PLACES.home.z);
+const parked = buildRobot(); parked.scale.setScalar(1.45); parked.position.set(PLACES.home.x + 3.2, 0, PLACES.home.z - 1.2); parked.rotation.y = 0.6; scene.add(parked);   // her robot waits by the house
 
 // stars
 const starGeo = new THREE.BufferGeometry();
@@ -160,6 +161,8 @@ function apply(n, snap) {
   town.flag.rotation.z = n.mail ? 0 : -1.4; town.flag.position.y = n.mail ? 1.5 : 1.25;
   nena.setScarf(SCARVES[n.look.scarf] ?? SCARVES[0]);
   town.setHouse(n.look.house, n.look.level);
+  town.setIsland(n.look.flag, n.painter, n.crops);
+  parked.visible = !n.activity.ride;
   dyn.setSpots(n.spots || []);
   if (n.lifeVersion !== lifeVersion) { lifeVersion = n.lifeVersion; refreshLife(); }
 }
@@ -192,6 +195,9 @@ async function show(name) {
       body.innerHTML = `<h2>Her things</h2>
         <p><b>${l.coins} coins.</b> House level ${l.house.level} of 3${l.loan ? ` (${l.house.paid} of ${l.loan} coins paid toward the next)` : ''}. ${l.decor} things placed around the island. ${l.photos} photos taken.${l.turnips.n ? ` Holding ${l.turnips.n} turnips bought at ${l.turnips.paid}; today's price is ${l.turnipPrice}.` : ''}</p>
         <h3>In her pockets</h3><p>${pockets}</p>
+        <p>Cosiness of her house: ${l.cosy}. ${l.tune ? `Island tune: ${esc(l.tune)}. ` : ''}The shop pays double for ${esc(l.hot)} today. Robot rides: ${l.rides}.</p>
+        <h3>Stamps ${l.stamps.length}/${STAMPS.length}</h3><p>${STAMPS.map(st => l.stamps.includes(st.id) ? esc(st.name) : '<span class="dim">?</span>').join(' · ')}</p>
+        ${l.songs.length ? `<h3>Records</h3><p>${l.songs.map(esc).join(' · ')}</p>` : ''}
         <h3>Neighbours</h3>${Object.entries(l.friends).map(([k, v]) => `<div class="entry">${esc(k)}<div class="meter"><i style="width:${v * 10}%"></i></div></div>`).join('')}
         <h3>Museum ${got}/${l.total}</h3><div class="meter"><i style="width:${got / l.total * 100}%"></i></div>${cats}`;
     } else if (name === 'memory') {
@@ -214,9 +220,23 @@ async function show(name) {
     }
   } catch { body.innerHTML = `<h2>Hm.</h2><p>Couldn't reach Nena's mind right now.</p>`; }
 }
-document.querySelectorAll('#nav button').forEach(b => b.onclick = () => (openPanel === b.dataset.panel ? close() : show(b.dataset.panel)));
+document.querySelectorAll('#nav button[data-panel]').forEach(b => b.onclick = () => (openPanel === b.dataset.panel ? close() : show(b.dataset.panel)));
 const close = () => { openPanel = null; $('panel').hidden = true; };
 $('close').onclick = close;
+
+// ---- camera: follow her, or roam free ----------------------------------------------
+let freeCam = false;
+const keys = new Set();
+addEventListener('keydown', e => { if (!/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) keys.add(e.key.toLowerCase()); });
+addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+addEventListener('blur', () => keys.clear());
+$('cam').onclick = () => {
+  freeCam = !freeCam;
+  controls.enablePan = freeCam; controls.maxDistance = freeCam ? 160 : 80; controls.maxPolarAngle = freeCam ? 1.55 : 1.45;
+  $('cam').textContent = freeCam ? 'Follow Nena' : 'Free camera';
+  $('camhelp').hidden = !freeCam;
+  if (!freeCam) { const p = nena.root.position; const off = camera.position.clone().sub(controls.target).setLength(22); controls.target.set(p.x, 1, p.z); camera.position.copy(controls.target).add(off); if (camera.position.y < 6) camera.position.y = 6; }
+};
 
 // ---- frame loop ----------------------------------------------------------------
 const clock = new THREE.Clock(), bubble = $('bubble'), head = new THREE.Vector3();
@@ -224,11 +244,13 @@ let swimT = 0, heading = 0, elapsed = 0;
 function frame() {
   const dt = Math.min(0.1, clock.getDelta()); elapsed += dt;
   const act = now?.activity || { phase: 'idle', action: 'idle', anim: 'stand' };
+  if (qs.has('ride')) { act.phase = 'walking'; act.ride = true; }   // preview her on the robot
   const pos = nena.root.position, k = 1 - Math.exp(-dt * 6), doing = act.phase === 'doing';
 
   const goal = target.clone();
   if (doing && act.anim === 'swim') { swimT += dt * 0.9; goal.set(town.pond.x + Math.cos(swimT) * 3, 0.12, town.pond.z + Math.sin(swimT) * 3); heading = -swimT; }            // circles on the pond
   else if (doing && act.anim === 'dive') { swimT += dt * 0.5; const l = Math.hypot(target.x, target.z); goal.set(target.x / l * 33.5 + Math.cos(swimT) * 2, 0, target.z / l * 33.5 + Math.sin(swimT) * 2); heading = -swimT; }   // out in the sea
+  else if (doing && act.anim === 'sail') { swimT += dt * 0.12; const b = Math.atan2(target.z, target.x) + Math.sin(swimT) * 0.35; goal.set(Math.cos(b) * 36.5, -0.25, Math.sin(b) * 36.5); heading = -b + Math.cos(swimT) * 1.2; }   // out in the boat
   else if (doing && act.anim === 'inside' && act.place) { const s = site(act.place); goal.set(s.x, 0, s.z); heading = 0; }                                           // indoors
   else if (doing && ['read', 'sit', 'lie'].includes(act.anim) || (doing && act.place === 'beach' && act.anim !== 'fish')) heading = Math.atan2(-target.x, -target.z);   // back to the wall / the sea
   else if (doing && act.anim === 'fish') heading = act.place === 'river' ? 0 : Math.atan2(target.x, target.z);                                                       // facing the water
@@ -248,7 +270,13 @@ function frame() {
   const sp = snow.geometry.attributes.position;
   if (wx.snow > 0.02) { for (let i = 0; i < SNOW; i++) { let y = sp.getY(i) - dt * (1.5 + (i % 5) * 0.3); if (y < 0) y = 30; sp.setY(i, y); } sp.needsUpdate = true; }
 
-  if (!window.__world?.freeze) {
+  if (freeCam) {
+    const sp = (keys.has('shift') ? 40 : 16) * dt, f = new THREE.Vector3(); camera.getWorldDirection(f); f.y = 0; f.normalize(); const r = new THREE.Vector3(-f.z, 0, f.x), mv = new THREE.Vector3();
+    if (keys.has('w') || keys.has('arrowup')) mv.add(f); if (keys.has('s') || keys.has('arrowdown')) mv.sub(f); if (keys.has('d') || keys.has('arrowright')) mv.add(r); if (keys.has('a') || keys.has('arrowleft')) mv.sub(r);
+    if (keys.has('e')) mv.y += 1; if (keys.has('q')) mv.y -= 1;
+    mv.multiplyScalar(sp); camera.position.add(mv); controls.target.add(mv);
+    if (camera.position.y < 1.5) { controls.target.y += 1.5 - camera.position.y; camera.position.y = 1.5; }
+  } else if (!window.__world?.freeze) {
     const before = controls.target.clone();
     controls.target.lerp(new THREE.Vector3(pos.x, 1, pos.z), 1 - Math.exp(-dt * 2.5));
     camera.position.add(controls.target.clone().sub(before));   // camera travels with her
