@@ -186,6 +186,8 @@ export const ACTIONS = {
   visit_camper: A('visiting the campsite', 'camp', 45, { wonder: 0.4, joy: 0.25 }, 'stand', c => !!c.life.s.camper && c.day && c.life.s.campDay !== c.dayN, 'someone is camping on the island today', ['there is a new tent. someone from somewhere else.']),
   join_hobby: A('joining in with a neighbour', '@npc', 45, { joy: 0.4, energy: -0.08 }, 'flap', c => !!c.npc && !!c.npc.doing && c.life.s.joinDay !== c.dayN, 'a neighbour is busy with their hobby', ['that looks fun. i am joining in.']),
   greet_visitors: A('waving at the visitors', 'plaza', 15, { joy: 0.3 }, 'lookup', c => c.visitors.length > 0 && c.life.s.greeted !== Math.floor(c.dayN * 24 + c.hour), 'there are visitors on the island right now', ['there are gulls about. the watching kind.']),
+  watch_beam: A('watching the lighthouse beam', 'lighthouse', 50, { calm: 0.4, wonder: 0.25 }, 'lookup', c => c.night && c.weather !== 'snow', 'the lighthouse is sweeping the dark', ['round and round. it never gets bored.']),
+  gaze_far:   A('looking out at the far islands', 'lighthouse', 45, { wonder: 0.5, calm: 0.15 }, 'stand', c => c.day && c.weather !== 'mist' && c.dayN - (c.life.s.gazeDay ?? -9) >= 2, 'on a clear day you can see other islands from the lighthouse', ['there are other islands out there. i want to know what is on them.']),
   // skies and seasons
   wish:       A('wishing on shooting stars', 'lookout', 40, { wonder: 0.5, joy: 0.2 }, 'lookup', c => c.weather === 'meteors', 'shooting stars tonight', ['a star fell. quick. wish.']),
   event:      A('at the event', '', 80, { joy: 0.5, wonder: 0.2 }, 'flap', c => !!c.event && c.life.s.eventDone !== `${c.dayN}:${c.event.id}`, 'something is on today', ['i am not missing this.']),

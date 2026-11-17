@@ -26,6 +26,7 @@ export const PLACES = {
   cafe:    { label: 'Cocoa Cart',   x: 4.6,   z: 5.2,   d: 1.9, r: 1.3 },
   tailor:  { label: 'Clothes Shop', x: 16.8,  z: -8.9,  d: 4.4, r: 2.9 },
   observatory: { label: 'Observatory', x: 3.6, z: -20.7, d: 4.8, r: 3.3 },
+  lighthouse: { label: 'Lighthouse', x: -17.1, z: -17.1, d: 5.0, r: 2.6 },
   camp:    { label: 'Campsite',     x: 21.5,  z: 3.4,   d: 3.6, r: 2.0 },
   garden:  { label: 'Garden',       x: 7,     z: -3,    d: 0,   r: 0   },
   orchard: { label: 'Orchard',      x: 3.6,   z: -9.4,  d: 0,   r: 0   },
@@ -66,6 +67,13 @@ export const ISLETS = [
   { name: 'Blossom Islet', a: 0.3, r: 30 * K + 24, gives: ['blossom petals', 'fruit', 'stick'] },
   { name: 'Stone Islet', a: 0.95, r: 30 * K + 28, gives: ['stone', 'ore', 'clay'] },
   { name: 'Mushroom Islet', a: 1.6, r: 30 * K + 24, gives: ['mushroom', 'sea glass', 'hum seed'] },
+];
+// Other sky islands, far off. For now they are only shapes in the haze; one day she will get to them.
+// Names are working titles until the lore is settled.
+export const SKY_ISLANDS = [
+  { id: 'ember', name: 'the smoking island', theme: 'volcano and desert', a: 3.75, r: 235, y: -6, size: 34, resources: ['obsidian', 'fire opal', 'sand glass', 'cactus fruit'] },
+  { id: 'wood', name: 'the forest island', theme: 'ancient fairy forest', a: 5.25, r: 250, y: 4, size: 40, resources: ['glow moss', 'silver bark', 'fairy dust', 'giant acorn'] },
+  { id: 'glass', name: 'the ice island', theme: 'ice crust over water, with drowned ruins below', a: 2.55, r: 225, y: -2, size: 32, resources: ['clear ice', 'old coins', 'pearl', 'sunken tile'] },
 ];
 export const isletPos = i => ({ x: Math.cos(ISLETS[i].a) * ISLETS[i].r, z: Math.sin(ISLETS[i].a) * ISLETS[i].r });
 export const ORCHARD_TREES = [[-0.6, 2.4], [2.2, -1.4], [-2.2, -2.4]].map(([x, z]) => [PLACES.orchard.x + x, PLACES.orchard.z + z]);

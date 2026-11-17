@@ -12,6 +12,7 @@ import { buildTown } from './town.js';
 import { buildDynamic } from './dynamic.js';
 import { startLocalMind } from './localmind.js';
 import { drawPicture, playTune } from './art.js';
+import { buildFarIslands } from './far.js';
 
 const MIND = (import.meta.env.VITE_MIND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const qs = new URLSearchParams(location.search);   // ?hour=23&weather=aurora&season=winter&show=fireworks to preview a look
@@ -35,6 +36,7 @@ const sun = new THREE.DirectionalLight(0xfff2d8, 2.0); sun.position.set(20, 30, 
 
 const town = buildTown(); scene.add(town.town);
 const dyn = buildDynamic(scene);
+const far = buildFarIslands(scene);
 const nena = buildNena(); nena.root.scale.setScalar(1.45); scene.add(nena.root);
 nena.root.position.set(PLACES.home.x, 0, PLACES.home.z);
 const parked = buildRobot(); parked.scale.setScalar(1.45); parked.position.set(PLACES.home.x + 3.2, 0, PLACES.home.z - 1.2); parked.rotation.y = 0.6; scene.add(parked);   // her robot waits by the house
@@ -62,7 +64,9 @@ const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xff
   for (let c = 0, k = 0; c < N; c++) {
     const below = c < 26, a = rnd() * 6.283, r = below ? 40 + rnd() * 130 : 130 + rnd() * 120, y = below ? -30 - rnd() * 26 : -18 + rnd() * 44, size = below ? 7 + rnd() * 6 : 6 + rnd() * 8;
     const cx = Math.cos(a) * r, cz = Math.sin(a) * r;
+    const blocksView = !below && [3.75, 5.25, 2.55].some(fa => Math.abs(Math.atan2(Math.sin(a - fa), Math.cos(a - fa))) < 0.16) && y > -6;   // keep the far islands in view
     for (let i = 0; i < PER; i++, k++) {
+      if (blocksView) { m.position.set(0, -9999, 0); m.scale.setScalar(0.001); m.updateMatrix(); inst.setMatrixAt(k, m.matrix); continue; }
       const s = size * (0.55 + rnd() * 0.5) * (i === 0 ? 1.3 : 1);
       m.position.set(cx + (rnd() - 0.5) * size * 2.4, y + rnd() * size * 0.35, cz + (rnd() - 0.5) * size * 1.4);
       m.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); m.scale.set(s, s * 0.62, s); m.updateMatrix(); inst.setMatrixAt(k, m.matrix);
@@ -386,6 +390,8 @@ function frame() {
   town.setEvent(showEv);
   town.setClock(hour);
   town.setObservatory(nightness, doing && act.action === 'observe', elapsed);
+  town.setLights(nightness, elapsed);
+  far.update(elapsed, nightness, sky);
   dots.uniforms.amount.value = 1 - nightness * 0.5;   // lighter touch at night so the glow reads
   dyn.update(dt, elapsed, now?.npcs, nightness);
   dyn.setVisitors(now?.visitors || [], elapsed, dt);

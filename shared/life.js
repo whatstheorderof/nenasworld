@@ -2,7 +2,7 @@
 // what she has built and where she put it, her house, her scarves, her friendships.
 // Pure logic with an injected store, so the same code runs on the server and in the browser.
 import { SPECIES, MATERIAL_VALUE, RECIPES, SHOP, SCARVES, HOUSE_LOOKS, HOUSE_LOAN, SEASON_FIND, SONGS, STAMPS, FLAGS, BLOOMS, HATS, CLOTHES_PRICE, SKY, SKY_RARE, GLASSES, crossBloom, catchOne, calendar } from './data.js';
-import { NEIGHBOURS, CAMPERS, ISLETS, WORLD, K, LAYOUT_K, freeSpot, freeNear, blocked } from './world.js';
+import { NEIGHBOURS, CAMPERS, ISLETS, SKY_ISLANDS, WORLD, K, LAYOUT_K, freeSpot, freeNear, blocked } from './world.js';
 
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
@@ -180,6 +180,10 @@ export class Life {
       case 'boat_trip': { s.boatDay = day; const isl = ISLETS[a.islet ?? 0]; if (!s.islets.includes(isl.name)) s.islets.push(isl.name); const finds = [pick(isl.gives), pick(['shell', 'sea glass', ...isl.gives])]; for (const k of finds) this.add(k, rint(1, 2));
         const saw = pick(['a rock shaped like a sleeping whale', 'an islet with one tree and nobody on it', 'a buoy with a bell that nobody rings', 'the island from far away. it is small', 'something large under the boat, going the other way']);
         return { text: `rowed out to ${isl.name} and came back with ${finds.join(' and ')}. on the way she saw ${saw}`, remember: `i rowed to ${isl.name}. on the way i saw ${saw}`, lift: 0.35 }; }
+      case 'watch_beam': return { text: 'watched the lighthouse beam go round over the island and out towards the far islands' };
+      case 'gaze_far': { s.gazeDay = day; const isl = pick(SKY_ISLANDS), seen = (s.farSeen ||= {}); seen[isl.id] = (seen[isl.id] || 0) + 1;
+        const notice = { ember: ['there is smoke coming off the top of it', 'the edge of it looks orange, like sand', 'something up there glows when the sun goes'], wood: ['the trees on it are taller than our lighthouse', 'it looks soft, like moss', 'birds go in and do not come out for ages'], glass: ['it shines like a window', 'there is a dark hole right in the middle of it', 'the bottom of it looks like it has steps carved in'] }[isl.id];
+        const what = pick(notice); return { text: `looked out at ${isl.name}. ${what}`, remember: seen[isl.id] === 1 || Math.random() < 0.3 ? `${isl.name}: ${what}. one day i will go.` : null, lift: 0.2 }; }
       case 'take_photo': { s.photos++; (s.photoLog ||= []).push({ x: Math.round(w.pos.x * 10) / 10, z: Math.round(w.pos.z * 10) / 10, h: Math.round(w.heading * 100) / 100, day, hour: Math.round(w.hour * 10) / 10 }); if (s.photoLog.length > 24) s.photoLog.shift(); return { text: 'took a photo of the view' }; }
       case 'draw': { const title = a.detail || 'something she saw'; (s.drawings ||= []).push({ title, day, seed: Math.floor(Math.random() * 1e9) }); if (s.drawings.length > 40) s.drawings.shift(); return { text: `finished a drawing: ${title}` }; }
       case 'wish': return { text: 'wished on a shooting star', remember: 'i made a wish on a falling star. i am not saying what.', lift: 0.3 };

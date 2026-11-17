@@ -2,7 +2,7 @@
 // windows and signs at night. Everything is built from primitives here, and
 // positions come from shared/world.js so the mind and the picture agree.
 import * as THREE from 'three';
-import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, BOARD, onPath, nearRiver as riverBand } from '../../shared/world.js';
+import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, BOARD, RING, OBSTACLES, onPath, nearRiver as riverBand } from '../../shared/world.js';
 import { drawPicture } from './art.js';
 import { HOUSE_LOOKS, FLAGS } from '../../shared/data.js';
 
@@ -22,12 +22,13 @@ export function buildTown() {
   const town = new THREE.Group();
   const glowMats = [];   // emissive materials that switch on at night
   const signs = [];      // redrawn once the web font has loaded
-  const lamps = [];
+  const lamps = [], torches = [];
   const rand = rng(11);
   const flat = color => new THREE.MeshLambertMaterial({ color, flatShading: true });
   const glow = (color = P.glow, base = 0xcdeeff) => { const m = new THREE.MeshLambertMaterial({ color: base, emissive: color, emissiveIntensity: 0, flatShading: true }); glowMats.push(m); return m; };
   const mesh = (geo, material, x = 0, y = 0, z = 0, parent = town) => { const m = new THREE.Mesh(geo, material); m.position.set(x, y, z); parent.add(m); return m; };
   const box = (w, h, d, color, x, y, z, parent) => mesh(new THREE.BoxGeometry(w, h, d), typeof color === 'number' ? flat(color) : color, x, y, z, parent);
+  const blockedAt = (x, z) => OBSTACLES.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 1.2);
   const at = key => { const s = site(key), g = new THREE.Group(); g.position.set(s.x, 0, s.z); g.rotation.y = s.ry; town.add(g); return g; };
   const ground = (geo, color, x, z, y) => { const m = mesh(geo, flat(color), x, y, z); m.rotation.x = -Math.PI / 2; return m; };
 
@@ -98,10 +99,27 @@ export function buildTown() {
     if (label) sign(label, Math.min(w - 1.2, 3), g, 0, h - 0.62, depth / 2 + 0.12);
     return g;
   }
-  function lamp(x, z) {
-    box(0.18, 2.6, 0.18, P.woodDark, x, 1.3, z);
-    box(0.5, 0.5, 0.5, glow(0xffe08a, 0xfff3c4), x, 2.8, z);
-    const l = new THREE.PointLight(0xffc870, 0, 12, 1.8); l.position.set(x, 2.8, z); town.add(l); lamps.push(l);
+  // Street lights. Only the first few carry a real light; the rest just glow (bloom does the rest).
+  function lamp(x, z, kind = 'classic', face = 0) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = face; town.add(g);
+    const warm = () => glow(0xffe08a, 0xfff3c4);
+    let top = 2.8;
+    if (kind === 'classic') { box(0.18, 2.6, 0.18, P.woodDark, 0, 1.3, 0, g); box(0.5, 0.5, 0.5, warm(), 0, 2.8, 0, g); }
+    else if (kind === 'globes') {   // iron post with two round globes
+      mesh(new THREE.CylinderGeometry(0.09, 0.14, 3.0, 6), flat(0x1d2545), 0, 1.5, 0, g); mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.3, 8), flat(0x1d2545), 0, 0.15, 0, g);
+      box(1.5, 0.08, 0.08, 0x1d2545, 0, 2.9, 0, g);
+      for (const sd of [-1, 1]) { mesh(new THREE.SphereGeometry(0.3, 10, 8), warm(), sd * 0.75, 2.62, 0, g); box(0.06, 0.18, 0.06, 0x1d2545, sd * 0.75, 2.84, 0, g); }
+      mesh(new THREE.SphereGeometry(0.12, 6, 5), flat(0xffd93b), 0, 3.1, 0, g); top = 2.62; }
+    else if (kind === 'hanging') {  // a crook-necked post with a lantern hanging from it
+      box(0.16, 3.2, 0.16, 0x2f7f9a, 0, 1.6, 0, g); box(0.95, 0.12, 0.12, 0x2f7f9a, 0.42, 3.2, 0, g); box(0.12, 0.3, 0.12, 0x2f7f9a, 0.85, 3.05, 0, g);
+      box(0.05, 0.25, 0.05, 0x1d2545, 0.85, 2.82, 0, g); mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.5, 6), warm(), 0.85, 2.5, 0, g); mesh(new THREE.ConeGeometry(0.3, 0.22, 6), flat(0x2f7f9a), 0.85, 2.85, 0, g); top = 2.5; }
+    else if (kind === 'bollard') {  // knee-high path light
+      mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.7, 7), flat(0x5f82ad), 0, 0.35, 0, g); mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.2, 7), warm(), 0, 0.78, 0, g); mesh(new THREE.ConeGeometry(0.22, 0.16, 7), flat(0x5f82ad), 0, 0.96, 0, g); top = 0.8; }
+    else if (kind === 'torch') {    // beach torch
+      box(0.12, 2.0, 0.12, 0xc9744a, 0, 1.0, 0, g); mesh(new THREE.CylinderGeometry(0.2, 0.12, 0.3, 6), flat(0x8a5a3a), 0, 2.1, 0, g);
+      const f = mesh(new THREE.ConeGeometry(0.17, 0.5, 5), glow(0xff8a1f, 0xffb45a), 0, 2.45, 0, g); f.userData.flicker = true; torches.push(f); top = 2.4; }
+    if (lamps.length < 14 && kind !== 'bollard') { const l = new THREE.PointLight(kind === 'torch' ? 0xff9a4a : 0xffc870, 0, 12, 1.8); l.position.set(x, top, z); town.add(l); lamps.push(l); }
+    return g;
   }
   function flower(x, z, s, color, parent = town) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rand() * 6.28; g.scale.setScalar(s); parent.add(g);
@@ -281,6 +299,16 @@ export function buildTown() {
       clockHands.push({ hour: mk(0.5, 0.11, 0x1d2545), minute: mk(0.78, 0.07, 0xe8452c) });
       box(0.1, 0.1, 0.06, 0x1d2545, 0, 8.5, 1.38, face); void rim;
     } }
+  // night lights: the lighthouse turns, torches flicker, fairy lights twinkle
+  const tmpC = new THREE.Color();
+  function setLights(night, t) {
+    beam.rotation.y = t * 0.45;
+    beam.children.forEach(h => { const cone = h.children[0]; if (cone?.material) cone.material.opacity = night * 0.55; });
+    beamLamp.emissiveIntensity = 0.3 + night * 2.2; beamLight.intensity = night * 260;
+    for (const f of torches) { f.scale.y = 1 + Math.sin(t * 11 + f.id) * 0.12 * night; f.material.emissiveIntensity = night * (1.4 + Math.sin(t * 7 + f.id) * 0.4); }
+    bulbs.forEach((b, i) => { const k = night > 0.25 ? 0.55 + 0.45 * Math.max(0, Math.sin(t * 1.7 + b.ph)) * night + night * 0.45 : 0.55; fairyMesh.setColorAt(i, tmpC.copy(b.c).multiplyScalar(night > 0.25 ? k * 1.6 : 0.55)); });
+    fairyMesh.instanceColor.needsUpdate = true;
+  }
   function setObservatory(night, using, t) { dome.rotation.y = night > 0.5 ? Math.sin(t * 0.05) * 1.2 : 0; scopeLight.emissiveIntensity = using ? 1.8 : night * 0.4; }
   function setEasel(d) { const e = town.userData.easel, key = d ? `${d.seed}` : ''; if (!d || key === e.key) return; e.key = key; drawPicture(e.canvas, d.title, d.seed); e.tex.needsUpdate = true; }
   function setClock(hour) { const h = -(hour % 12) / 12 * 6.283, m = -(hour % 1) * 6.283; for (const c of clockHands) { c.hour.rotation.z = h; c.minute.rotation.z = m; } }
@@ -317,6 +345,41 @@ export function buildTown() {
     const sm = new THREE.MeshLambertMaterial({ color: 0xdff3ff, emissive: 0x9cf6ff, emissiveIntensity: 0 }); scopeLight = sm;
     mesh(new THREE.CircleGeometry(0.34, 10), sm, 0, 2.86, 3.25, dome).rotation.x = 0.95 - Math.PI / 2;
     sign('OBSERVATORY', 3.6, g, 0, 3.35, 2.68, { bg: '#3c2a86', fg: '#fffaf0' }); }
+
+  // ---- lighthouse: a striped tower whose beam sweeps the island and the sky at night --------
+  const beam = new THREE.Group(); let beamLamp = null, beamLight = null;
+  { const g = at('lighthouse');
+    mesh(new THREE.CylinderGeometry(3.2, 3.5, 0.8, 12), flat(P.rockDark), 0, 0.4, 0, g);
+    const bands = 6, H = 11;
+    for (let i = 0; i < bands; i++) { const r0 = 2.2 - i * 0.16, r1 = 2.2 - (i + 1) * 0.16; mesh(new THREE.CylinderGeometry(r1, r0, H / bands, 12), flat(i % 2 ? 0xfffaf0 : 0xe8452c), 0, 0.8 + H / bands * (i + 0.5), 0, g); }
+    box(1.0, 1.8, 0.2, 0x1d2545, 0, 1.7, 2.12, g); for (const y of [4.4, 7.6]) box(0.6, 0.8, 0.2, glow(), 0, y, 1.93 - (y - 4) * 0.04, g);
+    const topY = 0.8 + H;
+    mesh(new THREE.CylinderGeometry(1.75, 1.75, 0.3, 12), flat(0x1d2545), 0, topY + 0.15, 0, g);
+    for (let i = 0; i < 16; i++) { const a = i / 16 * 6.283; box(0.07, 0.7, 0.07, 0x1d2545, Math.cos(a) * 1.65, topY + 0.6, Math.sin(a) * 1.65, g); }
+    const ringRail = mesh(new THREE.TorusGeometry(1.65, 0.05, 4, 20), flat(0x1d2545), 0, topY + 0.95, 0, g); ringRail.rotation.x = Math.PI / 2;
+    mesh(new THREE.CylinderGeometry(1.0, 1.0, 1.5, 10), new THREE.MeshLambertMaterial({ color: 0xdff3ff, transparent: true, opacity: 0.45 }), 0, topY + 1.05, 0, g);
+    beamLamp = new THREE.MeshLambertMaterial({ color: 0xfff3c4, emissive: 0xffe9a0, emissiveIntensity: 0 }); mesh(new THREE.SphereGeometry(0.5, 10, 8), beamLamp, 0, topY + 1.05, 0, g);
+    mesh(new THREE.ConeGeometry(1.25, 1.1, 10), flat(0xe8452c), 0, topY + 2.35, 0, g); mesh(new THREE.SphereGeometry(0.18, 6, 5), flat(0xffd93b), 0, topY + 3.0, 0, g);
+    sign('LIGHTHOUSE', 2.2, g, 0, 3.2, 2.04, { bg: '#e8452c', fg: '#fffaf0' });
+    // the beam: two long soft cones pointing opposite ways, turning round
+    const s = site('lighthouse'); beam.position.set(s.x, topY + 1.05, s.z); town.add(beam);
+    const c = document.createElement('canvas'); c.width = 4; c.height = 128; const gx = c.getContext('2d'); const gr = gx.createLinearGradient(0, 0, 0, 128);
+    gr.addColorStop(0, 'rgba(255,240,190,0)'); gr.addColorStop(0.75, 'rgba(255,240,190,0.55)'); gr.addColorStop(1, 'rgba(255,248,220,0.95)'); gx.fillStyle = gr; gx.fillRect(0, 0, 4, 128);
+    const beamTex = new THREE.CanvasTexture(c);
+    for (const dir of [1, -1]) { const cone = new THREE.Mesh(new THREE.ConeGeometry(9, 120, 16, 1, true), new THREE.MeshBasicMaterial({ map: beamTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+      cone.geometry.translate(0, -60, 0); cone.rotation.z = dir * Math.PI / 2; cone.rotation.y = 0; cone.rotation.x = 0; cone.position.y = 0; const holder = new THREE.Group(); holder.rotation.z = dir * -0.06; holder.add(cone); beam.add(holder); }
+    beamLight = new THREE.SpotLight(0xffe9b0, 0, 90, 0.2, 0.6, 1.2); beamLight.position.set(0, 0, 0); beam.add(beamLight); beamLight.target.position.set(40, -12, 0); beam.add(beamLight.target); }
+
+  // ---- fairy lights: strings of small bulbs draped along some buildings --------------------
+  const bulbs = [];
+  const FAIRY = [0xffd93b, 0xff7fa3, 0x9fe0c8, 0xfff3c4, 0x58b7e8, 0xff8a1f];
+  function fairy(group, pts, sag = 0.25, spacing = 0.32) {
+    group.updateMatrixWorld(true);
+    const world = pts.map(([x, y, z]) => group.localToWorld(new THREE.Vector3(x, y, z)));
+    for (let i = 0; i < world.length - 1; i++) { const a = world[i], b = world[i + 1], n = Math.max(2, Math.round(a.distanceTo(b) / spacing));
+      for (let k = 0; k <= n; k++) { const t = k / n, p = a.clone().lerp(b, t); p.y -= Math.sin(t * Math.PI) * sag * a.distanceTo(b) / 3; bulbs.push({ p, c: new THREE.Color(FAIRY[bulbs.length % FAIRY.length]), ph: Math.random() * 6.283 }); } }
+  }
+  const front = key => town.children.find(o => o.isGroup && Math.abs(o.position.x - site(key).x) < 0.01 && Math.abs(o.position.z - site(key).z) < 0.01);
 
   // ---- cinema ------------------------------------------------------------
   const marquee = [];
@@ -407,8 +470,19 @@ export function buildTown() {
   // ---- mailbox and lamps -----------------------------------------------------------------
   { box(0.2, 1.1, 0.2, P.woodDark, 1.5, 0.55, -0.6); box(0.7, 0.5, 0.95, 0xe8452c, 1.5, 1.3, -0.6);
     town.userData.flag = box(0.08, 0.5, 0.3, 0xffd93b, 1.9, 1.5, -0.6); }
-  lamp(-4.4, -3.4); lamp(3.6, -5.2); lamp(-5.6, 3.2);
-  for (const key of ['home', 'fish', 'library', 'studio', 'lookout', 'cinema', 'beach', 'museum', 'shop', 'tailor', 'observatory']) { const p = PLACES[key], l = Math.hypot(p.x, p.z); lamp(p.x * 0.6 + (p.z / l) * 1.5, p.z * 0.6 - (p.x / l) * 1.5); }
+  // the square: four double-globe posts round the edge
+  for (const deg of [20, 110, 200, 290]) { const a = deg * Math.PI / 180; lamp(Math.cos(a) * (SQUARE - 0.9), Math.sin(a) * (SQUARE - 0.9), 'globes', -a); }
+  // along the paths: tall lamps on the ring, hanging lanterns and bollards on the spurs
+  { const placed = [];
+    PATHS.forEach((line, li) => { let since = 3 + (li % 4) * 2;
+      for (let i = 0; i < line.length - 1; i++) { const a = line[i], b = line[i + 1], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz); if (len < 0.1) continue;
+        for (let t = 0; t < len; t += 0.5) { since += 0.5; if (since < 9.5) continue;
+          const side = (placed.length % 2 ? 1 : -1) * 1.35, x = a.x + dx / len * t - dz / len * side, z = a.z + dz / len * t + dx / len * side;
+          if (Math.hypot(x, z) < SQUARE + 1.5 || blockedAt(x, z) || onPath(x, z, 0.75) || placed.some(p => Math.hypot(p.x - x, p.z - z) < 7)) continue;
+          const onRing = Math.abs(Math.hypot(x, z) - RING) < 2.5, kind = onRing ? (placed.length % 3 ? 'classic' : 'hanging') : (placed.length % 2 ? 'bollard' : 'hanging');
+          lamp(x, z, kind, Math.atan2(-dz, dx) + (side > 0 ? Math.PI : 0)); placed.push({ x, z }); since = 0; } } }); }
+  // torches on the beach
+  for (let i = 0; i < 5; i++) { const a = BEACH.from + 0.08 + i / 4 * (BEACH.to - BEACH.from - 0.16), r = BEACH.inner + 2.5 + (i % 2) * 6; lamp(Math.cos(a) * r, Math.sin(a) * r, 'torch'); }
 
   // ---- decoration round the edge ------------------------------------------------------------
   const extraObs = [site('cafe'), CLOCK, BIG_ROCK, ...NEIGHBOURS.flatMap(n => n.hobbies.filter(h => h.at).map(h => h.at)), ...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home)];
@@ -431,6 +505,19 @@ export function buildTown() {
     slots.forEach((a, i) => { m.position.set(Math.cos(a) * (R - 0.9), 0.6 + (i % 2) * 0.12, Math.sin(a) * (R - 0.9)); m.rotation.set(0, -a + Math.PI / 2, (rand() - 0.5) * 0.25); m.updateMatrix(); inst.setMatrixAt(i, m.matrix); });
     town.add(inst); }
 
+  // where the fairy lights go
+  { const home = front('home'); if (home) fairy(home, [[-2.7, 3.15, 2.3], [-0.9, 3.15, 2.3], [0.9, 3.15, 2.3], [2.7, 3.15, 2.3]]);
+    const tailor = front('tailor'); if (tailor) fairy(tailor, [[-2.5, 3.3, 2.1], [0, 3.3, 2.1], [2.5, 3.3, 2.1]]);
+    const studio = front('studio'); if (studio) fairy(studio, [[-2.5, 3.3, 2.1], [0, 3.3, 2.1], [2.5, 3.3, 2.1]]);
+    const cafe = front('cafe'); if (cafe) fairy(cafe, [[-1.3, 2.62, 0.95], [0, 2.62, 0.95], [1.3, 2.62, 0.95]], 0.5);
+    const camp = front('camp'); if (camp) fairy(camp, [[-1.75, 0.15, 1.5], [0, 2.35, 1.5], [1.75, 0.15, 1.5]], 0.1);
+    // swags round the square, strung between slim poles
+    const poles = 10, rr = SQUARE + 0.5, pts = [];
+    for (let i = 0; i < poles; i++) { const a = i / poles * 6.283 + 0.31, x = Math.cos(a) * rr, z = Math.sin(a) * rr; box(0.09, 3.3, 0.09, 0x1d2545, x, 1.65, z); pts.push([x, 3.25, z]); }
+    pts.push(pts[0]); fairy(town, pts, 0.55, 0.36); }
+  const fairyMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.075, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }), bulbs.length);
+  { const m = new THREE.Object3D(); bulbs.forEach((b, i) => { m.position.copy(b.p); m.updateMatrix(); fairyMesh.setMatrixAt(i, m.matrix); fairyMesh.setColorAt(i, b.c); }); town.add(fairyMesh); }
+
   document.fonts?.ready.then(() => signs.forEach(d => d()));
 
   // nightness 0..1 switches windows, signs and lamps on; `film` makes the cinema lights chase
@@ -449,5 +536,5 @@ export function buildTown() {
   function setAway(islet) { isletBoats.forEach((b, i) => { b.visible = islet === i; }); beachBoat.visible = islet == null; }
   function setEvent(show) { festival.visible = !!show; lanternsG.visible = show === 'lanterns'; }
   setHouse(0, 1);
-  return { town, board, setEasel, setNight, setSeason, setHouse, setEvent, setIsland, setAway, setClock, setObservatory, pond, flag: town.userData.flag };
+  return { town, board, setEasel, setLights, setNight, setSeason, setHouse, setEvent, setIsland, setAway, setClock, setObservatory, pond, flag: town.userData.flag };
 }
