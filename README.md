@@ -34,7 +34,9 @@ Preview a look without waiting: `http://localhost:5173/?hour=23&weather=aurora`
 | Stand-in mind | `web/src/localmind.js` | If the page cannot reach the mind server it runs the same world and scripted chooser in the visitor's browser, saved in that browser only. No diary, memories or mailbox in that mode. |
 | Places | `shared/world.js` | Where everything is, and the route planner that walks her around buildings. |
 
-She rides her little robot for trips longer than 15 metres (`RIDE_OVER` in `mind/src/world.js`). The **Free camera** button lets you roam with W A S D.
+She rides her little robot for trips longer than 15 metres (`RIDE_OVER` in `mind/src/world.js`). The **Free camera** button lets you roam with W A S D. **Dots** toggles the dot-screen print look (a shader pass in `web/src/main.js`). The clocktower by the square shows her world's time.
+
+The island's size is one number: `K` in `shared/world.js` stretches the whole layout.
 
 Preview looks: `?ride=1`, `?hour=22&show=fireworks`, `?season=winter&weather=snow`, `?weather=meteors&hour=23`.
 

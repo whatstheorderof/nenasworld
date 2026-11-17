@@ -4,7 +4,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { PLACES, NEEDS, ISLETS, isletPos, site } from '../../shared/world.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { PLACES, NEEDS, ISLETS, WORLD, isletPos, site } from '../../shared/world.js';
 import { SCARVES, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
 import { buildNena, buildRobot } from './nena.js';
 import { buildTown } from './town.js';
@@ -20,13 +21,13 @@ const canvas = $('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x7fe9ff, 70, 170);
-const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 400);
+scene.fog = new THREE.Fog(0x7fe9ff, 100, 240);
+const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 600);
 camera.position.set(PLACES.home.x + 10, 9, PLACES.home.z + 15);
 const controls = new OrbitControls(camera, canvas);
 controls.target.set(PLACES.home.x, 1, PLACES.home.z);
 controls.enableDamping = true; controls.enablePan = false;
-controls.minDistance = 8; controls.maxDistance = 80; controls.maxPolarAngle = 1.45;
+controls.minDistance = 8; controls.maxDistance = 110; controls.maxPolarAngle = 1.45;
 
 const hemi = new THREE.HemisphereLight(0xffffff, 0x9fd27a, 1.5); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2d8, 2.0); sun.position.set(20, 30, 12); scene.add(sun);
@@ -68,6 +69,26 @@ function burst() {
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0, 0.5, 0.82); composer.addPass(bloom);
+// A dot-screen "print" look: darker areas get bigger ink dots, lighter areas show warm paper.
+const dots = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, cell: { value: 5 }, amount: { value: 1 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float cell; uniform float amount; varying vec2 vUv;
+    void main(){
+      vec4 c = texture2D(tDiffuse, vUv);
+      float lum = sqrt(clamp(dot(c.rgb, vec3(0.299, 0.587, 0.114)), 0.0, 1.0));
+      mat2 rot = mat2(0.966, -0.259, 0.259, 0.966);
+      vec2 f = fract(rot * gl_FragCoord.xy / cell) - 0.5;
+      float radius = 0.66 * sqrt(1.0 - lum);
+      float ink = 1.0 - smoothstep(radius - 0.09, radius + 0.09, length(f));
+      vec3 inked = c.rgb * 0.5 + vec3(0.03, 0.02, 0.12);
+      vec3 paper = mix(c.rgb, vec3(1.0, 0.95, 0.86), 0.16) * 1.06;
+      gl_FragColor = vec4(mix(c.rgb, mix(paper, inked, ink), amount), c.a);
+    }`,
+});
+dots.uniforms.cell.value = 5 * renderer.getPixelRatio();
+dots.enabled = localStorage.getItem('nena-dots') !== 'off';
+composer.addPass(dots);
 composer.addPass(new OutputPass());
 function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
@@ -85,7 +106,7 @@ function setSky(hour, weather, dt, show) {
   for (const key of Object.keys(wx)) wx[key] += ((weather === key ? 1 : 0) - wx[key]) * k;
   if (wx.mist > 0.01) sky.lerp(new THREE.Color(d > 0.5 ? 0xd8eef5 : 0x232a45), wx.mist * 0.6);
   scene.background = sky; scene.fog.color.copy(sky);
-  scene.fog.near = 70 - wx.mist * 62; scene.fog.far = 170 - wx.mist * 110;
+  scene.fog.near = 100 - wx.mist * 90; scene.fog.far = 240 - wx.mist * 170;
   hemi.intensity = 0.28 + d * 1.25; hemi.color.set(d > 0.5 ? 0xffffff : 0x8fa8ff); hemi.groundColor.set(d > 0.5 ? 0x9fd27a : 0x1d2545);
   sun.intensity = d * 2.0 + n * 0.25; sun.color.set(d > 0.5 ? 0xfff2d8 : 0x9bb4ff);
   stars.material.opacity = n * (1 - wx.mist) * 0.95;
@@ -238,7 +259,7 @@ addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());
 $('cam').onclick = () => {
   freeCam = !freeCam;
-  controls.enablePan = freeCam; controls.maxDistance = freeCam ? 160 : 80; controls.maxPolarAngle = freeCam ? 1.55 : 1.45;
+  controls.enablePan = freeCam; controls.maxDistance = freeCam ? 240 : 110; controls.maxPolarAngle = freeCam ? 1.55 : 1.45;
   $('cam').textContent = freeCam ? 'Follow Nena' : 'Free camera';
   $('camhelp').hidden = !freeCam;
   if (!freeCam) { const p = nena.root.position; const off = camera.position.clone().sub(controls.target).setLength(22); controls.target.set(p.x, 1, p.z); camera.position.copy(controls.target).add(off); if (camera.position.y < 6) camera.position.y = 6; }
@@ -251,6 +272,8 @@ canvas.addEventListener('dblclick', e => {
   const hit = new THREE.Vector3(); if (ray.ray.intersectPlane(groundPlane, hit)) sendMind({ type: 'move', x: hit.x, z: hit.z });
 });
 $('wave').onclick = () => sendMind({ type: 'wave' });
+const dotsLabel = () => { $('dots').textContent = dots.enabled ? 'Dots: on' : 'Dots: off'; }; dotsLabel();
+$('dots').onclick = () => { dots.enabled = !dots.enabled; try { localStorage.setItem('nena-dots', dots.enabled ? 'on' : 'off'); } catch {} dotsLabel(); };
 
 // ---- frame loop ----------------------------------------------------------------
 const clock = new THREE.Clock(), bubble = $('bubble'), head = new THREE.Vector3();
@@ -263,7 +286,7 @@ function frame() {
 
   const goal = target.clone();
   if (doing && act.anim === 'swim') { swimT += dt * 0.9; goal.set(town.pond.x + Math.cos(swimT) * 3, 0.12, town.pond.z + Math.sin(swimT) * 3); heading = -swimT; }            // circles on the pond
-  else if (doing && act.anim === 'dive') { swimT += dt * 0.5; const l = Math.hypot(target.x, target.z); goal.set(target.x / l * 33.5 + Math.cos(swimT) * 2, 0, target.z / l * 33.5 + Math.sin(swimT) * 2); heading = -swimT; }   // out in the sea
+  else if (doing && act.anim === 'dive') { swimT += dt * 0.5; const l = Math.hypot(target.x, target.z); goal.set(target.x / l * (WORLD.radius + 3.5) + Math.cos(swimT) * 2, 0, target.z / l * (WORLD.radius + 3.5) + Math.sin(swimT) * 2); heading = -swimT; }   // out in the sea
   else if (doing && act.anim === 'sail') { swimT += dt * 0.5; const ip = isletPos(act.islet ?? 0); goal.set(ip.x + Math.cos(swimT) * 1.6, 0.35, ip.z + Math.sin(swimT) * 1.6); heading = -swimT; if (pos.distanceTo(goal) > 12) pos.copy(goal); }   // ashore on a little island
   else if (doing && act.anim === 'inside' && act.place) { const s = site(act.place); goal.set(s.x, 0, s.z); heading = 0; }                                           // indoors
   else if (doing && ['read', 'sit', 'lie'].includes(act.anim) || (doing && act.place === 'beach' && act.anim !== 'fish')) heading = Math.atan2(-target.x, -target.z);   // back to the wall / the sea
@@ -280,6 +303,8 @@ function frame() {
   town.setNight(nightness, doing && act.action === 'watch_film', elapsed);
   town.setSeason(qs.get('season') || now?.season || 'summer', !lifeData || lifeData.shaken !== now?.day);
   town.setEvent(showEv);
+  town.setClock(hour);
+  dots.uniforms.amount.value = 1 - nightness * 0.5;   // lighter touch at night so the glow reads
   dyn.update(dt, elapsed, now?.npcs, nightness);
   dyn.setVisitors(now?.visitors || [], elapsed, dt);
   const sp = snow.geometry.attributes.position;

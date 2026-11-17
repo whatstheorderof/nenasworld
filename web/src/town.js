@@ -2,7 +2,7 @@
 // windows and signs at night. Everything is built from primitives here, and
 // positions come from shared/world.js so the mind and the picture agree.
 import * as THREE from 'three';
-import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, isletPos, site } from '../../shared/world.js';
+import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, nearRiver as riverBand } from '../../shared/world.js';
 import { HOUSE_LOOKS, FLAGS } from '../../shared/data.js';
 
 const P = {
@@ -36,9 +36,9 @@ export function buildTown() {
   mesh(new THREE.CylinderGeometry(R - 1.2, R - 6, 3.2, 14), flat(P.cliff), 0, -2.2, 0);
   mesh(new THREE.CylinderGeometry(R - 6.5, R - 16, 5, 9), flat(P.rockDark), 0, -6.2, 0);
   const inBeach = (x, z) => { const a = Math.atan2(z, x); return a > BEACH.from - 0.08 && a < BEACH.to + 0.08 && Math.hypot(x, z) > BEACH.inner - 1; };
-  const nearRiver = (x, z, pad) => RIVER.some(([rx, rz]) => Math.hypot(rx - x, rz - z) < pad) || (z > 16 && x < -3 && x > -25 && Math.abs(z - 19) < pad);
-  for (let i = 0; i < 16; i++) {
-    const a = rand() * 6.28, r = 4 + rand() * 20, s = 1.5 + rand() * 2.4, x = Math.cos(a) * r, z = Math.sin(a) * r;
+  const nearRiver = (x, z, pad) => riverBand(x, z, pad) || RIVER.some(([rx, rz]) => Math.hypot(rx - x, rz - z) < pad);
+  for (let i = 0; i < 30; i++) {
+    const a = rand() * 6.28, r = 4 + rand() * (R - 10), s = 1.5 + rand() * 3, x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (inBeach(x, z) || nearRiver(x, z, 4)) continue;
     const m = mesh(new THREE.CircleGeometry(s, 7), grassDarkMat, x, 0.01 + i * 0.001, z); m.rotation.x = -Math.PI / 2;
   }
@@ -166,7 +166,7 @@ export function buildTown() {
     for (let i = 0; i < 4; i++) { const a = i * 1.6 + rand(); fruit.push(mesh(new THREE.SphereGeometry(0.2, 6, 5), fruitMat, x + Math.cos(a) * 1.25, 2.3 + rand() * 0.8, z + Math.sin(a) * 1.25)); }
   }
   // the big rock she chips at
-  { const m = mesh(new THREE.DodecahedronGeometry(1.5, 0), flat(P.rockDark), -10.6, 0.9, 2.6); m.scale.y = 0.9; mesh(new THREE.DodecahedronGeometry(0.35, 0), glow(0xffe08a, 0xffd93b), -9.7, 1.5, 3.2); }
+  { const m = mesh(new THREE.DodecahedronGeometry(1.5, 0), flat(P.rockDark), BIG_ROCK.x, 0.9, BIG_ROCK.z); m.scale.y = 0.9; mesh(new THREE.DodecahedronGeometry(0.35, 0), glow(0xffe08a, 0xffd93b), BIG_ROCK.x + 0.9, 1.5, BIG_ROCK.z + 0.6); }
 
   // ---- neighbours' tents -----------------------------------------------------------
   NEIGHBOURS.forEach((n, i) => {
@@ -238,6 +238,25 @@ export function buildTown() {
     box(1.5, 0.5, 2.6, 0x2f7f9a, 0, 0.2, 0, boat); box(1.7, 0.12, 2.8, 0xfffaf0, 0, 0.48, 0, boat);
     return boat;
   });
+
+  // ---- clocktower: its hands show the time in her world ---------------------------------
+  const clockHands = [];
+  { const g = new THREE.Group(); g.position.set(CLOCK.x, 0, CLOCK.z); g.rotation.y = Math.atan2(-CLOCK.x, -CLOCK.z); town.add(g);
+    box(2.6, 0.5, 2.6, P.rockDark, 0, 0.25, 0, g); box(2.0, 6.4, 2.0, 0xfff1d6, 0, 3.7, 0, g);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(0.3, 6.4, 0.3, 0x2f7f9a, sx * 1.0, 3.7, sz * 1.0, g);
+    box(1.0, 1.7, 0.12, 0x2f7f9a, 0, 1.35, 1.02, g); box(2.8, 0.3, 2.8, 0x2f7f9a, 0, 7.05, 0, g); box(2.5, 2.6, 2.5, 0xfff1d6, 0, 8.5, 0, g); box(2.9, 0.25, 2.9, 0x2f7f9a, 0, 9.9, 0, g);
+    const roof = mesh(new THREE.ConeGeometry(2.1, 2.2, 4), flat(0xe8452c), 0, 11.1, 0, g); roof.rotation.y = Math.PI / 4; mesh(new THREE.SphereGeometry(0.22, 6, 5), flat(0xffd93b), 0, 12.3, 0, g);
+    const faceMat = new THREE.MeshLambertMaterial({ color: 0xfffaf0, emissive: 0xffe9b0, emissiveIntensity: 0 }); faceMat.userData.soft = true; glowMats.push(faceMat);
+    for (let f = 0; f < 4; f++) {
+      const face = new THREE.Group(); face.rotation.y = f * Math.PI / 2; g.add(face);
+      const disc = mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.08, 20), faceMat, 0, 8.5, 1.28, face); disc.rotation.x = Math.PI / 2;
+      const rim = mesh(new THREE.TorusGeometry(1.0, 0.09, 5, 20), flat(0x1d2545), 0, 8.5, 1.3, face);
+      for (let i = 0; i < 12; i++) { const a = i / 12 * 6.283, big = i % 3 === 0; const tk = box(0.07, big ? 0.24 : 0.12, 0.03, 0x1d2545, Math.sin(a) * 0.8, 8.5 + Math.cos(a) * 0.8, 1.34, face); tk.rotation.z = -a; }
+      const mk = (len, w, col) => { const pivot = new THREE.Group(); pivot.position.set(0, 8.5, 1.36); face.add(pivot); box(w, len, 0.03, col, 0, len / 2 - 0.08, 0, pivot); return pivot; };
+      clockHands.push({ hour: mk(0.5, 0.11, 0x1d2545), minute: mk(0.78, 0.07, 0xe8452c) });
+      box(0.1, 0.1, 0.06, 0x1d2545, 0, 8.5, 1.38, face); void rim;
+    } }
+  function setClock(hour) { const h = -(hour % 12) / 12 * 6.283, m = -(hour % 1) * 6.283; for (const c of clockHands) { c.hour.rotation.z = h; c.minute.rotation.z = m; } }
 
   // ---- cinema ------------------------------------------------------------
   const marquee = [];
@@ -330,11 +349,11 @@ export function buildTown() {
   for (const key of ['home', 'fish', 'library', 'studio', 'lookout', 'cinema', 'beach', 'museum', 'shop']) { const p = PLACES[key], l = Math.hypot(p.x, p.z); lamp(p.x * 0.6 + (p.z / l) * 1.5, p.z * 0.6 - (p.x / l) * 1.5); }
 
   // ---- decoration round the edge ------------------------------------------------------------
-  const extraObs = [{ x: 6.2, z: 6.8 }, ...NEIGHBOURS.flatMap(n => n.hobbies.filter(h => h.at).map(h => h.at)), ...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home), { x: -10.6, z: 2.6 }];
+  const extraObs = [site('cafe'), CLOCK, BIG_ROCK, ...NEIGHBOURS.flatMap(n => n.hobbies.filter(h => h.at).map(h => h.at)), ...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home)];
   const clear = (x, z, pad) => !inBeach(x, z) && !nearRiver(x, z, 3.2) && extraObs.every(o => Math.hypot(o.x - x, o.z - z) > 3.6) && Object.keys(PLACES).every(k => { const s = site(k); return Math.hypot(s.x - x, s.z - z) > (s.r || 2.5) + pad && Math.hypot(PLACES[k].x - x, PLACES[k].z - z) > 3; });
   let placed = 0;
-  for (let i = 0; i < 600 && placed < 30; i++) {
-    const a = rand() * 6.28, r = 16 + rand() * 12.5, x = Math.cos(a) * r, z = Math.sin(a) * r;
+  for (let i = 0; i < 900 && placed < 52; i++) {
+    const a = rand() * 6.28, r = R * 0.5 + rand() * (R * 0.45), x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (!clear(x, z, 1.6)) continue;
     const kind = placed % 4;
     if (kind === 0) flower(x, z, 1.4 + rand() * 1.5, P.petals[Math.floor(rand() * 4)]);
@@ -344,7 +363,7 @@ export function buildTown() {
     placed++;
   }
   // chunky plank fence round the rim; open along the beach and at the waterfall
-  { const n = 120, slots = [], end = RIVER[RIVER.length - 1], fallA = Math.atan2(end[1], end[0]);
+  { const n = Math.round(R * 4), slots = [], end = RIVER[RIVER.length - 1], fallA = Math.atan2(end[1], end[0]);
     for (let i = 0; i < n; i++) { const a = -Math.PI + (i / n) * 6.283; if (a > BEACH.from - 0.05 && a < BEACH.to + 0.05) continue; if (Math.abs(a - fallA) < 0.09) continue; slots.push(a); }
     const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(0.75, 1.5, 0.3), flat(P.woodDark), slots.length), m = new THREE.Object3D();
     slots.forEach((a, i) => { m.position.set(Math.cos(a) * (R - 0.9), 0.6 + (i % 2) * 0.12, Math.sin(a) * (R - 0.9)); m.rotation.set(0, -a + Math.PI / 2, (rand() - 0.5) * 0.25); m.updateMatrix(); inst.setMatrixAt(i, m.matrix); });
@@ -354,7 +373,7 @@ export function buildTown() {
 
   // nightness 0..1 switches windows, signs and lamps on; `film` makes the cinema lights chase
   function setNight(n, film, t) {
-    for (const m of glowMats) { if (m.userData.sign) m.color.setScalar(0.92 + n * 0.3); else m.emissiveIntensity = n * 1.6; }
+    for (const m of glowMats) { if (m.userData.sign) m.color.setScalar(0.92 + n * 0.3); else m.emissiveIntensity = n * (m.userData.soft ? 0.5 : 1.6); }
     for (const l of lamps) l.intensity = n * 9;
     marquee.forEach((m, i) => { m.emissiveIntensity = film ? (Math.floor(t * 4 + i) % 3 === 0 ? 2.2 : 0.5) : n * 1.2; });
   }
@@ -368,5 +387,5 @@ export function buildTown() {
   function setAway(islet) { isletBoats.forEach((b, i) => { b.visible = islet === i; }); beachBoat.visible = islet == null; }
   function setEvent(show) { festival.visible = !!show; lanternsG.visible = show === 'lanterns'; }
   setHouse(0, 1);
-  return { town, setNight, setSeason, setHouse, setEvent, setIsland, setAway, pond, flag: town.userData.flag };
+  return { town, setNight, setSeason, setHouse, setEvent, setIsland, setAway, setClock, pond, flag: town.userData.flag };
 }

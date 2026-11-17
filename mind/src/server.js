@@ -118,7 +118,7 @@ wss.on('connection', ws => {
       visitors.set(id, { id, name, x: Math.cos(a) * 5, z: Math.sin(a) * 5, wave: 0 }); publish();
     }
     const v = visitors.get(id); if (!v) return;
-    if (m.type === 'move' && Number.isFinite(m.x) && Number.isFinite(m.z) && Math.hypot(m.x, m.z) < 60) { v.x = Math.round(m.x * 10) / 10; v.z = Math.round(m.z * 10) / 10; }
+    if (m.type === 'move' && Number.isFinite(m.x) && Number.isFinite(m.z) && Math.hypot(m.x, m.z) < 85) { v.x = Math.round(m.x * 10) / 10; v.z = Math.round(m.z * 10) / 10; }
     if (m.type === 'wave') { v.wave = Date.now(); world.bump(0.03); if (Date.now() - lastHello > 60000 && !world.isNight) { lastHello = Date.now(); brain.speak(`oh. hello ${v.name}.`, 6000); } }
   });
   const gone = () => { sockets.delete(ws); visitors.delete(id); publish(); };

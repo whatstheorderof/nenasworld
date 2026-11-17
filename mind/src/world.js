@@ -2,7 +2,7 @@
 // things that turn up on the island. Pure code, no model. It ticks 20 times a second
 // and decides what is possible; the brain only chooses among what the world offers.
 // (No Node imports here, so the browser can run it too.)
-import { PLACES, NEEDS, NEIGHBOURS, BEACH, ISLETS, route, blocked, freeSpot } from '../../shared/world.js';
+import { PLACES, NEEDS, NEIGHBOURS, BEACH, ISLETS, WORLD, route, blocked, freeSpot } from '../../shared/world.js';
 import { ACTIONS, calendar, currentEvent, painterIn } from '../../shared/data.js';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
@@ -16,6 +16,7 @@ export class World {
   constructor(saved, daySeconds, life) {
     this.daySeconds = daySeconds; this.life = life;
     this.bornAt = saved?.bornAt || Date.now();
+    if (saved && saved.layout !== WORLD.layout) saved = { bornAt: saved.bornAt, needs: saved.needs };   // the island changed shape: start her at home
     this.pos = saved?.pos || { x: PLACES.home.x, z: PLACES.home.z };
     this.heading = saved?.heading || 0;
     this.needs = saved?.needs || { fullness: 0.7, energy: 0.8, wonder: 0.5, joy: 0.6, calm: 0.7 };
@@ -41,7 +42,7 @@ export class World {
   // ---- things that turn up -----------------------------------------------
   spawn(kind) {
     let at;
-    if (kind === 'bottle') { const a = BEACH.from + 0.1 + Math.random() * (BEACH.to - BEACH.from - 0.2), r = 26 + Math.random() * 2.5; at = { x: Math.cos(a) * r, z: Math.sin(a) * r }; if (blocked(at.x, at.z, 2)) at = null; }
+    if (kind === 'bottle') { const a = BEACH.from + 0.1 + Math.random() * (BEACH.to - BEACH.from - 0.2), r = WORLD.radius - 4 + Math.random() * 2.5; at = { x: Math.cos(a) * r, z: Math.sin(a) * r }; if (blocked(at.x, at.z, 2)) at = null; }
     else at = freeSpot([...this.spots, ...this.life.s.decor], 2.2);
     if (at) this.spots.push({ id: uid(), kind, x: at.x, z: at.z });
   }
@@ -89,7 +90,7 @@ export class World {
     else if (def.target === 'ripe') { const d = this.life.ripe(this.day); if (!d) return false; target = { x: d.x + 1.0, z: d.z + 0.4 }; }
     else if (def.target === 'free') { target = this.life.freeSpot(); if (!target) return false; a.at = target; target = { x: target.x + 1.1, z: target.z + 0.4 }; }
     else if (def.target) { const s = this.nearest(this.spots.filter(x => x.kind === def.target)); if (!s) return false; a.ref = s.id; a.at = def.target === 'glow' ? { x: s.x, z: s.z } : undefined; target = { x: s.x + 0.9, z: s.z + 0.3 }; }
-    else { for (let i = 0; i < 20; i++) { const ang = Math.random() * Math.PI * 2, r = 4 + Math.random() * 11; target = { x: Math.cos(ang) * r, z: Math.sin(ang) * r }; if (!blocked(target.x, target.z, 1.5)) break; } }
+    else { for (let i = 0; i < 20; i++) { const ang = Math.random() * Math.PI * 2, r = 4 + Math.random() * 18; target = { x: Math.cos(ang) * r, z: Math.sin(ang) * r }; if (!blocked(target.x, target.z, 1.5)) break; } }
     if (action === 'boat_trip') a.islet = Math.floor(Math.random() * ISLETS.length);
     a.path = route(this.pos, target);
     let len = 0, prev = this.pos; for (const p of a.path) { len += Math.hypot(p.x - prev.x, p.z - prev.z); prev = p; }
@@ -165,7 +166,7 @@ export class World {
         t = h.at;
       }
       else { const keys = Object.keys(PLACES), p = PLACES[keys[Math.floor(Math.random() * keys.length)]]; t = { x: p.x + (Math.random() - 0.5) * 4, z: p.z + (Math.random() - 0.5) * 4 }; }
-      if (!blocked(t.x, t.z, 0.9) && Math.hypot(t.x, t.z) < 27.5) n.path = route(n, t); else { n.wait = 2; n.next = null; }
+      if (!blocked(t.x, t.z, 0.9) && Math.hypot(t.x, t.z) < WORLD.radius - 2.5) n.path = route(n, t); else { n.wait = 2; n.next = null; }
     }
   }
 
@@ -208,6 +209,6 @@ export class World {
   }
 
   snapshot() {
-    return { bornAt: this.bornAt, pos: this.pos, heading: this.heading, needs: this.needs, lift: this.lift, weather: this.weather, spots: this.spots, spotDay: this.spotDay };
+    return { layout: WORLD.layout, bornAt: this.bornAt, pos: this.pos, heading: this.heading, needs: this.needs, lift: this.lift, weather: this.weather, spots: this.spots, spotDay: this.spotDay };
   }
 }

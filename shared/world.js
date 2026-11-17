@@ -2,7 +2,10 @@
 // x/z are ground coordinates in metres. Each place's x/z is where Nena STANDS to use it;
 // the thing itself (building, pond...) sits `d` metres further out from the island centre
 // and blocks a circle of radius `r`, which she walks around.
-export const WORLD = { size: 64, radius: 30, name: "Nena's World" };
+// K stretches the whole layout: buildings stay the same size, the island and the gaps between things grow.
+export const K = 1.35;
+export const WORLD = { size: 88, radius: 30 * K, name: "Nena's World", layout: 2 };
+const DZ = 12 * K + 7.2 - 19.2;   // how far south the pond (and so the river) moved
 
 export const PLACES = {
   home:    { label: 'House',        x: -13,   z: -9,    d: 4.7, r: 3.1 },
@@ -25,6 +28,9 @@ export const PLACES = {
   beach:   { label: 'Beach',        x: 14.2,  z: 19.9,  d: 0,   r: 0   },
 };
 
+for (const p of Object.values(PLACES)) { p.x = Math.round(p.x * K * 10) / 10; p.z = Math.round(p.z * K * 10) / 10; }
+PLACES.river.z = Math.round((16.2 + DZ) * 10) / 10;
+
 // Where the building for a place actually sits, and which way it faces (towards the centre).
 export function site(key) {
   const p = PLACES[key], len = Math.hypot(p.x, p.z) || 1;
@@ -34,12 +40,12 @@ export function site(key) {
 // Her neighbours and where their tents are pitched.
 // Each has hobbies: things they go and do on their own, which she can join in with.
 export const NEIGHBOURS = [
-  { name: 'Bo',   kind: 'seal',   home: { x: 8.5,   z: 24 },   says: ['the tide was loud last night.', 'i found a warm rock. it is mine now.', 'you smell like fish. that is a compliment.'],
-    hobbies: [{ doing: 'sunbathing', at: { x: 13, z: 22.5 }, anim: 'lie' }, { doing: 'watching the pond', at: { x: 5.5, z: 14 }, anim: 'sit' }, { doing: 'fishing', at: { x: -12.5, z: 16.3 }, anim: 'sit' }] },
-  { name: 'Pip',  kind: 'puffin', home: { x: 10,    z: -22 },  says: ['i counted the fence planks again. still a lot.', 'have you seen the sky from the tower?', 'i am collecting interesting sticks.'],
-    hobbies: [{ doing: 'jogging round the square', anim: 'jog', loop: 6.5 }, { doing: 'doing star jumps', at: { x: -3.5, z: 3.5 }, anim: 'jump' }, { doing: 'collecting sticks', at: { x: 6, z: -8 }, anim: 'peck' }] },
-  { name: 'Suvi', kind: 'fox',    home: { x: -25.5, z: 6.5 },  says: ['the snow by the igloo squeaks. did you notice?', 'i heard something in the river. probably a fish.', 'i like your scarf.'],
-    hobbies: [{ doing: 'singing by the bridge', at: { x: -16.5, z: 16.4 }, anim: 'sing' }, { doing: 'reading outside the library', at: { x: -12.5, z: 10.5 }, anim: 'sit' }, { doing: 'smelling the flowers', at: { x: 5.2, z: -2.2 }, anim: 'peck' }] },
+  { name: 'Bo',   kind: 'seal',   home: { x: 8.5 * K,   z: 24 * K },   says: ['the tide was loud last night.', 'i found a warm rock. it is mine now.', 'you smell like fish. that is a compliment.'],
+    hobbies: [{ doing: 'sunbathing', at: { x: 13 * K, z: 22.5 * K }, anim: 'lie' }, { doing: 'watching the pond', at: { x: 5.6, z: 12 * K + 7.2 - 5.6 }, anim: 'sit' }, { doing: 'fishing', at: { x: -12.5 * K, z: 16.3 + DZ }, anim: 'sit' }] },
+  { name: 'Pip',  kind: 'puffin', home: { x: 10 * K,    z: -22 * K },  says: ['i counted the fence planks again. still a lot.', 'have you seen the sky from the tower?', 'i am collecting interesting sticks.'],
+    hobbies: [{ doing: 'jogging round the square', anim: 'jog', loop: 6.5 }, { doing: 'doing star jumps', at: { x: -3.5, z: 3.5 }, anim: 'jump' }, { doing: 'collecting sticks', at: { x: 6 * K, z: -8 * K }, anim: 'peck' }] },
+  { name: 'Suvi', kind: 'fox',    home: { x: -25.5 * K, z: 6.5 * K },  says: ['the snow by the igloo squeaks. did you notice?', 'i heard something in the river. probably a fish.', 'i like your scarf.'],
+    hobbies: [{ doing: 'singing by the bridge', at: { x: -16.5 * K, z: 16.4 + DZ }, anim: 'sing' }, { doing: 'reading outside the library', at: { x: -12.5 * K, z: 10.5 * K }, anim: 'sit' }, { doing: 'smelling the flowers', at: { x: 5.2 * K, z: -2.2 * K }, anim: 'peck' }] },
 ];
 // Travellers who sometimes pitch up at the campsite for a day.
 export const CAMPERS = [
@@ -51,28 +57,31 @@ export const CAMPERS = [
 ];
 // Little islands out past the foam that she rows to.
 export const ISLETS = [
-  { name: 'Blossom Islet', a: 0.3, r: 52, gives: ['blossom petals', 'fruit', 'stick'] },
-  { name: 'Stone Islet', a: 0.95, r: 56, gives: ['stone', 'ore', 'clay'] },
-  { name: 'Mushroom Islet', a: 1.6, r: 52, gives: ['mushroom', 'sea glass', 'hum seed'] },
+  { name: 'Blossom Islet', a: 0.3, r: 66, gives: ['blossom petals', 'fruit', 'stick'] },
+  { name: 'Stone Islet', a: 0.95, r: 70, gives: ['stone', 'ore', 'clay'] },
+  { name: 'Mushroom Islet', a: 1.6, r: 66, gives: ['mushroom', 'sea glass', 'hum seed'] },
 ];
 export const isletPos = i => ({ x: Math.cos(ISLETS[i].a) * ISLETS[i].r, z: Math.sin(ISLETS[i].a) * ISLETS[i].r });
-export const ORCHARD_TREES = [[3, -7.2], [5.6, -10.6], [1.6, -11.6]];
+export const ORCHARD_TREES = [[-0.6, 2.4], [2.2, -1.4], [-2.2, -2.4]].map(([x, z]) => [PLACES.orchard.x + x, PLACES.orchard.z + z]);
+export const BIG_ROCK = { x: PLACES.rock.x - 2, z: PLACES.rock.z };
+export const CLOCK = { x: 2.5, z: 7.8 };   // the clocktower, just off the square
 
 // Things she cannot walk through.
 export const OBSTACLES = [
   ...Object.keys(PLACES).filter(k => PLACES[k].r > 0).map(k => ({ key: k, ...site(k) })),
   { key: 'mailbox', x: 1.5, z: -0.6, r: 0.6 },
-  { key: 'bigrock', x: -10.6, z: 2.6, r: 1.3 },
+  { key: 'bigrock', ...BIG_ROCK, r: 1.3 },
+  { key: 'clock', ...CLOCK, r: 1.5 },
   ...ORCHARD_TREES.map(([x, z]) => ({ key: 'tree', x, z, r: 0.9 })),
   ...NEIGHBOURS.map(n => ({ key: 'tent', x: n.home.x, z: n.home.z, r: 1.9 })),
 ];
 
 // The river runs from the pond to a waterfall on the west rim.
-export const RIVER = [[-4.5, 19.2], [-9, 18.6], [-14, 19.6], [-19, 19.0], [-23.4, 18.6]];
+export const RIVER = [[-4.5, 19.2], [-9, 18.6], [-14, 19.6], [-19, 19.0], [-23.4, 18.6]].map(([x, z]) => [x * K, z + DZ]);
 // The beach is the sandy sector of the rim between these angles (atan2(z, x)).
-export const BEACH = { from: 0.55, to: 1.35, inner: 21 };
+export const BEACH = { from: 0.55, to: 1.35, inner: 21 * K };
 export const inBeach = (x, z) => { const a = Math.atan2(z, x); return a > BEACH.from && a < BEACH.to && Math.hypot(x, z) > BEACH.inner; };
-export const nearRiver = (x, z, pad) => z > 19 - pad - 1 && z < 19 + pad + 1 && x < -3 && x > -26;
+export const nearRiver = (x, z, pad) => z > 19 + DZ - pad - 1 && z < 19 + DZ + pad + 1 && x < -4 && x > -WORLD.radius;
 
 export const NEEDS = ['fullness', 'energy', 'wonder', 'joy', 'calm'];
 
@@ -101,7 +110,7 @@ export function route(a, b) {
   return pts.slice(1);
 }
 export const blocked = (x, z, pad = 1) => OBSTACLES.some(o => Math.hypot(o.x - x, o.z - z) < o.r + pad);
-const openAt = (x, z, others, gap) => Math.hypot(x, z) < 27 && !blocked(x, z, 1.8) && !inBeach(x, z) && !nearRiver(x, z, 2.5) && !Object.values(PLACES).some(p => Math.hypot(p.x - x, p.z - z) < 2.6) && !others.some(o => Math.hypot(o.x - x, o.z - z) < gap);
+const openAt = (x, z, others, gap) => Math.hypot(x, z) < WORLD.radius - 3 && !blocked(x, z, 1.8) && !inBeach(x, z) && !nearRiver(x, z, 2.5) && !Object.values(PLACES).some(p => Math.hypot(p.x - x, p.z - z) < 2.6) && !others.some(o => Math.hypot(o.x - x, o.z - z) < gap);
 // A free spot close to a point (for things that grow next to other things).
 export function freeNear(at, others = [], gap = 2.0, rand = Math.random) {
   for (let i = 0; i < 40; i++) { const a = rand() * 6.283, r = 2.2 + rand() * 2.5, x = at.x + Math.cos(a) * r, z = at.z + Math.sin(a) * r; if (openAt(x, z, others, gap)) return { x: Math.round(x * 10) / 10, z: Math.round(z * 10) / 10 }; }
@@ -110,7 +119,7 @@ export function freeNear(at, others = [], gap = 2.0, rand = Math.random) {
 // An open bit of grass: on the island, off the beach and river, clear of buildings and of `others`.
 export function freeSpot(others = [], gap = 2.6, rand = Math.random) {
   for (let i = 0; i < 80; i++) {
-    const a = rand() * Math.PI * 2, r = 5 + rand() * 21, x = Math.cos(a) * r, z = Math.sin(a) * r;
+    const a = rand() * Math.PI * 2, r = 5 + rand() * (WORLD.radius - 9), x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (blocked(x, z, 1.8) || inBeach(x, z) || nearRiver(x, z, 2.5)) continue;
     if (Object.values(PLACES).some(p => Math.hypot(p.x - x, p.z - z) < 2.6)) continue;
     if (others.some(o => Math.hypot(o.x - x, o.z - z) < gap)) continue;

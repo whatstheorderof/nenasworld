@@ -2,7 +2,7 @@
 // what she has built and where she put it, her house, her scarves, her friendships.
 // Pure logic with an injected store, so the same code runs on the server and in the browser.
 import { SPECIES, MATERIAL_VALUE, RECIPES, SHOP, SCARVES, HOUSE_LOOKS, HOUSE_LOAN, SEASON_FIND, SONGS, STAMPS, FLAGS, BLOOMS, crossBloom, catchOne, calendar } from './data.js';
-import { NEIGHBOURS, CAMPERS, ISLETS, freeSpot, freeNear } from './world.js';
+import { NEIGHBOURS, CAMPERS, ISLETS, WORLD, K, freeSpot, freeNear } from './world.js';
 
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
@@ -15,7 +15,9 @@ const DEFAULT = () => ({
 });
 
 export class Life {
-  constructor(store) { this.store = store; const d = DEFAULT(), l = store.load() || {}; this.s = { ...d, ...l, museum: { ...d.museum, ...l.museum }, look: { ...d.look, ...l.look } }; }
+  constructor(store) { this.store = store; const d = DEFAULT(), l = store.load() || {}; this.s = { ...d, ...l, museum: { ...d.museum, ...l.museum }, look: { ...d.look, ...l.look } };
+    if (this.s.layout !== WORLD.layout) { for (const x of this.s.decor) { x.x = Math.round(x.x * K * 10) / 10; x.z = Math.round(x.z * K * 10) / 10; } this.s.layout = WORLD.layout; }   // the island grew: move her things out with it
+  }
   save() { this.s.version++; this.store.save(this.s); }
 
   // ---- pockets -----------------------------------------------------------
