@@ -75,7 +75,8 @@ export function buildNena() {
     const rim = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.12, 2.8), mat(0xfffaf0)); rim.position.y = 0.48; boat.add(rim);
     for (const sd of [-1, 1]) { const oar = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.14), mat(0xc9531c)); oar.position.set(sd * 1.2, 0.5, 0); oar.rotation.z = sd * -0.3; boat.add(oar); } }
 
-  let t = Math.random() * 10;
+  let t = Math.random() * 10, windAmt = 0, wellies = false;
+  const footMat = feet[0].material; feet.forEach(f => { f.material = footMat; });
   // state: { phase:'walking'|'doing'|'idle', action }
   function animate(dt, state) {
     t += dt;
@@ -102,11 +103,13 @@ export function buildNena() {
     else if (act === 'fish') { pitch = 0.12; y = Math.sin(t * 1.5) * 0.02; flap = 0.9; }
     else { roll = Math.sin(t * 1.5) * 0.04; y = Math.sin(t * 2.2) * 0.012; }
 
+    tail.rotation.z = -0.25 + (windAmt > 0.05 ? Math.sin(t * (8 + windAmt * 10)) * 0.5 * windAmt - 0.6 * windAmt : 0);
+    tail.rotation.x = windAmt > 0.05 ? -0.9 * windAmt : 0;
     to(body.rotation, 'z', roll); to(body.rotation, 'x', pitch); to(body.position, 'y', y);
     flippers.forEach((f, i) => to(f.rotation, 'z', (i ? 1 : -1) * flap));
     const inside = act === 'inside';   // she has gone indoors
     body.visible = shadow.visible = !inside;
-    feet.forEach((f, i) => { f.position.z = 0.14 + (i ? 1 : -1) * footSwing; f.visible = !inside && !['swim', 'lie', 'dive'].includes(act); f.position.y = riding ? 0.3 : 0.045; });
+    feet.forEach((f, i) => { f.position.z = 0.14 + (i ? 1 : -1) * footSwing; f.visible = !inside && !['swim', 'lie', 'dive'].includes(act); f.position.y = (riding ? 0.3 : 0.045) + (wellies ? 0.075 : 0); });
 
     zs.forEach((z, i) => {
       z.visible = inside && state.action === 'sleep';
@@ -128,6 +131,9 @@ export function buildNena() {
     beret: () => { const m = part(new THREE.SphereGeometry(0.42, 10, 5), 0x6a2fc4, 0.06, 0.0); m.scale.set(1, 0.32, 1); part(new THREE.CylinderGeometry(0.03, 0.03, 0.1, 5), 0x6a2fc4, 0.06, 0.15); },
     'bucket hat': () => { part(new THREE.CylinderGeometry(0.34, 0.4, 0.3, 10), 0x58b7e8, 0, 0.08); part(new THREE.CylinderGeometry(0.52, 0.58, 0.05, 12), 0x58b7e8, 0, -0.06); },
     'party hat': () => { part(new THREE.ConeGeometry(0.24, 0.62, 8), 0xffd93b, 0, 0.26); part(new THREE.SphereGeometry(0.08, 6, 5), 0xe8452c, 0, 0.6); for (let i = 0; i < 3; i++) part(new THREE.TorusGeometry(0.2 - i * 0.06, 0.025, 4, 8), 0xe8452c, 0, 0.06 + i * 0.16).rotation.x = Math.PI / 2; },
+    'umbrella hat': () => { const shade = new THREE.Mesh(new THREE.ConeGeometry(0.95, 0.42, 8, 1, true), new THREE.MeshLambertMaterial({ color: 0xffd93b, flatShading: true, side: THREE.DoubleSide })); shade.position.y = 0.62; hatSlot.add(shade);
+      for (let i = 0; i < 8; i += 2) { const p = new THREE.Mesh(new THREE.ConeGeometry(0.95, 0.42, 8, 1, true, i / 8 * 6.283, 6.283 / 8), new THREE.MeshLambertMaterial({ color: 0xe8452c, flatShading: true, side: THREE.DoubleSide })); p.position.y = 0.625; hatSlot.add(p); }
+      part(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 5), 0x1d2545, 0, 0.3); part(new THREE.SphereGeometry(0.06, 6, 5), 0x1d2545, 0, 0.88); part(new THREE.CylinderGeometry(0.34, 0.36, 0.1, 10), 0x1d2545, 0, 0.02); },
     'pom-pom hat': () => { part(new THREE.SphereGeometry(0.42, 9, 6, 0, 6.283, 0, 1.6), 0x2fc6b3, 0, -0.08); for (let i = 0; i < 3; i++) part(new THREE.CylinderGeometry(0.43, 0.43, 0.05, 10), 0xfffaf0, 0, -0.04 + i * 0.13); part(new THREE.SphereGeometry(0.13, 7, 5), 0xfffaf0, 0, 0.37); },
   };
   let hatNow = null;
@@ -155,5 +161,7 @@ export function buildNena() {
         const arm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.36), lensMat(frame)); arm.position.set(sd * 0.33, 0.02, -0.17); arm.rotation.y = sd * 0.35; glassSlot.add(arm); }
       const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 0.03), lensMat(frame)); bridge.position.set(0, 0.04, 0.01); glassSlot.add(bridge); }
   };
-  return { root, animate, setScarf, setHat, setGlasses };
+  // weather: wind blows her scarf, rain puts her in yellow wellies
+  const setWeather = (wind, wet) => { windAmt = wind; if (wet !== wellies) { wellies = wet; footMat.color.set(wet ? 0xffd93b : C.feet); feet.forEach(f => { f.scale.y = wet ? 2.6 : 1; }); } };
+  return { root, animate, setScarf, setHat, setGlasses, setWeather };
 }

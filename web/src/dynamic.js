@@ -74,6 +74,21 @@ function critter(kindIn) {
   return g;
 }
 
+// A speech bubble sprite for things visitors say.
+function bubbleSprite(text) {
+  const c = document.createElement('canvas'), x = c.getContext('2d'), F = '700 26px Nunito, sans-serif'; x.font = F;
+  const words = text.split(' '), lines = []; let cur = '';
+  for (const w of words) { const t = cur ? cur + ' ' + w : w; if (x.measureText(t).width > 300 && cur) { lines.push(cur); cur = w; } else cur = t; } lines.push(cur);
+  const shown = lines.slice(0, 3); if (lines.length > 3) shown[2] += '…';
+  c.width = Math.ceil(Math.max(...shown.map(l => x.measureText(l).width))) + 36; c.height = shown.length * 32 + 34;
+  x.font = F; x.fillStyle = '#fffaf0'; x.strokeStyle = '#1d2545'; x.lineWidth = 5;
+  x.beginPath(); x.roundRect(4, 4, c.width - 8, c.height - 20, 14); x.fill(); x.stroke();
+  x.beginPath(); x.moveTo(c.width / 2 - 10, c.height - 17); x.lineTo(c.width / 2, c.height - 4); x.lineTo(c.width / 2 + 10, c.height - 17); x.fill(); x.stroke();
+  x.fillStyle = '#1d2545'; x.textAlign = 'center'; x.textBaseline = 'middle'; shown.forEach((l, i) => x.fillText(l, c.width / 2, 22 + i * 32));
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, depthTest: false })); sp.scale.set(c.width / 70, c.height / 70, 1); sp.renderOrder = 10; sp.name = 'say';
+  return sp;
+}
+
 // A visitor: a small gull with a name over it.
 function gull(name) {
   const g = new THREE.Group(), b = new THREE.Group(); g.add(b); b.position.y = 1.6;
@@ -151,6 +166,9 @@ export function buildDynamic(scene) {
       b.position.y = flying ? 2.6 + Math.sin(t * 3 + v.id) * 0.2 : 0.35 + (waving ? Math.abs(Math.sin(t * 9)) * 0.5 : 0);
       m.userData.wings.forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * (flying || waving ? Math.sin(t * 14) * 0.7 : -0.9); });
       m.getObjectByName('label').position.y = b.position.y + 1.0;
+      const talking = v.say && Date.now() - v.sayAt < 9000; let say = m.getObjectByName('say');
+      if (talking && (!say || say.userData.text !== v.say)) { if (say) m.remove(say); say = bubbleSprite(v.say); say.userData.text = v.say; m.add(say); }
+      if (say) { say.visible = !!talking; say.position.y = b.position.y + 1.6 + say.scale.y / 2; }
     }
   }
   return { setDecor, setSpots, setCamper, setVisitors, update };

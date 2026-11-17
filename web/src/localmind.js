@@ -4,14 +4,16 @@
 import { World } from '../../mind/src/world.js';
 import { Life } from '../../shared/life.js';
 import { chooseFallback } from '../../shared/choose.js';
+import { scriptedReply } from '../../shared/chat.js';
 
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
-export function startLocalMind(onFeed) {
+export function startLocalMind(onFeed, onChat = () => {}) {
   const life = new Life({ load: () => load('nena-life', null), save: v => save('nena-life', v) });
   const world = new World(load('nena-world', null), 3600, life);
-  const recent = [], feed = load('nena-feed', []);
+  const recent = [], feed = load('nena-feed', []), chat = load('nena-chat', []);
+  const addChat = item => { item = { id: Math.random().toString(36).slice(2, 9), at: Date.now(), day: world.day, hour: world.hour, ...item }; chat.push(item); if (chat.length > 120) chat.shift(); save('nena-chat', chat); onChat(item); };
   let thought = 'just woke up.', say = null, sayUntil = 0, nextThink = 0, last = Date.now();
   const push = item => { feed.push(item); if (feed.length > 80) feed.shift(); onFeed(item); };
 
@@ -33,9 +35,18 @@ export function startLocalMind(onFeed) {
   }, 1000);
   const keep = setInterval(() => { save('nena-world', world.snapshot()); save('nena-feed', feed); }, 10000);
 
+  function talk(name, text) {
+    addChat({ kind: 'visitor', name, text });
+    setTimeout(() => {
+      const a = world.activity, asleep = a?.action === 'sleep' && a.phase === 'doing';
+      const reply = scriptedReply(text, name, { doing: a ? a.label : 'thinking', mood: world.mood().label, weather: world.weather, night: world.isNight, known: chat.filter(c => c.name === name).length - 1, asleep });
+      addChat({ kind: 'nena', text: reply, to: [name] }); if (!asleep) { sayText = reply; sayUntil2 = Date.now() + 9000; const st = life.chatted(name, world.day); if (st.length) life.save(); }
+    }, 1500 + Math.random() * 2000);
+  }
+  let sayText = null, sayUntil2 = 0;
   return {
-    feed,
-    now: () => ({ name: 'Nena', ...world.view(), thought, say: Date.now() < sayUntil ? say : null, mail: 0, mind: { source: 'stand-in', model: null, local: true } }),
+    feed, chat, say: talk,
+    now: () => ({ name: 'Nena', ...world.view(), thought, say: Date.now() < sayUntil2 ? sayText : Date.now() < sayUntil ? say : null, mail: 0, mind: { source: 'stand-in', model: null, local: true } }),
     life: () => ({ ...life.summary(), decorList: life.s.decor }),
     stop: () => { clearInterval(tick); clearInterval(beat); clearInterval(keep); },
   };

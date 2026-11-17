@@ -5,7 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cellipse cx='16' cy='17' rx='11' ry='13' fill='%23232a4d'/%3E%3Cellipse cx='16' cy='20' rx='7' ry='9' fill='%23fdfaf2'/%3E%3Cpath d='M13 14h6l-3 4z' fill='%23ffa62b'/%3E%3C/svg%3E" />
   <title>Nena's World</title>
-  <meta name="description" content="Nena is a small penguin who lives on her own island on the internet. She makes her own decisions, keeps a diary, and remembers who visits." />
+  <meta name="description" content="Nena is a small penguin who lives on her own floating island. Nobody plays her: she decides what to do, keeps a diary, and remembers who visits." />
+  <meta name="theme-color" content="#7fe9ff" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Nena's World" />
+  <meta property="og:title" content="Nena's World" />
+  <meta property="og:description" content="A small penguin living on her own floating island. Nobody plays her. Come and say hello." />
+  <meta property="og:image" content="%SITE_URL%/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Nena the penguin on her floating island" />
+  <meta property="og:url" content="%SITE_URL%/" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Nena's World" />
+  <meta name="twitter:description" content="A small penguin living on her own floating island. Nobody plays her. Come and say hello." />
+  <meta name="twitter:image" content="%SITE_URL%/og.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/src/style.css" />
@@ -30,16 +44,22 @@
 
   <div id="camhelp" class="card" hidden>Drag to look · W A S D to move · Q / E down and up · Shift to go faster · scroll to zoom</div>
 
+  <div id="tools">
+    <button id="cam" title="Roam the island yourself">Free camera</button>
+    <button id="dots" title="Turn the dot-screen look on or off">Dots: on</button>
+  </div>
+
+  <div id="stamp-pop" hidden></div>
+
   <nav id="nav">
     <button data-panel="diary">Diary</button>
     <button data-panel="feed">Lately</button>
+    <button data-panel="chat">Chat<i id="chat-dot" hidden></i></button>
+    <button data-panel="stamps">Stamps</button>
     <button data-panel="things">Her things</button>
     <button data-panel="makes">What she's made</button>
     <button data-panel="memory">Memories</button>
     <button data-panel="leave" class="primary">Leave her something</button>
-    <button id="cam">Free camera</button>
-    <button id="dots">Dots: on</button>
-    <button id="wave" hidden>Wave</button>
   </nav>
 
   <aside id="panel" class="card" hidden>

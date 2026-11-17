@@ -2,6 +2,16 @@
 
 // ---- calendar: 1 real hour = 1 day, 7 days = a season, 28 days = a year ----------
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
+// What the sky does in each season (picked at random every few game-hours).
+export const SEASON_WEATHER = [
+  ['clear', 'clear', 'clear', 'rain', 'rain', 'cloudy', 'wind', 'mist'],
+  ['clear', 'clear', 'clear', 'heat', 'heat', 'storm', 'rain', 'cloudy'],
+  ['clear', 'wind', 'wind', 'rain', 'rain', 'mist', 'cloudy', 'storm'],
+  ['clear', 'snow', 'snow', 'snow', 'cloudy', 'mist', 'wind', 'clear'],
+];
+export const WEATHER_WORDS = { clear: 'clear', cloudy: 'cloudy', rain: 'raining', storm: 'stormy', wind: 'windy', heat: 'heatwave', rainbow: 'rainbow', snow: 'snowing', mist: 'misty', aurora: 'aurora', meteors: 'shooting stars' };
+// In a storm she only goes where there is a roof.
+export const STORM_SAFE = ['home', 'cinema', 'museum', 'shop', 'tailor', 'library', 'observatory', 'cafe', 'studio'];
 export function calendar(day) {
   const d = (day - 1) % 28;
   return { season: Math.floor(d / 7), seasonName: SEASONS[Math.floor(d / 7)], dayOfSeason: (d % 7) + 1, weekday: (day - 1) % 7, year: Math.floor((day - 1) / 28) + 1, dayOfYear: d + 1 };
@@ -48,33 +58,42 @@ export const SONGS = ['Slow Tide', 'Lamp Post Waltz', 'Fish Stall Shuffle', 'Sno
 // The painter's boat calls on these weekdays. Some of what he sells is not what he says it is.
 export const painterIn = (cal, hour) => (cal.weekday === 2 || cal.weekday === 5) && hour >= 8 && hour < 19;
 // Stamps: small goals she ticks off just by living. Each pays a few coins; two give her a lucky golden tool.
+// Stamps: small goals she ticks off just by living. hint is shown before she has it.
 export const STAMPS = [
-  { id: 'first', name: 'First Catch', coins: 50, test: s => (s.n.go_fishing || 0) + (s.n.sea_fishing || 0) >= 1 },
-  { id: 'angler', name: 'Patient Angler', coins: 300, gold: 'rod', test: s => (s.n.go_fishing || 0) + (s.n.sea_fishing || 0) >= 20 },
-  { id: 'bugs', name: 'Friend of Small Things', coins: 300, gold: 'net', test: s => (s.n.catch_bugs || 0) >= 15 },
-  { id: 'diver', name: 'Deep Breath', coins: 200, test: s => (s.n.dive || 0) >= 10 },
-  { id: 'curator', name: 'Junior Curator', coins: 500, test: s => Object.values(s.museum).reduce((t, a) => t + a.length, 0) >= 10 },
-  { id: 'fullmuseum', name: 'Nothing Left To Find', coins: 3000, test: s => Object.values(s.museum).reduce((t, a) => t + a.length, 0) >= Object.keys(SPECIES).length },
-  { id: 'maker', name: 'Maker', coins: 200, test: s => (s.n.craft || 0) >= 5 },
-  { id: 'designer', name: 'Island Designer', coins: 300, test: s => (s.n.decorate || 0) >= 10 },
-  { id: 'green', name: 'Green Flippers', coins: 200, test: s => (s.n.plant_tree || 0) + (s.n.plant_flowers || 0) + (s.n.harvest || 0) >= 6 },
-  { id: 'neighbour', name: 'Good Neighbour', coins: 300, test: s => Object.values(s.friends).every(v => v >= 5) },
-  { id: 'best', name: 'Best Friends', coins: 500, test: s => Object.values(s.friends).some(v => v >= 10) },
-  { id: 'home', name: 'Room To Waddle', coins: 500, test: s => s.house.level >= 3 },
-  { id: 'cocoa', name: 'Regular', coins: 150, test: s => (s.n.drink_cocoa || 0) >= 10 },
-  { id: 'sailor', name: 'Sea Legs', coins: 300, test: s => (s.n.boat_trip || 0) >= 5 },
-  { id: 'songs', name: 'Record Collection', coins: 300, test: s => s.songs.length >= 5 },
-  { id: 'party', name: 'Never Misses A Party', coins: 300, test: s => (s.n.event || 0) >= 5 },
-  { id: 'breeder', name: 'Flower Breeder', coins: 400, test: s => s.blooms.length >= 6 },
-  { id: 'goldbloom', name: 'The Gold One', coins: 1000, test: s => s.blooms.includes('gold') },
-  { id: 'host', name: 'Good Host', coins: 300, test: s => s.metCampers.length >= 4 },
-  { id: 'traveller', name: 'Seen Them All', coins: 400, test: s => s.islets.length >= 3 },
-  { id: 'joiner', name: 'Joins In', coins: 200, test: s => (s.n.join_hobby || 0) >= 8 },
-  { id: 'wardrobe', name: 'Full Wardrobe', coins: 300, test: s => (s.look.hats || []).length >= 5 },
-  { id: 'shades', name: 'Throwing Shade', coins: 200, test: s => (s.look.glasses_owned || []).length >= 4 },
-  { id: 'starchart', name: 'Star Chart', coins: 400, test: s => (s.sky || []).length >= 6 },
-  { id: 'comet', name: 'Saw Something Rare', coins: 500, test: s => (s.sky || []).some(x => SKY_RARE.includes(x)) },
-  { id: 'rider', name: 'Robot Rider', coins: 100, test: s => (s.rides || 0) >= 20 },
+  { id: 'first', name: 'First Catch', hint: 'catch a first fish', coins: 50, test: s => (s.n.go_fishing || 0) + (s.n.sea_fishing || 0) >= 1 },
+  { id: 'angler', name: 'Patient Angler', hint: 'go fishing 20 times', coins: 300, gold: 'rod', test: s => (s.n.go_fishing || 0) + (s.n.sea_fishing || 0) >= 20 },
+  { id: 'bugs', name: 'Friend of Small Things', hint: 'catch 15 bugs', coins: 300, gold: 'net', test: s => (s.n.catch_bugs || 0) >= 15 },
+  { id: 'diver', name: 'Deep Breath', hint: 'dive 10 times', coins: 200, test: s => (s.n.dive || 0) >= 10 },
+  { id: 'curator', name: 'Junior Curator', hint: 'give the museum 10 things', coins: 500, test: s => Object.values(s.museum).reduce((t, a) => t + a.length, 0) >= 10 },
+  { id: 'fullmuseum', name: 'Nothing Left To Find', hint: 'fill the whole museum', coins: 3000, test: s => Object.values(s.museum).reduce((t, a) => t + a.length, 0) >= Object.keys(SPECIES).length },
+  { id: 'maker', name: 'Maker', hint: 'build 5 things', coins: 200, test: s => (s.n.craft || 0) >= 5 },
+  { id: 'designer', name: 'Island Designer', hint: 'put 10 things out on the island', coins: 300, test: s => (s.n.decorate || 0) >= 10 },
+  { id: 'green', name: 'Green Flippers', hint: 'plant and grow 6 times', coins: 200, test: s => (s.n.plant_tree || 0) + (s.n.plant_flowers || 0) + (s.n.harvest || 0) >= 6 },
+  { id: 'neighbour', name: 'Good Neighbour', hint: 'be good friends with every neighbour', coins: 300, test: s => Object.values(s.friends).every(v => v >= 5) },
+  { id: 'best', name: 'Best Friends', hint: 'have a best friend', coins: 500, test: s => Object.values(s.friends).some(v => v >= 10) },
+  { id: 'home', name: 'Room To Waddle', hint: 'make the house as big as it goes', coins: 500, test: s => s.house.level >= 3 },
+  { id: 'cocoa', name: 'Regular', hint: 'have 10 cocoas', coins: 150, test: s => (s.n.drink_cocoa || 0) >= 10 },
+  { id: 'sailor', name: 'Sea Legs', hint: 'row out 5 times', coins: 300, test: s => (s.n.boat_trip || 0) >= 5 },
+  { id: 'songs', name: 'Record Collection', hint: 'collect 5 records', coins: 300, test: s => s.songs.length >= 5 },
+  { id: 'party', name: 'Never Misses A Party', hint: 'go to 5 events', coins: 300, test: s => (s.n.event || 0) >= 5 },
+  { id: 'breeder', name: 'Flower Breeder', hint: 'grow 6 flower colours', coins: 400, test: s => s.blooms.length >= 6 },
+  { id: 'goldbloom', name: 'The Gold One', hint: 'grow a gold flower', coins: 1000, test: s => s.blooms.includes('gold') },
+  { id: 'host', name: 'Good Host', hint: 'meet 4 campers', coins: 300, test: s => s.metCampers.length >= 4 },
+  { id: 'traveller', name: 'Seen Them All', hint: 'row to all 3 islets', coins: 400, test: s => s.islets.length >= 3 },
+  { id: 'joiner', name: 'Joins In', hint: 'join in with neighbours 8 times', coins: 200, test: s => (s.n.join_hobby || 0) >= 8 },
+  { id: 'wardrobe', name: 'Full Wardrobe', hint: 'own 5 hats', coins: 300, test: s => (s.look.hats || []).length >= 5 },
+  { id: 'shades', name: 'Throwing Shade', hint: 'own 4 pairs of sunglasses', coins: 200, test: s => (s.look.glasses_owned || []).length >= 4 },
+  { id: 'starchart', name: 'Star Chart', hint: 'name 6 star shapes', coins: 400, test: s => (s.sky || []).length >= 6 },
+  { id: 'comet', name: 'Saw Something Rare', hint: 'see something rare in the sky', coins: 500, test: s => (s.sky || []).some(x => SKY_RARE.includes(x)) },
+  { id: 'puddles', name: 'Puddle Jumper', hint: 'jump in puddles 5 times', coins: 200, test: s => (s.n.puddle_jump || 0) >= 5 },
+  { id: 'rainbow', name: 'End of the Rainbow', hint: 'walk to where a rainbow lands', coins: 300, test: s => (s.n.chase_rainbow || 0) >= 1 },
+  { id: 'kite', name: 'Kite Flyer', hint: 'fly a kite 3 times', coins: 200, test: s => (s.n.fly_kite || 0) >= 3 },
+  { id: 'storm', name: 'Storm Watcher', hint: 'sit out 2 storms', coins: 200, test: s => (s.n.watch_storm || 0) >= 2 },
+  { id: 'keeper', name: 'Keeper of the Light', hint: 'watch the lighthouse beam 5 times', coins: 200, test: s => (s.n.watch_beam || 0) >= 5 },
+  { id: 'farsight', name: 'Far Sighted', hint: 'look at all 3 far islands', coins: 300, test: s => Object.keys(s.farSeen || {}).length >= 3 },
+  { id: 'chatter', name: 'Chatterbox', hint: 'talk with visitors 10 times', coins: 200, test: s => (s.n.visitor_chat || 0) >= 10 },
+  { id: 'regulars', name: 'Knows Everyone', hint: 'talk with 10 different visitors', coins: 400, test: s => (s.chatNames || []).length >= 10 },
+  { id: 'rider', name: 'Robot Rider', hint: 'ride the robot 20 times', coins: 100, test: s => (s.rides || 0) >= 20 },
 ];
 export function catchOne(cat, where, season, lucky = false, rand = Math.random) {
   const pool = Object.entries(SPECIES).filter(([, s]) => s.cat === cat && (!where || s.where === where) && (!s.s || s.s.includes(season)));
@@ -112,13 +131,14 @@ export const HOUSE_LOAN = [0, 1200, 3500];   // coins to reach level 2, then lev
 // why: things she might think when the scripted mind picks it.
 const A = (label, where, dur, effects, anim, ok, offer, why) => ({ label, ...(where.startsWith('@') ? { target: where.slice(1).split(':')[0], who: where.split(':')[1] || null } : { place: where || null }), dur, effects, anim, ok, offer, why });
 const any = () => true;
+const wet = c => c.weather === 'rain' || c.weather === 'storm';
 export const ACTIONS = {
   // everyday
   sleep:      A('sleeping', 'home', 420, { energy: 1.0, calm: 0.3, fullness: -0.15 }, 'inside', c => c.n.energy < 0.3 || (c.night && c.n.energy < 0.75), 'tired', ['eyes heavy. home.', 'the day is full enough. sleep now.']),
   rest:       A('resting at home', 'home', 45, { energy: 0.18, calm: 0.25 }, 'sit', c => c.n.energy < 0.6 || c.n.calm < 0.4, 'a quiet sit at home', ['sit a while. nothing has to happen.']),
   eat:        A('eating fish', 'fish', 35, { fullness: 0.7, joy: 0.1 }, 'peck', c => c.n.fullness < 0.75, 'the fish stall', ['belly says fish.', 'i can smell the stall from here.']),
   cook:       A('cooking at home', 'home', 50, { fullness: 0.6, joy: 0.2, calm: 0.1 }, 'inside', c => c.n.fullness < 0.8 && c.life.food() > 0, 'cook something she caught or picked', ['i caught it. i should cook it.', 'the kitchen has been quiet too long.']),
-  swim:       A('sliding on the pond', 'pond', 55, { joy: 0.45, energy: -0.12, calm: 0.1 }, 'swim', c => c.n.energy > 0.25, 'the pond is good for sliding', ['the ice looks fast today.', 'one slide. maybe six.']),
+  swim:       A('sliding on the pond', 'pond', 55, { joy: 0.45, energy: -0.12, calm: 0.1 }, 'swim', c => c.n.energy > 0.25 && !wet(c), 'the pond is good for sliding', ['the ice looks fast today.', 'one slide. maybe six.']),
   read:       A('reading', 'library', 70, { wonder: 0.55, calm: 0.1, energy: -0.05 }, 'read', c => c.n.energy > 0.2, 'something new to learn', ['there is a thing i do not know yet.']),
   draw:       A('drawing', 'studio', 85, { joy: 0.3, wonder: 0.25, calm: 0.15, energy: -0.08 }, 'flap', c => c.n.energy > 0.2, 'make a picture', ['a picture is stuck in my head. get it out.']),
   stargaze:   A('watching the sky', 'lookout', 50, { calm: 0.5, wonder: 0.2 }, 'lookup', any, 'look at the sky', ['i want to see how far up it goes.']),
@@ -132,8 +152,8 @@ export const ACTIONS = {
   // collecting
   go_fishing: A('fishing in the river', 'river', 60, { calm: 0.3, joy: 0.12 }, 'fish', any, 'see what is in the river', ['the river is loud today. good for fish.']),
   sea_fishing: A('fishing off the beach', 'beach', 60, { calm: 0.28, wonder: 0.12 }, 'fish', any, 'cast into the sea', ['the sea has bigger things in it.']),
-  dive:       A('diving off the beach', 'beach', 55, { joy: 0.3, wonder: 0.25, energy: -0.15 }, 'dive', c => c.n.energy > 0.35 && c.cal.season !== 3, 'things live on the sea floor', ['i am built for this, actually.']),
-  catch_bugs: A('catching bugs', 'garden', 45, { joy: 0.25, wonder: 0.2, energy: -0.08 }, 'flap', c => c.n.energy > 0.25, 'the garden is full of small things', ['something small just flew past.']),
+  dive:       A('diving off the beach', 'beach', 55, { joy: 0.3, wonder: 0.25, energy: -0.15 }, 'dive', c => c.n.energy > 0.35 && c.cal.season !== 3 && !wet(c), 'things live on the sea floor', ['i am built for this, actually.']),
+  catch_bugs: A('catching bugs', 'garden', 45, { joy: 0.25, wonder: 0.2, energy: -0.08 }, 'flap', c => c.n.energy > 0.25 && !wet(c) && c.weather !== 'wind', 'the garden is full of small things', ['something small just flew past.']),
   beachcomb:  A('combing the beach', 'beach', 45, { wonder: 0.3, joy: 0.12, energy: -0.06 }, 'peck', c => c.n.energy > 0.2, 'the tide leaves shells', ['the sea always leaves something.']),
   shake_tree: A('shaking the fruit trees', 'orchard', 30, { joy: 0.2, energy: -0.05 }, 'flap', c => c.cal.season !== 3 && c.life.fruitReady(c.dayN), 'the trees look heavy with fruit', ['if i shake it, things fall out. good system.']),
   chop_wood:  A('chopping wood', 'orchard', 40, { energy: -0.12, calm: 0.15 }, 'flap', c => c.n.energy > 0.35 && c.life.count('wood') < 8, 'wood for building things', ['i need wood if i am going to make anything.']),
@@ -154,12 +174,12 @@ export const ACTIONS = {
   decorate:   A('putting something out on the island', '@free', 30, { joy: 0.35, calm: 0.1 }, 'flap', c => c.life.decorHeld().length > 0, 'she is carrying something she built', ['this spot needs something.']),
   plant_flowers: A('planting flowers', '@free', 30, { calm: 0.3, joy: 0.15 }, 'peck', c => c.life.count('flower seeds') > 0 && c.cal.season !== 3, 'she has seeds', ['seeds do nothing in a pocket.']),
   plant_tree: A('planting a tree', '@free', 35, { calm: 0.25, joy: 0.2 }, 'peck', c => c.life.count('sapling') > 0 && c.cal.season !== 3, 'she has a sapling', ['a tree here. it will take a while.']),
-  garden:     A('watering the garden', 'garden', 45, { calm: 0.3, joy: 0.2 }, 'peck', c => c.day && c.weather !== 'snow', 'the flowers want water', ['the yellow one looked thirsty.']),
+  garden:     A('watering the garden', 'garden', 45, { calm: 0.3, joy: 0.2 }, 'peck', c => c.day && !['snow', 'rain', 'storm'].includes(c.weather), 'the flowers want water', ['the yellow one looked thirsty.']),
   redecorate: A('repainting her house', 'home', 60, { joy: 0.35, energy: -0.08 }, 'flap', c => c.day && c.life.s.coins >= 60 && c.dayN - (c.life.s.look.painted || -9) > 6, 'the house could be a different colour', ['i am tired of this roof colour.']),
   change_outfit: A('changing her outfit', 'home', 25, { joy: 0.25 }, 'inside', c => (c.life.s.look.scarves.length > 1 || (c.life.s.look.hats || []).length > 1) && c.dayN !== c.life.s.look.changed, 'she has more than one thing to wear', ['different look today.']),
   buy_clothes: A('buying clothes', 'tailor', 40, { joy: 0.35 }, 'stand', c => c.day && c.life.s.coins >= 150 && c.life.s.clothesDay !== c.dayN && c.life.unownedClothes() > 0, 'the clothes shop has things she has not got', ['there was a hat in the window. i keep thinking about it.']),
   try_on:     A('trying things on at the clothes shop', 'tailor', 35, { joy: 0.3, calm: 0.1 }, 'flap', c => c.day && c.life.s.tryDay !== c.dayN, 'trying things on costs nothing', ['i am only looking. probably.']),
-  observe:    A('looking through the telescope', 'observatory', 70, { wonder: 0.6, calm: 0.25, energy: -0.05 }, 'lookup', c => c.night && c.weather !== 'snow' && c.weather !== 'mist' && c.life.s.observeDay !== c.dayN, 'the observatory is open and the sky is clear', ['the sky is clear. the telescope is waiting.']),
+  observe:    A('looking through the telescope', 'observatory', 70, { wonder: 0.6, calm: 0.25, energy: -0.05 }, 'lookup', c => c.night && ['clear', 'aurora', 'meteors', 'wind'].includes(c.weather) && c.life.s.observeDay !== c.dayN, 'the observatory is open and the sky is clear', ['the sky is clear. the telescope is waiting.']),
   tour_observatory: A('looking round the observatory', 'observatory', 45, { wonder: 0.3, calm: 0.15 }, 'stand', c => c.day && (c.life.s.sky || []).length > 0, 'see her star charts in daylight', ['i want to look at my star chart again.']),
   pay_home:   A('putting coins toward a bigger house', 'home', 25, { calm: 0.2, joy: 0.15 }, 'stand', c => c.life.s.house.level < 3 && c.life.s.coins >= 300, 'she has savings and the house is small', ['a bigger house costs coins. i have coins.']),
   // neighbours
@@ -182,12 +202,20 @@ export const ACTIONS = {
   design_flag: A('designing the island flag', 'studio', 60, { joy: 0.3, wonder: 0.15 }, 'flap', c => c.dayN - (c.life.s.look.flagDay || -9) > 5, 'the flag in the square could change', ['the flag should look like how the island feels.']),
   compose_tune: A('making up the island tune', 'home', 50, { joy: 0.3, wonder: 0.2 }, 'inside', c => c.dayN - (c.life.s.tuneDay || -9) > 7, 'the island could have a new tune', ['there is a tune in my head and it belongs to nobody else.']),
   boat_trip:  A('out in the rowing boat', 'beach', 110, { wonder: 0.55, joy: 0.2, energy: -0.2 }, 'sail', c => c.day && c.hour < 16 && c.weather === 'clear' && c.cal.season !== 3 && c.n.energy > 0.5 && c.life.s.boatDay !== c.dayN, 'the rowing boat is on the sand and there are little islands out there', ['i want to see what is out past the foam.']),
-  water_flowers: A('watering her flower patches', '@patch', 30, { calm: 0.3, joy: 0.12 }, 'peck', c => c.life.patches().length > 0 && c.weather !== 'snow' && c.life.s.waterDay !== c.dayN, 'the flowers she planted want water (colours growing close together sometimes cross)', ['if the red ones and the white ones are friends, something happens.']),
+  water_flowers: A('watering her flower patches', '@patch', 30, { calm: 0.3, joy: 0.12 }, 'peck', c => c.life.patches().length > 0 && !['snow', 'rain', 'storm'].includes(c.weather) && c.life.s.waterDay !== c.dayN, 'the flowers she planted want water (colours growing close together sometimes cross)', ['if the red ones and the white ones are friends, something happens.']),
   visit_camper: A('visiting the campsite', 'camp', 45, { wonder: 0.4, joy: 0.25 }, 'stand', c => !!c.life.s.camper && c.day && c.life.s.campDay !== c.dayN, 'someone is camping on the island today', ['there is a new tent. someone from somewhere else.']),
   join_hobby: A('joining in with a neighbour', '@npc', 45, { joy: 0.4, energy: -0.08 }, 'flap', c => !!c.npc && !!c.npc.doing && c.life.s.joinDay !== c.dayN, 'a neighbour is busy with their hobby', ['that looks fun. i am joining in.']),
   greet_visitors: A('waving at the visitors', 'plaza', 15, { joy: 0.3 }, 'lookup', c => c.visitors.length > 0 && c.life.s.greeted !== Math.floor(c.dayN * 24 + c.hour), 'there are visitors on the island right now', ['there are gulls about. the watching kind.']),
   watch_beam: A('watching the lighthouse beam', 'lighthouse', 50, { calm: 0.4, wonder: 0.25 }, 'lookup', c => c.night && c.weather !== 'snow', 'the lighthouse is sweeping the dark', ['round and round. it never gets bored.']),
-  gaze_far:   A('looking out at the far islands', 'lighthouse', 45, { wonder: 0.5, calm: 0.15 }, 'stand', c => c.day && c.weather !== 'mist' && c.dayN - (c.life.s.gazeDay ?? -9) >= 2, 'on a clear day you can see other islands from the lighthouse', ['there are other islands out there. i want to know what is on them.']),
+  gaze_far:   A('looking out at the far islands', 'lighthouse', 45, { wonder: 0.5, calm: 0.15 }, 'stand', c => c.day && ['clear', 'wind', 'heat', 'rainbow'].includes(c.weather) && c.dayN - (c.life.s.gazeDay ?? -9) >= 2, 'on a clear day you can see other islands from the lighthouse', ['there are other islands out there. i want to know what is on them.']),
+  // weather
+  puddle_jump: A('jumping in puddles', '@free', 30, { joy: 0.5, energy: -0.08 }, 'jump', c => c.weather === 'rain' && c.n.energy > 0.25, 'it is raining and there are puddles everywhere', ['puddles. big ones.', 'the rain made puddles. that is a gift.']),
+  watch_rain: A('watching the rain from the window', 'home', 45, { calm: 0.45, wonder: 0.15 }, 'inside', c => wet(c), 'listen to the rain on the roof', ['the rain is doing all the talking today.']),
+  watch_storm: A('watching the storm', 'home', 60, { wonder: 0.4, calm: -0.05 }, 'inside', c => c.weather === 'storm', 'there is thunder over the island', ['count after the flash. one. two.']),
+  fly_kite: A('flying a kite', 'lookout', 50, { joy: 0.45, wonder: 0.2, energy: -0.08 }, 'lookup', c => c.weather === 'wind' && c.day, 'the wind is strong enough for a kite', ['the wind wants something to carry.']),
+  chase_rainbow: A('walking to the end of the rainbow', '@free', 35, { wonder: 0.5, joy: 0.3 }, 'lookup', c => c.weather === 'rainbow', 'there is a rainbow over the island', ['a rainbow. i am going to find where it lands.']),
+  ice_lolly: A('eating an ice lolly', 'cafe', 25, { fullness: 0.15, joy: 0.3, energy: 0.1 }, 'sit', c => c.weather === 'heat', 'it is very hot and the cart has ice lollies', ['too hot. something cold, now.']),
+  cloud_shapes: A('finding shapes in the clouds', 'beach', 35, { calm: 0.35, wonder: 0.3 }, 'lie', c => c.day && c.weather === 'cloudy' && c.cal.season !== 3, 'the clouds are low and slow', ['that one is a fish. that one is also a fish.']),
   // skies and seasons
   wish:       A('wishing on shooting stars', 'lookout', 40, { wonder: 0.5, joy: 0.2 }, 'lookup', c => c.weather === 'meteors', 'shooting stars tonight', ['a star fell. quick. wish.']),
   event:      A('at the event', '', 80, { joy: 0.5, wonder: 0.2 }, 'flap', c => !!c.event && c.life.s.eventDone !== `${c.dayN}:${c.event.id}`, 'something is on today', ['i am not missing this.']),

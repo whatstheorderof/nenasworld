@@ -33,6 +33,10 @@ Preview a look without waiting: `http://localhost:5173/?hour=23&weather=aurora`
 | Visitors | `mind/src/server.js`, `web/src/dynamic.js` | Everyone with the page open is a named gull on the island. Double-click the ground to fly yours; the Wave button waves. Nena notices and greets visitors but nobody can steer her. Needs the real mind server; the stand-in has no visitors. |
 | What she makes | `web/src/art.js` | Her drawings are painted from their titles in a crayon style (the latest hangs on the studio easel); photos are rendered from where she stood; her tune plays on a bell. The "What she's made" panel lists it all, with Show me buttons that fly the camera to things she built. |
 | Far islands | `web/src/far.js`, `SKY_ISLANDS` in `shared/world.js` | Three other sky islands, only silhouettes for now: a smoking volcano and desert, an ancient forest with one enormous tree, and an ice island with light coming up through a hole in its crust. Names, resources and lore are placeholders until the story is settled. From the lighthouse she looks out at them and remembers what she notices. |
+| Weather | `SEASON_WEATHER` in `shared/data.js`, `setWeatherFx` in `web/src/main.js` | Clear, cloudy, rain, storms with lightning, wind, heatwaves, rainbows after rain, snow, mist, aurora and shooting stars, depending on the season. She dresses for it (umbrella hat and yellow wellies in rain, sun hat and sunglasses in a heatwave, a warm hat in snow), and some activities only happen in some weather (puddle jumping, kite flying, watching a storm from the window, walking to the end of a rainbow). In a storm she stays near a roof and the neighbours go home. |
+| Chat | `shared/chat.js`, `reply()` in `mind/src/brain.js` | Visitors say things through their gull (shown in a bubble over it); Nena answers in her own time, using the model if one is connected and scripted replies if not. The Chat panel shows the whole conversation. Max 140 characters, one message per 6 seconds per visitor. |
+| Stamps | `STAMPS` in `shared/data.js`, `web/src/stamps.js` | 34 stamps, each drawn as a little postage stamp with its own picture and a postmark for the day she earned it. A pop-up shows when she earns one; the Stamps panel is her stamp book. |
+| Link preview | `web/index.html`, `web/public/og.png` | The image and text shown when the link is shared. Set `SITE_URL` when building (Vercel fills it in automatically) so the image address is complete. |
 | Stand-in mind | `web/src/localmind.js` | If the page cannot reach the mind server it runs the same world and scripted chooser in the visitor's browser, saved in that browser only. No diary, memories or mailbox in that mode. |
 | Places | `shared/world.js` | Where everything is, and the route planner that walks her around buildings. |
 
@@ -40,7 +44,7 @@ She rides her little robot for trips longer than 15 metres (`RIDE_OVER` in `mind
 
 The island's size is one number: `K` in `shared/world.js` stretches the whole layout.
 
-Preview looks: `?ride=1&hat=party%20hat&glasses=star%20sunglasses`, `?hour=22&show=fireworks`, `?season=winter&weather=snow`, `?weather=meteors&hour=23`.
+Preview looks: `?weather=storm`, `?weather=rainbow&hour=16`, `?stamp=kite`, `?ride=1&hat=party%20hat&glasses=star%20sunglasses`, `?hour=22&show=fireworks`, `?season=winter&weather=snow`, `?weather=meteors&hour=23`.
 
 ## Not built yet
 

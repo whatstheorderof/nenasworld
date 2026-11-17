@@ -61,12 +61,19 @@ export class Life {
     const s = this.s, r = this.outcome(action, a, w);
     s.n[action] = (s.n[action] || 0) + 1;
     if (a.ride) s.rides++;
-    const extra = [];
-    for (const st of STAMPS) if (!s.stamps.includes(st.id) && st.test(s)) { s.stamps.push(st.id); s.coins += st.coins; if (st.gold) s.golden[st.gold] = true; extra.push(`earned the stamp "${st.name}" (+${st.coins} coins${st.gold ? `, and a golden ${st.gold}` : ''})`); }
+    const extra = this.checkStamps(w.day);
     for (const [name, v] of Object.entries(s.friends)) if (v >= 10 && !this.count(`photo of ${name}`)) { this.add(`photo of ${name}`); s.cosy++; extra.push(`${name} gave her a framed photo`); }
     if (!extra.length) return r;
     return { ...(r || {}), text: [r?.text, ...extra].filter(Boolean).join('. '), lift: (r?.lift || 0) + 0.3, say: r?.say || 'a stamp!' };
   }
+  // Any stamps she has just earned. Returns lines for the diary.
+  checkStamps(day) {
+    const s = this.s, out = []; s.stampDays ||= {};
+    for (const st of STAMPS) if (!s.stamps.includes(st.id) && st.test(s)) { s.stamps.push(st.id); s.stampDays[st.id] = day; s.coins += st.coins; if (st.gold) s.golden[st.gold] = true; out.push(`earned the stamp "${st.name}" (+${st.coins} coins${st.gold ? `, and a golden ${st.gold}` : ''})`); }
+    return out;
+  }
+  // She talked with a visitor.
+  chatted(name, day) { const s = this.s; s.n.visitor_chat = (s.n.visitor_chat || 0) + 1; s.chatNames ||= []; if (!s.chatNames.includes(name)) { s.chatNames.push(name); if (s.chatNames.length > 200) s.chatNames.shift(); } return this.checkStamps(day); }
   outcome(action, a, w) {
     const r = this.outcome2(action, a, w);
     if (action === 'cook' && r?.text) { (this.s.dishes ||= []).push({ name: r.text.replace(/^(cooked|made) (the )?/, ''), day: w.day }); if (this.s.dishes.length > 30) this.s.dishes.shift(); }
@@ -180,6 +187,13 @@ export class Life {
       case 'boat_trip': { s.boatDay = day; const isl = ISLETS[a.islet ?? 0]; if (!s.islets.includes(isl.name)) s.islets.push(isl.name); const finds = [pick(isl.gives), pick(['shell', 'sea glass', ...isl.gives])]; for (const k of finds) this.add(k, rint(1, 2));
         const saw = pick(['a rock shaped like a sleeping whale', 'an islet with one tree and nobody on it', 'a buoy with a bell that nobody rings', 'the island from far away. it is small', 'something large under the boat, going the other way']);
         return { text: `rowed out to ${isl.name} and came back with ${finds.join(' and ')}. on the way she saw ${saw}`, remember: `i rowed to ${isl.name}. on the way i saw ${saw}`, lift: 0.35 }; }
+      case 'puddle_jump': return { text: pick(['jumped in every puddle between here and the square', 'found the biggest puddle on the island and jumped in it', 'splashed until her feet were soaked']), lift: 0.2 };
+      case 'watch_rain': return { text: 'watched the rain run down the window' };
+      case 'watch_storm': return { text: pick(['counted the seconds between the flash and the thunder', 'watched lightning over the far islands', 'sat out the storm with the lamp on']), remember: Math.random() < 0.3 ? 'there was a big storm. the lighthouse kept going the whole time.' : null };
+      case 'fly_kite': return { text: pick(['flew a kite from the lookout until the string ran out', 'flew a kite. it nearly took her with it', 'got the kite higher than the lighthouse']), lift: 0.25 };
+      case 'chase_rainbow': { const c = Math.random() < 0.4 ? rint(50, 250) : 0; s.coins += c; return { text: `walked to where the rainbow came down${c ? ` and found ${c} coins in the grass` : '. it had moved'}`, say: c ? 'the stories are true!' : 'it moved. typical.', remember: c ? 'i found coins at the end of a rainbow. really.' : null, lift: c ? 0.4 : 0.15 }; }
+      case 'ice_lolly': { s.coins = Math.max(0, s.coins - 8); return { text: `had a ${pick(['strawberry', 'lemon', 'fish-flavoured', 'blue (nobody knows what blue is)'])} ice lolly at the cocoa cart` }; }
+      case 'cloud_shapes': return { text: `lay on the sand and saw a cloud shaped like ${pick(['a fish', 'Bo', 'a teapot', 'her house', 'another penguin', 'a boat with no bottom'])}` };
       case 'watch_beam': return { text: 'watched the lighthouse beam go round over the island and out towards the far islands' };
       case 'gaze_far': { s.gazeDay = day; const isl = pick(SKY_ISLANDS), seen = (s.farSeen ||= {}); seen[isl.id] = (seen[isl.id] || 0) + 1;
         const notice = { ember: ['there is smoke coming off the top of it', 'the edge of it looks orange, like sand', 'something up there glows when the sun goes'], wood: ['the trees on it are taller than our lighthouse', 'it looks soft, like moss', 'birds go in and do not come out for ages'], glass: ['it shines like a window', 'there is a dark hole right in the middle of it', 'the bottom of it looks like it has steps carved in'] }[isl.id];
@@ -200,7 +214,7 @@ export class Life {
 
   summary() {
     const s = this.s;
-    return { coins: s.coins, items: s.items, museum: s.museum, total: Object.keys(SPECIES).length, decor: s.decor.length, house: s.house, loan: HOUSE_LOAN[s.house.level] || null, friends: s.friends, turnips: s.turnips, turnipPrice: s.turnipPrice, photos: s.photos, shaken: s.shaken, songs: s.songs, stamps: s.stamps, cosy: s.cosy, tune: s.tune, hot: s.hot, golden: s.golden, rides: s.rides, blooms: s.blooms, camper: s.camper, metCampers: s.metCampers, islets: s.islets, sky: s.sky || [], hats: s.look.hats || [0], glasses: s.look.glasses_owned || [0], drawings: s.drawings || [], photoLog: s.photoLog || [], dishes: s.dishes || [], flag: s.look.flag || 0 };
+    return { coins: s.coins, items: s.items, museum: s.museum, total: Object.keys(SPECIES).length, decor: s.decor.length, house: s.house, loan: HOUSE_LOAN[s.house.level] || null, friends: s.friends, turnips: s.turnips, turnipPrice: s.turnipPrice, photos: s.photos, shaken: s.shaken, songs: s.songs, stamps: s.stamps, cosy: s.cosy, tune: s.tune, hot: s.hot, golden: s.golden, rides: s.rides, blooms: s.blooms, camper: s.camper, metCampers: s.metCampers, islets: s.islets, sky: s.sky || [], hats: s.look.hats || [0], glasses: s.look.glasses_owned || [0], stampDays: s.stampDays || {}, drawings: s.drawings || [], photoLog: s.photoLog || [], dishes: s.dishes || [], flag: s.look.flag || 0 };
   }
   freeSpot() { return freeSpot(this.s.decor); }
 }

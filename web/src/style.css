@@ -57,3 +57,38 @@ button.inline { background: var(--paper); border: 2px solid var(--line); border-
 .note:nth-child(even) { background: #ffeef1; transform: rotate(0.5deg); }
 .note p { margin: 4px 0; }
 .note .reply { border-top: 2px dashed #1d254533; padding-top: 5px; margin-top: 5px; font-size: 13px; font-weight: 700; }
+
+#tools { position: fixed; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 3; }
+#tools button { background: var(--paper); border: 3px solid var(--line); border-radius: 12px; padding: 5px 10px; box-shadow: 0 3px 0 var(--line); font-size: 13px; }
+#panel { top: 70px !important; }
+#chat-dot { display: inline-block; width: 9px; height: 9px; border-radius: 5px; background: var(--orange); margin-left: 5px; vertical-align: 2px; }
+#chat-log { max-height: 46vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 4px 2px 8px; margin-bottom: 8px; }
+.msg { max-width: 85%; padding: 6px 10px 4px; border: 2px solid var(--line); border-radius: 14px; position: relative; }
+.msg p { margin: 2px 0 0; font-size: 14px; }
+.msg b { font-size: 12px; }
+.msg .when { display: block; text-align: right; font-size: 10px; opacity: .5; font-weight: 800; }
+.msg.nena { align-self: flex-start; background: #fff1d6; border-bottom-left-radius: 4px; }
+.msg.nena.asleep { background: #e6e3f2; font-style: italic; }
+.msg.visitor { align-self: flex-end; background: #fff; border-bottom-right-radius: 4px; }
+.msg.visitor.mine { background: #dff3ff; }
+#say { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+#say button:disabled { opacity: .6; }
+.row { display: flex; align-items: center; gap: 10px; }
+.stampbook { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 6px; }
+.stampbook figure { margin: 0; text-align: center; }
+.stampbook canvas { width: 100%; height: auto; display: block; }
+.stampbook figcaption { font-size: 10px; font-weight: 800; line-height: 1.2; opacity: .75; margin-top: 2px; }
+#stamp-pop { position: fixed; left: 50%; top: 22%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; background: var(--paper); border: 3px solid var(--line); border-radius: 18px; box-shadow: 0 5px 0 var(--line); padding: 12px 18px 12px 12px; z-index: 5; cursor: pointer; }
+#stamp-pop canvas { width: 96px; height: 120px; }
+#stamp-pop div { display: flex; flex-direction: column; gap: 2px; }
+#stamp-pop b { font-size: 13px; color: var(--orange); }
+#stamp-pop span { font-size: 18px; font-weight: 900; }
+#stamp-pop span.dim { font-size: 13px; }
+#stamp-pop { transition: opacity .6s; }
+#stamp-pop.out { opacity: 0; }
+#stamp-pop canvas { transform: rotate(-4deg); }
+#stamp-pop.go { animation: stamp-in .45s ease-out; }
+#stamp-pop.go canvas { animation: stamp-slam .55s cubic-bezier(.2,1.6,.4,1); }
+@keyframes stamp-in { from { opacity: 0; transform: translate(-50%, -14px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes stamp-slam { from { transform: scale(2.2) rotate(-18deg); opacity: 0; } to { transform: scale(1) rotate(-4deg); opacity: 1; } }
+@media (max-width: 640px) { #tools { top: auto; bottom: 120px; right: 10px; flex-direction: column; } .stampbook { grid-template-columns: repeat(2, 1fr); } }

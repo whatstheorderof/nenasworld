@@ -22,7 +22,7 @@ export function buildTown() {
   const town = new THREE.Group();
   const glowMats = [];   // emissive materials that switch on at night
   const signs = [];      // redrawn once the web font has loaded
-  const lamps = [], torches = [];
+  const lamps = [], torches = [], swayers = [];
   const rand = rng(11);
   const flat = color => new THREE.MeshLambertMaterial({ color, flatShading: true });
   const glow = (color = P.glow, base = 0xcdeeff) => { const m = new THREE.MeshLambertMaterial({ color: base, emissive: color, emissiveIntensity: 0, flatShading: true }); glowMats.push(m); return m; };
@@ -134,7 +134,7 @@ export function buildTown() {
   }
   function rock(x, z, s, parent = town) { const m = mesh(new THREE.DodecahedronGeometry(s, 0), flat(rand() > 0.5 ? P.rock : P.rockDark), x, s * 0.45, z, parent); m.rotation.set(rand(), rand() * 6, rand()); m.scale.y = 0.75; }
   function pine(x, z, s) {
-    const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.setScalar(s); town.add(g);
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.setScalar(s); town.add(g); swayers.push(g);
     mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.8, 5), flat(P.woodDark), 0, 0.4, 0, g);
     [[1.25, 1.5, 1.3], [0.95, 1.3, 2.2], [0.62, 1.1, 3.0]].forEach(([r, h, y], i) => mesh(new THREE.ConeGeometry(r, h, 6), flat(i % 2 ? P.pineDark : P.pine), 0, y, 0, g));
     mesh(new THREE.ConeGeometry(0.3, 0.45, 6), flat(P.snow), 0, 3.5, 0, g);
@@ -228,7 +228,7 @@ export function buildTown() {
 
   // ---- flagpole in the square (she designs the flag) -------------------------------
   const flagMat = flat(FLAGS[0]);
-  { box(0.16, 5.2, 0.16, 0xfffaf0, -3.8, 2.6, 3.6); mesh(new THREE.BoxGeometry(1.6, 1.0, 0.06), flagMat, -2.95, 4.6, 3.6); box(0.5, 0.34, 0.07, 0xfffaf0, -2.95, 4.6, 3.6); box(0.6, 0.3, 0.6, P.rockDark, -3.8, 0.15, 3.6); }
+  { box(0.16, 5.2, 0.16, 0xfffaf0, -3.8, 2.6, 3.6); const flagCloth = mesh(new THREE.BoxGeometry(1.6, 1.0, 0.06), flagMat, -2.95, 4.6, 3.6); flagCloth.geometry.translate(0.8, 0, 0); flagCloth.position.x = -3.75; town.userData.flagCloth = flagCloth; box(0.6, 0.3, 0.6, P.rockDark, -3.8, 0.15, 3.6); }
   // ---- the noticeboard: click it to read the notes left for her ----------------------
   const board = new THREE.Group();
   { board.position.set(BOARD.x, 0, BOARD.z); board.rotation.y = Math.atan2(-BOARD.x, -BOARD.z); town.add(board);
@@ -308,6 +308,11 @@ export function buildTown() {
     for (const f of torches) { f.scale.y = 1 + Math.sin(t * 11 + f.id) * 0.12 * night; f.material.emissiveIntensity = night * (1.4 + Math.sin(t * 7 + f.id) * 0.4); }
     bulbs.forEach((b, i) => { const k = night > 0.25 ? 0.55 + 0.45 * Math.max(0, Math.sin(t * 1.7 + b.ph)) * night + night * 0.45 : 0.55; fairyMesh.setColorAt(i, tmpC.copy(b.c).multiplyScalar(night > 0.25 ? k * 1.6 : 0.55)); });
     fairyMesh.instanceColor.needsUpdate = true;
+  }
+  // wind: trees lean and sway, the flag streams out
+  function setWind(w, t) {
+    for (const g of swayers) { g.rotation.z = Math.sin(t * 1.6 + g.id) * 0.04 * w + 0.05 * w; g.rotation.x = Math.cos(t * 1.3 + g.id) * 0.03 * w; }
+    const f = town.userData.flagCloth; if (f) { f.rotation.y = Math.sin(t * (2 + w * 6)) * (0.25 + w * 0.35); f.rotation.z = -0.15 * (1 - w); }
   }
   function setObservatory(night, using, t) { dome.rotation.y = night > 0.5 ? Math.sin(t * 0.05) * 1.2 : 0; scopeLight.emissiveIntensity = using ? 1.8 : night * 0.4; }
   function setEasel(d) { const e = town.userData.easel, key = d ? `${d.seed}` : ''; if (!d || key === e.key) return; e.key = key; drawPicture(e.canvas, d.title, d.seed); e.tex.needsUpdate = true; }
@@ -536,5 +541,5 @@ export function buildTown() {
   function setAway(islet) { isletBoats.forEach((b, i) => { b.visible = islet === i; }); beachBoat.visible = islet == null; }
   function setEvent(show) { festival.visible = !!show; lanternsG.visible = show === 'lanterns'; }
   setHouse(0, 1);
-  return { town, board, setEasel, setLights, setNight, setSeason, setHouse, setEvent, setIsland, setAway, setClock, setObservatory, pond, flag: town.userData.flag };
+  return { town, board, setEasel, setLights, setWind, setNight, setSeason, setHouse, setEvent, setIsland, setAway, setClock, setObservatory, pond, flag: town.userData.flag };
 }

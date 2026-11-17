@@ -17,7 +17,7 @@ export function chooseFallback(options, needs, recent, interests = []) {
     if (o.action === 'sleep') s += (1 - needs.energy) * 1.2;
     if (o.action === 'eat' || o.action === 'cook') s += needs.fullness < 0.3 ? 0.8 : 0;
     if (['event', 'read_mail', 'pop_balloon', 'open_bottle', 'wish', 'donate', 'sell_turnips', 'decorate', 'pick_coins', 'harvest', 'buy_art', 'trade_pearl', 'bury_coins', 'visit_camper', 'greet_visitors'].includes(o.action)) s += 0.7;   // things that will not wait
-    if (['observe', 'buy_clothes', 'join_hobby', 'water_flowers', 'dig_fossil', 'craft', 'buy_turnips', 'pay_home', 'give_gift'].includes(o.action)) s += 0.3;
+    if (['puddle_jump', 'chase_rainbow', 'fly_kite', 'watch_storm', 'ice_lolly', 'observe', 'buy_clothes', 'join_hobby', 'water_flowers', 'dig_fossil', 'craft', 'buy_turnips', 'pay_home', 'give_gift'].includes(o.action)) s += 0.3;
     if (o.action === 'wander') s -= 0.25;
     if (o.action === last) s -= 0.8;
     if (recent.includes(o.action)) s -= 0.3;

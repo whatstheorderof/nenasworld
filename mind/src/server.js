@@ -37,6 +37,7 @@ const feed = memory.readJson('feed.json', []);
 const sockets = new Set();
 const broadcast = msg => { const s = JSON.stringify(msg); for (const ws of sockets) if (ws.readyState === 1) ws.send(s); };
 
+const chat = memory.readJson('chat.json', []);
 const brain = new Brain(world, memory, life, item => {
   feed.push(item); if (feed.length > 200) feed.shift();
   broadcast({ type: 'feed', item });
@@ -48,12 +49,19 @@ function now() {
     mail: memory.unread().length, mind: { source: brain.lastSource, model: provider().model } };
 }
 
+function addChat(item) {
+  item = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), at: Date.now(), day: world.day, hour: world.hour, ...item };
+  chat.push(item); if (chat.length > 300) chat.shift();
+  broadcast({ type: 'chat', item });
+}
+brain.onChat = addChat;
+
 // ---- loops ---------------------------------------------------------------
 let last = Date.now();
 setInterval(() => { const t = Date.now(); world.tick(Math.min(0.25, (t - last) / 1000)); last = t; }, 50);
 setInterval(() => brain.beat().catch(e => console.error('[brain]', e)), 1000);
 setInterval(() => broadcast({ type: 'now', now: now() }), 200);
-const save = () => { memory.writeJson('state.json', world.snapshot()); memory.writeJson('feed.json', feed); life.store.save(life.s); };
+const save = () => { memory.writeJson('state.json', world.snapshot()); memory.writeJson('feed.json', feed); memory.writeJson('chat.json', chat); life.store.save(life.s); };
 setInterval(save, 30000);
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { save(); process.exit(0); });
 
@@ -78,10 +86,11 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, memory.notes.filter(n => n.name === name).slice(-20).reverse().map(({ text, at, read, reply }) => ({ text, at, read, reply })));
     }
     // the noticeboard: every note left for her, and what she said back. Public, newest first.
+    if (url.pathname === '/api/chat') return json(res, 200, chat.slice(-120));
     if (url.pathname === '/api/board') return json(res, 200, memory.notes.slice(-60).reverse().map(({ name, text, at, read, reply }) => ({ name, text, at, read, reply })));
     if (url.pathname === '/api/life') return json(res, 200, { ...life.summary(), decorList: life.s.decor });
     if (url.pathname === '/api/facts') return json(res, 200, { model: provider(), usage, daySeconds: DAY_SECONDS, bornAt: world.bornAt, visitors: Object.keys(memory.visitors).length });
-    if (url.pathname === '/') return json(res, 200, { ok: true, who: 'Nena', see: ['/api/now', '/api/feed', '/api/board', '/api/diary', '/api/memory', '/api/life', '/api/facts'] });
+    if (url.pathname === '/') return json(res, 200, { ok: true, who: 'Nena', see: ['/api/now', '/api/feed', '/api/chat', '/api/board', '/api/diary', '/api/memory', '/api/life', '/api/facts'] });
   }
   if (req.method === 'POST' && url.pathname === '/api/notes') {
     const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
@@ -110,7 +119,8 @@ wss.on('connection', ws => {
   sockets.add(ws);
   const id = nextId++, a = Math.random() * 6.283;
   let msgs = 0, windowStart = Date.now();
-  ws.send(JSON.stringify({ type: 'hello', you: id, now: now(), feed: feed.slice(-30) }));
+  ws.send(JSON.stringify({ type: 'hello', you: id, now: now(), feed: feed.slice(-30), chat: chat.slice(-60) }));
+  let lastSay = 0;
   ws.on('message', raw => {
     if (Date.now() - windowStart > 1000) { windowStart = Date.now(); msgs = 0; }
     if (++msgs > 6) return;
@@ -121,6 +131,10 @@ wss.on('connection', ws => {
     }
     const v = visitors.get(id); if (!v) return;
     if (m.type === 'move' && Number.isFinite(m.x) && Number.isFinite(m.z) && Math.hypot(m.x, m.z) < 85) { v.x = Math.round(m.x * 10) / 10; v.z = Math.round(m.z * 10) / 10; }
+    if (m.type === 'say' && Date.now() - lastSay > 6000) {
+      const text = String(m.text || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+      if (text) { lastSay = Date.now(); v.say = text; v.sayAt = Date.now(); addChat({ kind: 'visitor', name: v.name, text }); brain.hear(v.name, text); }
+    }
     if (m.type === 'wave') { v.wave = Date.now(); world.bump(0.03); if (Date.now() - lastHello > 60000 && !world.isNight) { lastHello = Date.now(); brain.speak(`oh. hello ${v.name}.`, 6000); } }
   });
   const gone = () => { sockets.delete(ws); visitors.delete(id); publish(); };

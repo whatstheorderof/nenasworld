@@ -6,12 +6,13 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { PLACES, NEEDS, ISLETS, WORLD, isletPos, site } from '../../shared/world.js';
-import { FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
+import { WEATHER_WORDS, FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
 import { buildNena, buildRobot } from './nena.js';
 import { buildTown } from './town.js';
 import { buildDynamic } from './dynamic.js';
 import { startLocalMind } from './localmind.js';
 import { drawPicture, playTune } from './art.js';
+import { drawStamp } from './stamps.js';
 import { buildFarIslands } from './far.js';
 
 const MIND = (import.meta.env.VITE_MIND_URL || 'http://localhost:8787').replace(/\/$/, '');
@@ -37,7 +38,7 @@ const sun = new THREE.DirectionalLight(0xfff2d8, 2.0); sun.position.set(20, 30, 
 const town = buildTown(); scene.add(town.town);
 const dyn = buildDynamic(scene);
 const far = buildFarIslands(scene);
-const nena = buildNena(); nena.root.scale.setScalar(1.45); scene.add(nena.root);
+const nena = buildNena(); nena.root.scale.setScalar(1.45 * (Number(qs.get('size')) || 1)); scene.add(nena.root);   // ?size= is for posing her in preview images
 nena.root.position.set(PLACES.home.x, 0, PLACES.home.z);
 const parked = buildRobot(); parked.scale.setScalar(1.45); parked.position.set(PLACES.home.x + 3.2, 0, PLACES.home.z - 1.2); parked.rotation.y = 0.6; scene.add(parked);   // her robot waits by the house
 
@@ -120,7 +121,7 @@ addEventListener('resize', resize); resize();
 const SKY = { day: new THREE.Color(0x7fe9ff), night: new THREE.Color(0x0b1030), dusk: new THREE.Color(0xff9e7a) };
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const sky = new THREE.Color();
-const wx = { snow: 0, aurora: 0, mist: 0, meteors: 0 };
+const wx = { snow: 0, aurora: 0, mist: 0, meteors: 0, rain: 0, storm: 0, cloudy: 0, wind: 0, heat: 0, rainbow: 0 };
 let nightness = 0;
 function setSky(hour, weather, dt, show) {
   const d = smooth(5, 7.5, hour) * (1 - smooth(18.5, 21, hour)), n = 1 - d; nightness = n;
@@ -138,7 +139,7 @@ function setSky(hour, weather, dt, show) {
   cloudMat.color.copy(CLOUD.night).lerp(CLOUD.day, d).lerp(CLOUD.dusk, 4 * d * (1 - d) * 0.6); if (wx.mist > 0.01) cloudMat.color.lerp(sky, wx.mist * 0.5); cloudMat.emissive.copy(cloudMat.color);
   clouds.rotation.y += dt * 0.004;
   bloom.strength = n * 0.45;
-  document.body.style.background = `#${sky.getHexString()}`;
+  setWeatherFx(dt, d, n, performance.now() / 1000);
 
   // shooting stars
   meteors.material.opacity = n * wx.meteors;
@@ -155,8 +156,68 @@ function setSky(hour, weather, dt, show) {
     p.needsUpdate = true; c.needsUpdate = true; }
 }
 
+// ---- weather: rain, storms, wind, heat haze and rainbows ----------------------------------
+const RAIN = 1800, rainGeo = new THREE.BufferGeometry(), rainPos = new Float32Array(RAIN * 6);
+for (let i = 0; i < RAIN; i++) { const x = (Math.random() - 0.5) * 90, y = Math.random() * 40, z = (Math.random() - 0.5) * 90; rainPos.set([x, y, z, x, y - 0.7, z], i * 6); }
+rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+const rain = new THREE.LineSegments(rainGeo, new THREE.LineBasicMaterial({ color: 0xcfe3f5, transparent: true, opacity: 0 })); scene.add(rain);
+const LEAVES = 260, leaves = points(LEAVES, 0.35, null);
+{ const p = leaves.geometry.attributes.position, c = leaves.geometry.attributes.color, cols = [0xf2792e, 0xffd93b, 0x4fae52, 0xe8452c, 0xffb7d0].map(h => new THREE.Color(h));
+  for (let i = 0; i < LEAVES; i++) { p.setXYZ(i, (Math.random() - 0.5) * 100, 1 + Math.random() * 14, (Math.random() - 0.5) * 100); const k = cols[i % cols.length]; c.setXYZ(i, k.r, k.g, k.b); } }
+leaves.material.sizeAttenuation = true;
+const rainbow = new THREE.Group(); scene.add(rainbow);
+['#e8452c', '#f2792e', '#ffd93b', '#4fae52', '#58b7e8', '#3c2a86', '#6a2fc4'].forEach((c, i) => {
+  const m = new THREE.Mesh(new THREE.TorusGeometry(150 - i * 4.2, 2.1, 6, 64, Math.PI), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0, depthWrite: false, fog: false }));
+  rainbow.add(m); });
+{ const dir = new THREE.Vector3(-20, 0, -12).normalize(); rainbow.position.copy(dir.multiplyScalar(230)).setY(-40); rainbow.lookAt(0, -40, 0); }
+// lightning: a jagged bolt and a flash
+const boltGeo = new THREE.BufferGeometry(); boltGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(14 * 3), 3));
+const bolt = new THREE.Line(boltGeo, new THREE.LineBasicMaterial({ color: 0xfffbe0, transparent: true, opacity: 0, fog: false })); scene.add(bolt);
+let flash = 0, nextFlash = 3;
+function strike() {
+  const a = Math.random() * 6.283, r = 70 + Math.random() * 90, x = Math.cos(a) * r, z = Math.sin(a) * r, p = boltGeo.attributes.position;
+  for (let i = 0; i < 14; i++) p.setXYZ(i, x + (Math.random() - 0.5) * (i ? 9 : 0), 90 - i * 9, z + (Math.random() - 0.5) * (i ? 9 : 0));
+  p.needsUpdate = true; flash = 1;
+}
+const GREY_DAY = new THREE.Color(0x98a7b8), GREY_NIGHT = new THREE.Color(0x151a2c), HEAT = new THREE.Color(0xfff0c8), WHITE = new THREE.Color(0xffffff);
+function setWeatherFx(dt, d, n, t) {
+  const wet = Math.min(1, wx.rain + wx.storm), grey = Math.min(1, wx.rain * 0.55 + wx.storm * 0.85 + wx.cloudy * 0.45);
+  if (grey > 0.01) sky.lerp(d > 0.5 ? GREY_DAY : GREY_NIGHT, grey * (d > 0.5 ? 0.7 : 0.5));
+  if (wx.heat > 0.01) sky.lerp(HEAT, wx.heat * 0.28 * d);
+  // lightning
+  if (wx.storm > 0.5) { nextFlash -= dt; if (nextFlash <= 0) { strike(); nextFlash = 3 + Math.random() * 9; } }
+  flash = Math.max(0, flash - dt * 3.2); bolt.material.opacity = flash > 0.4 ? 1 : 0;
+  if (flash > 0) sky.lerp(WHITE, flash * 0.45);
+  scene.background = sky; scene.fog.color.copy(sky); document.body.style.background = `#${sky.getHexString()}`;
+  scene.fog.near -= wet * 70; scene.fog.far -= wet * 150;
+  hemi.intensity = hemi.intensity * (1 - grey * 0.45) + flash * 2.5 + wx.heat * 0.2 * d;
+  sun.intensity = sun.intensity * (1 - grey * 0.75) + wx.heat * 0.6 * d;
+  cloudMat.color.lerp(d > 0.5 ? new THREE.Color(0x7e8a99) : new THREE.Color(0x10142a), grey * 0.7); cloudMat.emissive.copy(cloudMat.color);
+  clouds.rotation.y += dt * wx.wind * 0.03;
+  // rain falls around wherever the camera is looking
+  const wind = wx.wind * 6 + wx.storm * 4;
+  rain.material.opacity = wet * (0.35 + wx.storm * 0.25) * (1 - n * 0.3);
+  if (wet > 0.02) { const p = rainGeo.attributes.position, c = controls.target, fall = (24 + wx.storm * 14) * dt;
+    for (let i = 0; i < RAIN; i++) { const j = i * 2; let x = p.getX(j) + wind * dt, y = p.getY(j) - fall, z = p.getZ(j);
+      if (y < 0) { y = 30 + Math.random() * 10; x = c.x + (Math.random() - 0.5) * 90; z = c.z + (Math.random() - 0.5) * 90; }
+      p.setXYZ(j, x, y, z); p.setXYZ(j + 1, x - wind * 0.06, y - 0.8 - wx.storm * 0.4, z); }
+    p.needsUpdate = true; }
+  // leaves blown about in the wind
+  leaves.material.opacity = wx.wind * 0.95;
+  if (wx.wind > 0.02) { const p = leaves.geometry.attributes.position;
+    for (let i = 0; i < LEAVES; i++) { let x = p.getX(i) + dt * (9 + (i % 5)), y = p.getY(i) + Math.sin(t * 3 + i) * dt * 1.5, z = p.getZ(i) + Math.sin(t + i * 0.7) * dt * 2;
+      if (x > 55) { x = -55; y = 1 + Math.random() * 14; z = (Math.random() - 0.5) * 100; } p.setXYZ(i, x, y, z); }
+    p.needsUpdate = true; }
+  // snow drifts sideways in the wind too
+  if (wx.snow > 0.02 && wx.wind > 0.02) { const p = snow.geometry.attributes.position; for (let i = 0; i < SNOW; i++) p.setX(i, ((p.getX(i) + wx.wind * 5 * dt + 40) % 80) - 40); }
+  rainbow.children.forEach(m => { m.material.opacity = wx.rainbow * d * 0.42; });
+  town.setWind(wx.wind + wx.storm * 0.7, t);
+}
+
 // ---- live state: the real mind over WebSocket, or a stand-in in this browser ----------
 let now = null, local = null, fails = 0, lifeVersion = -1, lifeData = null, socket = null, myId = null;
+const chatLog = [];
+const onChat = item => { chatLog.push(item); if (chatLog.length > 200) chatLog.shift(); if (openPanel === 'chat') renderChat(); else if (item.kind === 'nena' && item.to?.includes(myName())) $('chat-dot').hidden = false; };
 const sendMind = m => { if (socket?.readyState === 1) socket.send(JSON.stringify(m)); };
 const feed = [];
 const target = new THREE.Vector3(PLACES.home.x, 0, PLACES.home.z);
@@ -166,7 +227,8 @@ function connect() {
   const ws = new WebSocket(MIND.replace(/^http/, 'ws'));
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
-    if (m.type === 'hello') { myId = m.you; feed.length = 0; feed.push(...m.feed); apply(m.now, true); }
+    if (m.type === 'hello') { myId = m.you; feed.length = 0; feed.push(...m.feed); chatLog.length = 0; chatLog.push(...(m.chat || [])); apply(m.now, true); if (openPanel === 'chat') renderChat(); }
+    if (m.type === 'chat') onChat(m.item);
     if (m.type === 'now') apply(m.now);
     if (m.type === 'feed') { feed.push(m.item); if (openPanel === 'feed') show('feed'); }
   };
@@ -174,7 +236,8 @@ function connect() {
   ws.onclose = () => {
     socket = null; if (!opened) fails++;
     if (!local && (fails >= 2 || opened)) {
-      local = startLocalMind(item => { feed.push(item); if (openPanel === 'feed') show('feed'); });
+      local = startLocalMind(item => { feed.push(item); if (openPanel === 'feed') show('feed'); }, onChat);
+      chatLog.length = 0; chatLog.push(...local.chat);
       feed.length = 0; feed.push(...local.feed); apply(local.now(), true);
       $('offline').textContent = "Nena's own mind isn't online yet. This is a stand-in running in your browser, just for you."; $('offline').hidden = false;
     }
@@ -191,14 +254,14 @@ const clockText = h => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 async function refreshLife() {
-  try { lifeData = local ? local.life() : await api('/api/life'); dyn.setDecor(lifeData.decorList || [], now?.day || 1); if (openPanel === 'things' || openPanel === 'makes') show(openPanel); } catch {}
+  try { lifeData = local ? local.life() : await api('/api/life'); noticeStamps(lifeData.stamps || []); dyn.setDecor(lifeData.decorList || [], now?.day || 1); if (openPanel === 'things' || openPanel === 'makes') show(openPanel); } catch {}
 }
 function apply(n, snap) {
   now = n;
   target.set(n.pos.x, 0, n.pos.z);
   if (snap) nena.root.position.copy(target);
   const upcoming = n.event ? `${n.event.name} is on!` : (todaysEvent(n.day) ? `${todaysEvent(n.day).name} today` : '');
-  $('clock').textContent = `Day ${n.day} · ${cap(n.season)} ${n.dayOfSeason}/7 · ${clockText(n.hour)} · ${n.weather}`;
+  $('clock').textContent = `Day ${n.day} · ${cap(n.season)} ${n.dayOfSeason}/7 · ${clockText(n.hour)} · ${WEATHER_WORDS[qs.get('weather') || n.weather] || n.weather}`;
   $('event').textContent = upcoming; $('event').hidden = !upcoming;
   $('doing').textContent = n.activity.label + (n.activity.detail && n.activity.phase === 'doing' ? `: ${n.activity.detail}` : '');
   $('thought').textContent = n.thought ? `"${n.thought}"` : '';
@@ -207,13 +270,16 @@ function apply(n, snap) {
   for (const k of NEEDS) $(`need-${k}`).style.width = `${Math.round(n.needs[k] * 100)}%`;
   town.flag.rotation.z = n.mail ? 0 : -1.4; town.flag.position.y = n.mail ? 1.5 : 1.25;
   nena.setScarf(SCARVES[n.look.scarf] ?? SCARVES[0]);
-  nena.setHat(qs.get('hat') || HATS[n.look.hat || 0]);
-  nena.setGlasses(qs.get('glasses') || (n.night ? 'none' : GLASSES[n.look.glasses || 0]));   // sunglasses come off at night
+  // what she wears depends on the weather as well as her wardrobe
+  const w = qs.get('weather') || n.weather, wet = w === 'rain' || w === 'storm', ownHat = HATS[n.look.hat || 0], ownGlasses = GLASSES[n.look.glasses || 0];
+  const hat = qs.get('hat') || (wet ? 'umbrella hat' : w === 'snow' && ownHat === 'none' ? 'pom-pom hat' : w === 'heat' && ownHat === 'none' ? 'sun hat' : ownHat);
+  const glasses = qs.get('glasses') || (n.night || wet ? 'none' : w === 'heat' && ownGlasses === 'none' ? 'round sunglasses' : ownGlasses);
+  nena.setHat(hat); nena.setGlasses(glasses); nena.setWeather(w === 'wind' ? 1 : w === 'storm' ? 0.8 : 0, wet);
   town.setHouse(n.look.house, n.look.level);
   town.setIsland(n.look.flag, n.painter, n.crops);
   parked.visible = !n.activity.ride;
   dyn.setCamper(n.camper);
-  const vs = n.visitors || []; $('wave').hidden = !!local; $('visitors').textContent = vs.length ? `${vs.length} visitor${vs.length > 1 ? 's' : ''} here${vs.length < 5 ? ': ' + vs.map(v => v.name).join(', ') : ''}. Double-click the ground to fly your gull there.` : ''; $('visitors').hidden = !vs.length;
+  const vs = n.visitors || []; $('visitors').textContent = vs.length ? `${vs.length} visitor${vs.length > 1 ? 's' : ''} here${vs.length < 5 ? ': ' + vs.map(v => v.name).join(', ') : ''}. Double-click the ground to fly your gull there, or say hello in Chat.` : ''; $('visitors').hidden = !vs.length;
   town.setAway(n.activity.phase === 'doing' && n.activity.anim === 'sail' ? n.activity.islet ?? 0 : null);
   dyn.setSpots(n.spots || []);
   if (n.lifeVersion !== lifeVersion) { lifeVersion = n.lifeVersion; refreshLife(); }
@@ -249,7 +315,7 @@ async function show(name) {
         <p><b>${l.coins} coins.</b> House level ${l.house.level} of 3${l.loan ? ` (${l.house.paid} of ${l.loan} coins paid toward the next)` : ''}. ${l.decor} things placed around the island. ${l.photos} photos taken.${l.turnips.n ? ` Holding ${l.turnips.n} turnips bought at ${l.turnips.paid}; today's price is ${l.turnipPrice}.` : ''}</p>
         <h3>In her pockets</h3><p>${pockets}</p>
         <p>Cosiness of her house: ${l.cosy}. ${l.tune ? `Island tune: ${esc(l.tune)}. ` : ''}The shop pays double for ${esc(l.hot)} today. Robot rides: ${l.rides}.</p>
-        <h3>Stamps ${l.stamps.length}/${STAMPS.length}</h3><p>${STAMPS.map(st => l.stamps.includes(st.id) ? esc(st.name) : '<span class="dim">?</span>').join(' · ')}</p>
+        <h3>Stamps ${l.stamps.length}/${STAMPS.length}</h3><p><button class="inline" id="to-stamps">Open her stamp book</button></p>
         ${l.songs.length ? `<h3>Records</h3><p>${l.songs.map(esc).join(' · ')}</p>` : ''}
         <h3>Flower colours ${l.blooms.length}/${Object.keys(BLOOMS).length}</h3><p>${Object.keys(BLOOMS).map(k => l.blooms.includes(k) ? `<span style="display:inline-block;width:12px;height:12px;border-radius:6px;border:2px solid #1d2545;background:#${BLOOMS[k].toString(16).padStart(6, '0')}"></span> ${k}` : '<span class="dim">?</span>').join(' · ')}</p>
         <h3>Wardrobe</h3><p>Hats: ${(l.hats || [0]).filter(i => i).map(i => esc(HATS[i])).join(', ') || 'none yet'}. Sunglasses: ${(l.glasses || [0]).filter(i => i).map(i => esc(GLASSES[i])).join(', ') || 'none yet'}.</p>
@@ -257,6 +323,25 @@ async function show(name) {
         <h3>Travels and travellers</h3><p>Islets rowed to: ${l.islets.map(esc).join(', ') || 'none yet'} (${l.islets.length}/${ISLETS.length}). Campers met: ${l.metCampers.map(esc).join(', ') || 'none yet'}.${l.camper ? ` ${esc(l.camper.name)} the ${esc(l.camper.kind)} is at the campsite today.` : ''}</p>
         <h3>Neighbours</h3>${Object.entries(l.friends).map(([k, v]) => `<div class="entry">${esc(k)}<div class="meter"><i style="width:${v * 10}%"></i></div></div>`).join('')}
         <h3>Museum ${got}/${l.total}</h3><div class="meter"><i style="width:${got / l.total * 100}%"></i></div>${cats}`;
+      $('to-stamps').onclick = () => show('stamps');
+    } else if (name === 'chat') {
+      $('chat-dot').hidden = true;
+      body.innerHTML = `<h2>Chat</h2><p class="dim">Say something to Nena. She answers when she can, while she gets on with her day. Everyone on the island can see what is said.${local ? ' (Right now you are talking to the stand-in in your browser.)' : ''}</p>
+        <div id="chat-log"></div>
+        <form id="say"><input name="text" maxlength="140" autocomplete="off" placeholder="Say something to Nena" aria-label="Message" /><button>Say</button></form>
+        <p class="row"><button class="inline" id="wave2" type="button">Wave</button><span class="dim">You are <b>${esc(myName())}</b>${local ? '' : ' (your gull on the island)'}</span></p>`;
+      renderChat();
+      const f = $('say'); f.onsubmit = e => { e.preventDefault(); const text = f.text.value.trim(); if (!text) return;
+        if (local) local.say(myName(), text); else sendMind({ type: 'say', text });
+        f.text.value = ''; const b = f.querySelector('button'); b.disabled = true; let left = 6; b.textContent = `${left}s`; const iv = setInterval(() => { left--; b.textContent = left ? `${left}s` : 'Say'; if (!left) { clearInterval(iv); b.disabled = false; } }, 1000); };
+      $('wave2').onclick = () => sendMind({ type: 'wave' });
+      f.text.focus();
+    } else if (name === 'stamps') {
+      const l = lifeData, got = new Set(l?.stamps || []), days = l?.stampDays || {};
+      body.innerHTML = `<h2>Her stamp book</h2><p class="dim">She earns these just by living. Each one pays a few coins.</p>
+        <div class="meter"><i style="width:${got.size / STAMPS.length * 100}%"></i></div><p><b>${got.size} of ${STAMPS.length}</b> collected</p>
+        <div class="stampbook">${[...STAMPS].sort((a, b) => (got.has(b.id) - got.has(a.id)) || ((days[a.id] || 0) - (days[b.id] || 0))).map(st => `<figure title="${esc(got.has(st.id) ? st.name : 'Hint: ' + st.hint)}"><canvas width="240" height="300" data-stamp="${st.id}"></canvas><figcaption>${got.has(st.id) ? `day ${days[st.id] ?? '?'}` : esc(st.hint)}</figcaption></figure>`).join('')}</div>`;
+      body.querySelectorAll('canvas[data-stamp]').forEach(c => { const st = STAMPS.find(x => x.id === c.dataset.stamp); drawStamp(c, st, got.has(st.id) ? (days[st.id] ?? '?') : null); });
     } else if (name === 'board') {
       if (local) { body.innerHTML = `<h2>The noticeboard</h2>${standIn}`; return; }
       const notes = await api('/api/board');
@@ -320,6 +405,36 @@ $('cam').onclick = () => {
   if (!freeCam) { const p = nena.root.position; const off = camera.position.clone().sub(controls.target).setLength(22); controls.target.set(p.x, 1, p.z); camera.position.copy(controls.target).add(off); if (camera.position.y < 6) camera.position.y = 6; }
 };
 
+// ---- chat log -------------------------------------------------------------------------------
+function renderChat() {
+  const box = $('chat-log'); if (!box) return;
+  const me = myName(), stick = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  box.innerHTML = chatLog.length ? chatLog.map(c => c.kind === 'nena'
+    ? `<div class="msg nena${c.asleep ? ' asleep' : ''}"><b>Nena</b>${c.to?.length ? `<span class="dim"> to ${c.to.map(esc).join(', ')}</span>` : ''}<p>${esc(c.text)}</p><span class="when">${clockText(c.hour)}</span></div>`
+    : `<div class="msg visitor${c.name === me ? ' mine' : ''}"><b>${esc(c.name)}</b><p>${esc(c.text)}</p><span class="when">${clockText(c.hour)}</span></div>`).join('')
+    : '<p class="dim">Nobody has said anything yet. Say hello.</p>';
+  if (stick || box.dataset.first !== '1') { box.scrollTop = box.scrollHeight; box.dataset.first = '1'; }
+}
+
+// ---- stamps: a little pop-up when she earns one ----------------------------------------------
+let knownStamps = null; const stampQueue = []; let stampShowing = false;
+function noticeStamps(list) {
+  if (knownStamps) for (const id of list) if (!knownStamps.has(id)) stampQueue.push(id);
+  knownStamps = new Set(list); nextStamp();
+}
+function nextStamp() {
+  if (stampShowing || !stampQueue.length) return;
+  const st = STAMPS.find(x => x.id === stampQueue.shift()); if (!st) return nextStamp();
+  stampShowing = true;
+  const el = $('stamp-pop'); el.innerHTML = `<canvas width="240" height="300"></canvas><div><b>Nena earned a stamp!</b><span>${esc(st.name)}</span><span class="dim">+${st.coins} coins</span></div>`;
+  drawStamp(el.querySelector('canvas'), st, lifeData?.stampDays?.[st.id] ?? now?.day ?? 1);
+  el.hidden = false; el.classList.remove('go', 'out'); void el.offsetWidth; el.classList.add('go');
+  el.onclick = () => show('stamps');
+  setTimeout(() => el.classList.add('out'), 5800);
+  setTimeout(() => { el.hidden = true; stampShowing = false; nextStamp(); }, 6500);
+}
+if (qs.has('stamp')) setTimeout(() => { stampQueue.push(qs.get('stamp')); nextStamp(); }, 2500);   // preview a stamp pop-up
+
 // ---- photos: render the view from where she stood ------------------------------------
 const photoCam = new THREE.PerspectiveCamera(50, 1.5, 0.5, 800);
 function renderPhoto(canvas, p) {
@@ -356,7 +471,6 @@ canvas.addEventListener('dblclick', e => {
   ray.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera);
   const hit = new THREE.Vector3(); if (ray.ray.intersectPlane(groundPlane, hit)) sendMind({ type: 'move', x: hit.x, z: hit.z });
 });
-$('wave').onclick = () => sendMind({ type: 'wave' });
 const dotsLabel = () => { $('dots').textContent = dots.enabled ? 'Dots: on' : 'Dots: off'; }; dotsLabel();
 $('dots').onclick = () => { dots.enabled = !dots.enabled; try { localStorage.setItem('nena-dots', dots.enabled ? 'on' : 'off'); } catch {} dotsLabel(); };
 
@@ -367,6 +481,7 @@ function frame() {
   const dt = Math.min(0.1, clock.getDelta()); elapsed += dt;
   const act = now?.activity || { phase: 'idle', action: 'idle', anim: 'stand' };
   if (qs.has('ride')) { act.phase = 'walking'; act.ride = true; }   // preview her on the robot
+  if (qs.has('at')) { const [ax, az] = qs.get('at').split(',').map(Number); target.set(ax, 0, az); if (!qs.has('ride')) { act.phase = 'idle'; act.anim = 'stand'; } }   // preview: stand her somewhere
   const pos = nena.root.position, k = 1 - Math.exp(-dt * 6), doing = act.phase === 'doing';
 
   const goal = target.clone();
@@ -377,6 +492,7 @@ function frame() {
   else if (doing && ['read', 'sit', 'lie'].includes(act.anim) || (doing && act.place === 'beach' && act.anim !== 'fish')) heading = Math.atan2(-target.x, -target.z);   // back to the wall / the sea
   else if (doing && act.anim === 'fish') heading = act.place === 'river' ? 0 : Math.atan2(target.x, target.z);                                                       // facing the water
   else if (now) heading = now.heading;
+  if (qs.has('face')) heading = Number(qs.get('face'));   // preview: which way she faces
   pos.lerp(goal, k);
   let dh = heading - nena.root.rotation.y; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
   nena.root.rotation.y += dh * k;

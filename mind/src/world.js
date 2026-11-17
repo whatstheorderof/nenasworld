@@ -3,7 +3,7 @@
 // and decides what is possible; the brain only chooses among what the world offers.
 // (No Node imports here, so the browser can run it too.)
 import { PLACES, NEEDS, NEIGHBOURS, BEACH, ISLETS, WORLD, route, blocked, freeSpot } from '../../shared/world.js';
-import { ACTIONS, calendar, currentEvent, painterIn } from '../../shared/data.js';
+import { ACTIONS, calendar, currentEvent, painterIn, SEASON_WEATHER, STORM_SAFE } from '../../shared/data.js';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
 const SPEED = 1.9;        // metres per second, a waddle
@@ -71,6 +71,7 @@ export class World {
     for (const [action, def] of Object.entries(ACTIONS)) {
       let ok = false; try { ok = def.ok(c); } catch { ok = false; }
       if (!ok) continue;
+      if (c.weather === 'storm' && !(STORM_SAFE.includes(def.place) || def.anim === 'inside')) continue;   // nobody goes far in a storm
       const e = action === 'event' ? c.event : null;
       const where = e ? PLACES[e.place].label : def.place ? PLACES[def.place].label : def.target === 'npc' ? `wherever ${c.npc.name} is` : 'around the island';
       out.push({ action, where, why: e ? `${e.name} is on right now` : def.offer });
@@ -108,15 +109,7 @@ export class World {
     this.lift *= Math.exp(-dt / 120);
     this.dailySpots();
 
-    if (Date.now() > this.weatherUntil) {
-      const winter = this.cal.season === 3, night = this.isNight;
-      const pool = ['clear', 'clear', 'clear', 'mist', winter ? 'snow' : 'clear', winter ? 'snow' : 'clear', this.cal.season === 2 ? 'mist' : 'snow', ...(night ? ['aurora', 'meteors'] : [])];
-      this.weather = pool[Math.floor(Math.random() * pool.length)];
-      this.weatherUntil = Date.now() + (300 + Math.random() * 600) * 1000;
-    }
-    if (!this.isNight && (this.weather === 'aurora' || this.weather === 'meteors')) this.weather = 'clear';
-    if (this.weather === 'aurora') this.needs.wonder = clamp01(this.needs.wonder + dt / 3000);
-    if (this.weather === 'snow') this.needs.calm = clamp01(this.needs.calm + dt / 4000);
+    this.tickWeather(dt);
     if (!this.isNight && !this.spots.some(s => s.kind === 'balloon') && Math.random() < dt / 2400) this.spawn('balloon');
 
     this.tickNeighbours(dt);
@@ -141,9 +134,31 @@ export class World {
     }
   }
 
+  // Weather comes from the season. Rain sometimes leaves a rainbow; aurora and shooting stars only at night.
+  tickWeather(dt) {
+    const night = this.isNight, season = this.cal.season;
+    if (Date.now() > this.weatherUntil) {
+      const was = this.weather, pool = [...SEASON_WEATHER[season], ...(night ? ['aurora', 'meteors'] : [])];
+      let next = pool[Math.floor(Math.random() * pool.length)];
+      if ((was === 'rain' || was === 'storm') && !night && Math.random() < 0.45) next = 'rainbow';
+      this.weather = next;
+      this.weatherUntil = Date.now() + (next === 'rainbow' ? 120 + Math.random() * 120 : 300 + Math.random() * 600) * 1000;
+    }
+    if (!night && (this.weather === 'aurora' || this.weather === 'meteors')) this.weather = 'clear';
+    if (night && (this.weather === 'rainbow' || this.weather === 'heat')) this.weather = 'clear';
+    const outside = !(this.activity?.phase === 'doing' && ACTIONS[this.activity.action]?.anim === 'inside');
+    const w = this.weather, add = (k, v) => { this.needs[k] = clamp01(this.needs[k] + v * dt); };
+    if (w === 'aurora') add('wonder', 1 / 3000);
+    if (w === 'snow') add('calm', 1 / 4000);
+    if (w === 'storm' && outside) add('calm', -1 / 900);
+    if (w === 'heat' && outside) add('energy', -1 / 2500);
+    if (w === 'wind') add('wonder', 1 / 5000);
+    if (w === 'rainbow') add('joy', 1 / 2500);
+  }
+
   // Neighbours potter between places by day and go back to their tents at night.
   tickNeighbours(dt) {
-    const night = this.isNight, e = this.event;
+    const night = this.isNight || this.weather === 'storm', e = this.event;
     for (const n of this.npcs) {
       if (Date.now() < n.hold) continue;
       if (n.path.length) {
