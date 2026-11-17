@@ -222,9 +222,21 @@ const sendMind = m => { if (socket?.readyState === 1) socket.send(JSON.stringify
 const feed = [];
 const target = new THREE.Vector3(PLACES.home.x, 0, PLACES.home.z);
 const api = (path, opts) => fetch(MIND + path, opts).then(r => r.json());
+function startStandIn() {
+  if (local) return;
+  local = startLocalMind(item => { feed.push(item); if (openPanel === 'feed') show('feed'); }, onChat);
+  chatLog.length = 0; chatLog.push(...local.chat);
+  feed.length = 0; feed.push(...local.feed); apply(local.now(), true);
+  $('offline').textContent = "Nena's own mind isn't online yet. This is a stand-in running in your browser, just for you."; $('offline').hidden = false;
+  setTimeout(() => { $('offline').hidden = true; }, 9000);   // the status card keeps saying so after this
+}
+// A page served over https may not open an insecure ws:// connection (browsers refuse outright),
+// so with no secure mind address configured the stand-in starts straight away.
+const mindReachable = !(location.protocol === 'https:' && MIND.startsWith('http:'));
 function connect() {
-  let opened = false;
-  const ws = new WebSocket(MIND.replace(/^http/, 'ws'));
+  if (!mindReachable) { startStandIn(); return; }
+  let opened = false, ws;
+  try { ws = new WebSocket(MIND.replace(/^http/, 'ws')); } catch { startStandIn(); setTimeout(connect, 30000); return; }
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.type === 'hello') { myId = m.you; feed.length = 0; feed.push(...m.feed); chatLog.length = 0; chatLog.push(...(m.chat || [])); apply(m.now, true); if (openPanel === 'chat') renderChat(); }
@@ -235,18 +247,15 @@ function connect() {
   ws.onopen = () => { opened = true; fails = 0; socket = ws; ws.send(JSON.stringify({ type: 'hello', name: myName() })); if (local) { local.stop(); local = null; } $('offline').hidden = true; };
   ws.onclose = () => {
     socket = null; if (!opened) fails++;
-    if (!local && (fails >= 2 || opened)) {
-      local = startLocalMind(item => { feed.push(item); if (openPanel === 'feed') show('feed'); }, onChat);
-      chatLog.length = 0; chatLog.push(...local.chat);
-      feed.length = 0; feed.push(...local.feed); apply(local.now(), true);
-      $('offline').textContent = "Nena's own mind isn't online yet. This is a stand-in running in your browser, just for you."; $('offline').hidden = false;
-    }
+    if (fails >= 2 || opened) startStandIn();
     setTimeout(connect, local ? 30000 : 2500);
   };
   ws.onerror = () => ws.close();
 }
 connect();
 setInterval(() => { if (local) apply(local.now()); }, 200);
+$('status').onclick = () => $('status').classList.toggle('open');
+$('offline').onclick = () => { $('offline').hidden = true; };   // on phones the card starts small
 
 const NEED_COLORS = { fullness: '#f2792e', energy: '#ffd93b', wonder: '#6a2fc4', joy: '#ff7fa3', calm: '#2fc6b3' };
 $('needs').innerHTML = NEEDS.map(k => `<div class="need"><span>${k[0].toUpperCase() + k.slice(1)}</span><div class="bar"><i id="need-${k}" style="background:${NEED_COLORS[k]}"></i></div></div>`).join('');
@@ -401,7 +410,8 @@ $('cam').onclick = () => {
   freeCam = !freeCam;
   controls.enablePan = freeCam; controls.maxDistance = freeCam ? 300 : 140; controls.maxPolarAngle = freeCam ? 1.55 : 1.45;
   $('cam').textContent = freeCam ? 'Follow Nena' : 'Free camera';
-  $('camhelp').hidden = !freeCam;
+  $('camhelp').hidden = !freeCam; if (freeCam) $('offline').hidden = true;
+  if (matchMedia('(pointer: coarse)').matches) $('camhelp').textContent = 'Drag to look · pinch to zoom · two fingers to move';
   if (!freeCam) { const p = nena.root.position; const off = camera.position.clone().sub(controls.target).setLength(22); controls.target.set(p.x, 1, p.z); camera.position.copy(controls.target).add(off); if (camera.position.y < 6) camera.position.y = 6; }
 };
 
