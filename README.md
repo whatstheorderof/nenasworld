@@ -23,13 +23,17 @@ Preview a look without waiting: `http://localhost:5173/?hour=23&weather=aurora`
 
 | Part | File | What it does |
 | --- | --- | --- |
-| World | `mind/src/world.js` | Ticks at 20Hz. Position, needs (fullness, energy, wonder, joy, calm), clock (1 real hour = 1 day), weather. Decides which actions are on offer. No model involved. |
-| Brain | `mind/src/brain.js` | Heartbeat of 4 to 15 seconds depending on how stirred up she is. Sense, feel, decide, speak. The model picks ONE offered action and gives a reason in her voice; rules reject anything not on offer and any third repeat in a row. Falls back to a scripted choice if there is no model. |
-| Memory | `mind/src/memory.js` | Plain files in `mind/data/`: `character.md` (who she is, edit it freely), `memory.md` (24 slots that fade daily), `interests.json`, `visitors.json`, `notes.json`, `diary/day-0001.md`. When she sleeps she sorts the day and keeps up to three things. |
-| Models | `mind/src/models.js` | Pluggable provider. |
-| Server | `mind/src/server.js` | WebSocket for live state, plus `GET /api/now`, `/api/feed`, `/api/diary`, `/api/memory`, `/api/facts` and `POST /api/notes`. |
-| Island | `web/src/town.js`, `web/src/nena.js` | three.js, built from primitives. Bright and flat-shaded by day, glowing windows and signs at night. |
-| Places | `shared/world.js` | Where things are (house, fish stall, pond, library, studio, cinema, lookout, igloo, garden, river, beach), what each of her 15 actions does to her needs, and the route planner that walks her around buildings. Shared by mind and web. |
+| World | `mind/src/world.js` | Ticks at 20Hz. Position, needs (fullness, energy, wonder, joy, calm), clock, weather, her three neighbours, and the fossils, weeds, bottles and balloons that turn up. Decides which actions are on offer. No model involved. |
+| Calendar, things, actions | `shared/data.js` | 1 real hour = 1 day, 7 days = a season, 28 days = a year. Ten events (Fishing Tourney, Bug Hunt, Fireworks Night, Harvest Feast, Lantern Night, Snow Festival, New Year's Eve, Blossom Day, Music Night, her birthday). 30 species to collect, 10 things to craft, the shop, and all 45 actions with when each is on offer. |
+| Her life | `shared/life.js` | Pockets, coins, museum, what she has built and where she put it, house level and colours, scarves, friendships, turnips. What comes of each action. |
+| Brain | `mind/src/brain.js` | Heartbeat of 4 to 15 seconds. The model picks ONE offered action and gives a reason in her voice; rules reject anything not on offer and any third repeat in a row. Falls back to the scripted chooser in `shared/choose.js` if there is no model. |
+| Memory | `mind/src/memory.js` | Plain files in `mind/data/`: `character.md` (who she is, edit it freely), `memory.md` (24 slots that fade daily), `interests.json`, `visitors.json`, `notes.json`, `life.json`, `diary/day-0001.md`. When she sleeps she sorts the day and keeps up to three things. |
+| Server | `mind/src/server.js` | WebSocket for live state, plus `GET /api/now`, `/api/feed`, `/api/diary`, `/api/memory`, `/api/life`, `/api/facts` and `POST /api/notes`. |
+| Island | `web/src/town.js`, `nena.js`, `dynamic.js` | three.js, built from primitives. Seasons recolour the island; her builds, plantings and neighbours are drawn from live state. |
+| Stand-in mind | `web/src/localmind.js` | If the page cannot reach the mind server it runs the same world and scripted chooser in the visitor's browser, saved in that browser only. No diary, memories or mailbox in that mode. |
+| Places | `shared/world.js` | Where everything is, and the route planner that walks her around buildings. |
+
+Preview looks: `?hour=22&show=fireworks`, `?season=winter&weather=snow`, `?weather=meteors&hour=23`.
 
 ## Not built yet
 
@@ -37,4 +41,5 @@ Preview a look without waiting: `http://localhost:5173/?hour=23&weather=aurora`
 - Storage is local files. For Vercel, the web folder deploys as a static Vite site
   (set `VITE_MIND_URL`; `vercel.json` is included). The mind needs an always-on host
   with a persistent disk mounted at `/data`; the `Dockerfile` builds it.
-- No web browsing, shop, jobs or coin.
+- No web browsing, print shop, jobs or crypto coin. Neighbours' lines are scripted, not model-written.
+- No terraforming (she places and plants things, but does not reshape land or water).

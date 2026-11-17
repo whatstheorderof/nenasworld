@@ -2,7 +2,8 @@
 // windows and signs at night. Everything is built from primitives here, and
 // positions come from shared/world.js so the mind and the picture agree.
 import * as THREE from 'three';
-import { PLACES, WORLD, RIVER, BEACH, site } from '../../shared/world.js';
+import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, site } from '../../shared/world.js';
+import { HOUSE_LOOKS } from '../../shared/data.js';
 
 const P = {
   grass: 0xb4dc5a, grassDark: 0x79c653, cliff: 0x5aa84a, snow: 0xf6fcff, snowShade: 0xcfe6f7,
@@ -30,7 +31,8 @@ export function buildTown() {
   const ground = (geo, color, x, z, y) => { const m = mesh(geo, flat(color), x, y, z); m.rotation.x = -Math.PI / 2; return m; };
 
   // ---- island ----------------------------------------------------------
-  mesh(new THREE.CylinderGeometry(R, R - 1.5, 0.6, 48), flat(P.grass), 0, -0.3, 0);
+  const grassMat = flat(P.grass), grassDarkMat = flat(P.grassDark), leafMat = flat(0x5fbf5a), fruitMat = flat(0xff5a4d);
+  mesh(new THREE.CylinderGeometry(R, R - 1.5, 0.6, 48), grassMat, 0, -0.3, 0);
   mesh(new THREE.CylinderGeometry(R - 1.2, R - 6, 3.2, 14), flat(P.cliff), 0, -2.2, 0);
   mesh(new THREE.CylinderGeometry(R - 6.5, R - 16, 5, 9), flat(P.rockDark), 0, -6.2, 0);
   const inBeach = (x, z) => { const a = Math.atan2(z, x); return a > BEACH.from - 0.08 && a < BEACH.to + 0.08 && Math.hypot(x, z) > BEACH.inner - 1; };
@@ -38,7 +40,7 @@ export function buildTown() {
   for (let i = 0; i < 16; i++) {
     const a = rand() * 6.28, r = 4 + rand() * 20, s = 1.5 + rand() * 2.4, x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (inBeach(x, z) || nearRiver(x, z, 4)) continue;
-    ground(new THREE.CircleGeometry(s, 7), P.grassDark, x, z, 0.01 + i * 0.001);
+    const m = mesh(new THREE.CircleGeometry(s, 7), grassDarkMat, x, 0.01 + i * 0.001, z); m.rotation.x = -Math.PI / 2;
   }
   // snowfield around the igloo
   { const s = site('igloo'); ground(new THREE.CircleGeometry(7.5, 9), P.snow, s.x + 2, s.z, 0.03); ground(new THREE.CircleGeometry(4, 7), P.snowShade, s.x + 6, s.z + 3, 0.035); }
@@ -111,10 +113,20 @@ export function buildTown() {
   }
 
   // ---- her house ---------------------------------------------------------
-  { const g = hut('home', { w: 5.2, h: 3.2, depth: 4.4, label: 'NENA', wall: 0xfff1d6, roof: 0xe8452c, trim: 0x2f7f9a });
+  const house = { wall: flat(0xfff1d6), roof: flat(0xe8452c), extras: [] };
+  { const g = at('home'), w = 5.2, h = 3.2, depth = 4.4, trim = 0x2f7f9a;
+    mesh(new THREE.BoxGeometry(w, h, depth), house.wall, 0, h / 2, 0, g);
+    for (const s of [-1, 1]) box(0.3, h, 0.3, trim, s * (w / 2), h / 2, depth / 2, g);
+    gable(w, depth, 1.7, 0, h, g).material = house.roof;
+    box(1.0, 1.7, 0.14, trim, -w / 4, 0.85, depth / 2 + 0.03, g); box(1.1, 0.9, 0.14, glow(), w / 4, 1.35, depth / 2 + 0.03, g);
+    sign('NENA', 3, g, 0, h - 0.62, depth / 2 + 0.12);
     box(0.8, 1.6, 0.8, 0xb86b4b, 1.4, 4.4, -0.8, g); box(1.0, 0.25, 1.0, 0x8a4a34, 1.4, 5.25, -0.8, g);   // chimney
-    box(1.6, 0.12, 0.9, 0x2f7f9a, -1.3, 0.06, 2.75, g);                                                    // doormat
-    box(1.5, 0.5, 0.45, P.woodDark, 2.1, 0.25, 3.1, g); for (let i = 0; i < 3; i++) flower(1.6 + i * 0.5, 3.1, 0.5, P.petals[i], g); }  // window box
+    box(1.6, 0.12, 0.9, trim, -1.3, 0.06, 2.75, g);                                                        // doormat
+    box(1.5, 0.5, 0.45, P.woodDark, 2.1, 0.25, 3.1, g); for (let i = 0; i < 3; i++) flower(1.6 + i * 0.5, 3.1, 0.5, P.petals[i], g);
+    // level 2: a side room. level 3: an upstairs.
+    const l2 = new THREE.Group(), l3 = new THREE.Group(); g.add(l2, l3); house.extras = [l2, l3];
+    mesh(new THREE.BoxGeometry(2.6, 2.4, 3.2), house.wall, -3.8, 1.2, -0.2, l2); const r2 = gable(2.6, 3.2, 1.1, 0, 2.4, l2); r2.material = house.roof; r2.position.x = -3.8; r2.position.z = -0.2; box(0.9, 0.8, 0.14, glow(), -3.8, 1.3, 1.43, l2);
+    mesh(new THREE.BoxGeometry(3.4, 2.2, 3.0), house.wall, 0.3, 5.0, -0.3, l3); const r3 = gable(3.4, 3.0, 1.3, 0, 6.1, l3); r3.material = house.roof; r3.position.x = 0.3; r3.position.z = -0.3; box(1.0, 0.8, 0.14, glow(), 0.3, 5.0, 1.23, l3); }
 
   // ---- fish stall --------------------------------------------------------
   { const g = at('fish');
@@ -130,6 +142,47 @@ export function buildTown() {
   { const g = hut('studio', { w: 4.8, h: 3.4, depth: 4, label: 'STUDIO', wall: 0xff8f6b, roof: 0x6a2fc4 });
     box(0.9, 1.1, 0.08, 0xfffaf0, 1.7, 1.35, 3.0, g).rotation.x = -0.2;                // easel
     for (const s of [-1, 1]) box(0.08, 1.7, 0.08, P.woodDark, 1.7 + s * 0.35, 0.85, 3.05, g); }
+
+  // ---- museum -----------------------------------------------------------
+  { const g = at('museum');
+    box(6, 3.6, 4.2, 0xf4efe2, 0, 1.8, 0, g); box(6.6, 0.4, 4.8, 0xd9cfb8, 0, 3.8, 0, g); gable(5.2, 3.6, 1.2, 0x8fa3b8, 4.0, g);
+    for (let i = 0; i < 4; i++) mesh(new THREE.CylinderGeometry(0.22, 0.26, 2.4, 6), flat(0xfffaf0), -2.4 + i * 1.6, 1.2, 2.45, g);
+    box(6.4, 0.3, 1.6, 0xd9cfb8, 0, 0.15, 2.6, g); box(6.0, 0.25, 0.9, 0xd9cfb8, 0, 2.5, 2.45, g); box(1.2, 1.9, 0.14, 0x5f82ad, 0, 0.95, 2.13, g);
+    for (const sx of [-1, 1]) box(1.0, 1.0, 0.14, glow(), sx * 1.9, 1.7, 2.13, g);
+    sign('MUSEUM', 3.2, g, 0, 3.05, 2.2, { bg: '#5f82ad', fg: '#fffaf0' }); }
+
+  // ---- shop and workbench ----------------------------------------------------
+  { const g = hut('shop', { w: 5, h: 3.4, depth: 4, label: 'SHOP', wall: 0x9fe0c8, roof: 0xf2792e, trim: 0x2f7f9a });
+    box(2.2, 0.9, 1.0, P.wood, -3.6, 0.45, 2.6, g); box(2.4, 0.14, 1.2, P.woodDark, -3.6, 0.95, 2.6, g);     // workbench
+    box(0.5, 0.3, 0.3, 0x5f82ad, -3.9, 1.15, 2.6, g); box(0.1, 0.5, 0.1, P.woodDark, -3.1, 1.25, 2.5, g);
+    for (let i = 0; i < 3; i++) box(0.7, 0.6, 0.7, [0xe8452c, 0xffd93b, 0x6a2fc4][i], 2.9 + (i % 2) * 0.5, 0.3 + (i > 1 ? 0.6 : 0), 2.5 + (i % 2) * 0.6, g); }   // crates
+
+  // ---- orchard: leaves change with the season, fruit shows when it is ready -----------
+  const fruit = [];
+  for (const [x, z] of ORCHARD_TREES) {
+    mesh(new THREE.CylinderGeometry(0.28, 0.36, 1.8, 6), flat(P.woodDark), x, 0.9, z);
+    mesh(new THREE.DodecahedronGeometry(1.5, 0), leafMat, x, 2.9, z).rotation.y = rand() * 3;
+    mesh(new THREE.DodecahedronGeometry(1.0, 0), leafMat, x + 0.5, 3.8, z - 0.3);
+    for (let i = 0; i < 4; i++) { const a = i * 1.6 + rand(); fruit.push(mesh(new THREE.SphereGeometry(0.2, 6, 5), fruitMat, x + Math.cos(a) * 1.25, 2.3 + rand() * 0.8, z + Math.sin(a) * 1.25)); }
+  }
+  // the big rock she chips at
+  { const m = mesh(new THREE.DodecahedronGeometry(1.5, 0), flat(P.rockDark), -10.6, 0.9, 2.6); m.scale.y = 0.9; mesh(new THREE.DodecahedronGeometry(0.35, 0), glow(0xffe08a, 0xffd93b), -9.7, 1.5, 3.2); }
+
+  // ---- neighbours' tents -----------------------------------------------------------
+  NEIGHBOURS.forEach((n, i) => {
+    const col = [0x2f7f9a, 0xe8452c, 0xffd93b][i], g = new THREE.Group(); g.position.set(n.home.x, 0, n.home.z); town.add(g);
+    const t = mesh(new THREE.ConeGeometry(2.0, 2.6, 6), flat(col), 0, 1.3, 0, g); t.rotation.y = 0.52;
+    box(0.9, 1.3, 0.2, 0x1d2545, 0, 0.65, 1.62, g); box(0.1, 0.9, 0.1, P.woodDark, 0, 3.0, 0, g); box(0.5, 0.3, 0.05, 0xfffaf0, 0.28, 3.25, 0, g);
+    box(0.5, 0.5, 0.5, glow(0xffe08a, 0xfff3c4), 1.9, 0.25, 1.6, g);
+  });
+
+  // ---- festival things in the square, only out for events ------------------------------
+  const festival = new THREE.Group(), lanternsG = new THREE.Group(); festival.visible = lanternsG.visible = false; town.add(festival, lanternsG);
+  { const poles = [[-4, -4], [4, -4], [4, 4], [-4, 4]];
+    poles.forEach(([x, z]) => box(0.16, 4, 0.16, P.woodDark, x, 2, z, festival));
+    poles.forEach(([x, z], i) => { const [nx, nz] = poles[(i + 1) % 4]; for (let k = 1; k < 8; k++) { const f = mesh(new THREE.ConeGeometry(0.22, 0.5, 3), flat([0xe8452c, 0xffd93b, 0x2fc6b3, 0x6a2fc4][k % 4]), x + (nx - x) * k / 8, 3.7 - Math.sin(k / 8 * Math.PI) * 0.5, z + (nz - z) * k / 8, festival); f.rotation.x = Math.PI; } });
+    box(3, 0.4, 2, P.wood, -3, 0.2, 3, festival); box(1.6, 0.8, 0.8, 0xfffaf0, 3, 0.4, 3, festival);
+    for (let i = 0; i < 16; i++) { const a = i / 16 * 6.283, r = 6 + (i % 2) * 5; const m = new THREE.MeshLambertMaterial({ color: 0xff8a1f, emissive: 0xff8a1f, emissiveIntensity: 1.6, flatShading: true }); box(0.5, 0.6, 0.5, m, Math.cos(a) * r, 0.5, Math.sin(a) * r, lanternsG); box(0.08, 0.5, 0.08, P.woodDark, Math.cos(a) * r, 0.1, Math.sin(a) * r, lanternsG); } }
 
   // ---- cinema ------------------------------------------------------------
   const marquee = [];
@@ -218,12 +271,13 @@ export function buildTown() {
   { box(0.2, 1.1, 0.2, P.woodDark, 1.5, 0.55, -0.6); box(0.7, 0.5, 0.95, 0xe8452c, 1.5, 1.3, -0.6);
     town.userData.flag = box(0.08, 0.5, 0.3, 0xffd93b, 1.9, 1.5, -0.6); }
   lamp(-1.8, -1.2);
-  for (const key of ['home', 'fish', 'library', 'studio', 'lookout', 'cinema', 'beach']) { const p = PLACES[key], l = Math.hypot(p.x, p.z); lamp(p.x * 0.6 + (p.z / l) * 1.5, p.z * 0.6 - (p.x / l) * 1.5); }
+  for (const key of ['home', 'fish', 'library', 'studio', 'lookout', 'cinema', 'beach', 'museum', 'shop']) { const p = PLACES[key], l = Math.hypot(p.x, p.z); lamp(p.x * 0.6 + (p.z / l) * 1.5, p.z * 0.6 - (p.x / l) * 1.5); }
 
   // ---- decoration round the edge ------------------------------------------------------------
-  const clear = (x, z, pad) => !inBeach(x, z) && !nearRiver(x, z, 3.2) && Object.keys(PLACES).every(k => { const s = site(k); return Math.hypot(s.x - x, s.z - z) > (s.r || 2.5) + pad && Math.hypot(PLACES[k].x - x, PLACES[k].z - z) > 3; });
+  const extraObs = [...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home), { x: -10.6, z: 2.6 }];
+  const clear = (x, z, pad) => !inBeach(x, z) && !nearRiver(x, z, 3.2) && extraObs.every(o => Math.hypot(o.x - x, o.z - z) > 3.6) && Object.keys(PLACES).every(k => { const s = site(k); return Math.hypot(s.x - x, s.z - z) > (s.r || 2.5) + pad && Math.hypot(PLACES[k].x - x, PLACES[k].z - z) > 3; });
   let placed = 0;
-  for (let i = 0; i < 600 && placed < 44; i++) {
+  for (let i = 0; i < 600 && placed < 30; i++) {
     const a = rand() * 6.28, r = 16 + rand() * 12.5, x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (!clear(x, z, 1.6)) continue;
     const kind = placed % 4;
@@ -248,5 +302,13 @@ export function buildTown() {
     for (const l of lamps) l.intensity = n * 9;
     marquee.forEach((m, i) => { m.emissiveIntensity = film ? (Math.floor(t * 4 + i) % 3 === 0 ? 2.2 : 0.5) : n * 1.2; });
   }
-  return { town, setNight, pond, flag: town.userData.flag };
+  const SEASON = { spring: [0xb9e36a, 0x86cf5c, 0xffb7d0], summer: [0xb4dc5a, 0x79c653, 0x4fae52], autumn: [0xd8cf62, 0xc2a84a, 0xf2792e], winter: [0xeef6fb, 0xd5e6f2, 0xdfeaf2] };
+  function setSeason(name, fruitReady) {
+    const c = SEASON[name] || SEASON.summer; grassMat.color.set(c[0]); grassDarkMat.color.set(c[1]); leafMat.color.set(c[2]);
+    fruit.forEach(f => { f.visible = fruitReady && name !== 'winter'; });
+  }
+  function setHouse(look, level) { const l = HOUSE_LOOKS[look] || HOUSE_LOOKS[0]; house.wall.color.set(l.wall); house.roof.color.set(l.roof); house.extras[0].visible = level >= 2; house.extras[1].visible = level >= 3; }
+  function setEvent(show) { festival.visible = !!show; lanternsG.visible = show === 'lanterns'; }
+  setHouse(0, 1);
+  return { town, setNight, setSeason, setHouse, setEvent, pond, flag: town.userData.flag };
 }

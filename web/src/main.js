@@ -5,11 +5,14 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { PLACES, NEEDS, site } from '../../shared/world.js';
+import { SCARVES, CATS, SPECIES, todaysEvent } from '../../shared/data.js';
 import { buildNena } from './nena.js';
 import { buildTown } from './town.js';
+import { buildDynamic } from './dynamic.js';
+import { startLocalMind } from './localmind.js';
 
 const MIND = (import.meta.env.VITE_MIND_URL || 'http://localhost:8787').replace(/\/$/, '');
-const qs = new URLSearchParams(location.search);   // ?hour=23&weather=aurora to preview a look
+const qs = new URLSearchParams(location.search);   // ?hour=23&weather=aurora&season=winter&show=fireworks to preview a look
 const $ = id => document.getElementById(id);
 
 // ---- scene ---------------------------------------------------------------
@@ -23,12 +26,13 @@ camera.position.set(PLACES.home.x + 10, 9, PLACES.home.z + 15);
 const controls = new OrbitControls(camera, canvas);
 controls.target.set(PLACES.home.x, 1, PLACES.home.z);
 controls.enableDamping = true; controls.enablePan = false;
-controls.minDistance = 8; controls.maxDistance = 75; controls.maxPolarAngle = 1.45;
+controls.minDistance = 8; controls.maxDistance = 80; controls.maxPolarAngle = 1.45;
 
 const hemi = new THREE.HemisphereLight(0xffffff, 0x9fd27a, 1.5); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2d8, 2.0); sun.position.set(20, 30, 12); scene.add(sun);
 
-const { town, setNight, pond, flag } = buildTown(); scene.add(town);
+const town = buildTown(); scene.add(town.town);
+const dyn = buildDynamic(scene);
 const nena = buildNena(); nena.root.scale.setScalar(1.45); scene.add(nena.root);
 nena.root.position.set(PLACES.home.x, 0, PLACES.home.z);
 
@@ -46,10 +50,19 @@ const aurora = new THREE.Group(); scene.add(aurora);
     const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
     m.position.set(-10 + i * 12, 62 + i * 9, -120 - i * 22); aurora.add(m); } }
 
-// snow
-const SNOW = 900, snowGeo = new THREE.BufferGeometry();
-{ const v = new Float32Array(SNOW * 3); for (let i = 0; i < SNOW; i++) { v[i * 3] = (Math.random() - 0.5) * 80; v[i * 3 + 1] = Math.random() * 30; v[i * 3 + 2] = (Math.random() - 0.5) * 80; } snowGeo.setAttribute('position', new THREE.BufferAttribute(v, 3)); }
-const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.22, transparent: true, opacity: 0 })); scene.add(snow);
+// snow, and sparks used for both shooting stars and fireworks
+const points = (n, size, color) => { const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3)); const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: color ?? 0xffffff, size, transparent: true, opacity: 0, fog: false, vertexColors: color === null })); if (color === null) geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3), 3)); scene.add(p); return p; };
+const SNOW = 900, snow = points(SNOW, 0.22, 0xffffff);
+{ const v = snow.geometry.attributes.position; for (let i = 0; i < SNOW; i++) v.setXYZ(i, (Math.random() - 0.5) * 80, Math.random() * 30, (Math.random() - 0.5) * 80); }
+const METEORS = 5, meteors = points(METEORS * 8, 2.2, 0xffffff); meteors.material.sizeAttenuation = false;
+const meteorState = Array.from({ length: METEORS }, () => ({ t: Math.random() * 6 }));
+const FW = 420, fireworks = points(FW, 0.5, null), fw = Array.from({ length: FW }, () => ({ life: 0, v: new THREE.Vector3() }));
+let fwTimer = 0;
+function burst() {
+  const c = new THREE.Color().setHSL(Math.random(), 0.9, 0.62), o = new THREE.Vector3((Math.random() - 0.5) * 34, 18 + Math.random() * 12, (Math.random() - 0.5) * 34);
+  const pos = fireworks.geometry.attributes.position, col = fireworks.geometry.attributes.color; let n = 0;
+  for (let i = 0; i < FW && n < 70; i++) if (fw[i].life <= 0) { fw[i].life = 1.6 + Math.random() * 0.6; fw[i].v.randomDirection().multiplyScalar(4 + Math.random() * 3); pos.setXYZ(i, o.x, o.y, o.z); col.setXYZ(i, c.r, c.g, c.b); n++; }
+}
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
@@ -62,9 +75,10 @@ addEventListener('resize', resize); resize();
 const SKY = { day: new THREE.Color(0x7fe9ff), night: new THREE.Color(0x0b1030), dusk: new THREE.Color(0xff9e7a) };
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const sky = new THREE.Color();
-let wx = { snow: 0, aurora: 0, mist: 0 };
-function setSky(hour, weather, dt) {
-  const d = smooth(5, 7.5, hour) * (1 - smooth(18.5, 21, hour)), n = 1 - d;
+const wx = { snow: 0, aurora: 0, mist: 0, meteors: 0 };
+let nightness = 0;
+function setSky(hour, weather, dt, show) {
+  const d = smooth(5, 7.5, hour) * (1 - smooth(18.5, 21, hour)), n = 1 - d; nightness = n;
   sky.copy(SKY.night).lerp(SKY.day, d).lerp(SKY.dusk, 4 * d * (1 - d) * 0.55);
   const k = 1 - Math.exp(-dt * 1.5);
   for (const key of Object.keys(wx)) wx[key] += ((weather === key ? 1 : 0) - wx[key]) * k;
@@ -77,15 +91,30 @@ function setSky(hour, weather, dt) {
   aurora.children.forEach((m, i) => { m.material.opacity = n * wx.aurora * (0.55 + 0.2 * Math.sin(performance.now() / 1700 + i * 2)); });
   snow.material.opacity = wx.snow * 0.9;
   bloom.strength = n * 0.45;
-  setNight(n, now?.activity?.phase === 'doing' && now.activity.action === 'watch_film', performance.now() / 1000);
   document.body.style.background = `#${sky.getHexString()}`;
+
+  // shooting stars
+  meteors.material.opacity = n * wx.meteors;
+  if (wx.meteors > 0.02) { const p = meteors.geometry.attributes.position;
+    meteorState.forEach((m, i) => { m.t += dt; if (m.t > 5) { m.t = Math.random() * -4; m.a = Math.random() * 6.28; m.e = 0.5 + Math.random() * 0.6; }
+      for (let j = 0; j < 8; j++) { const tt = Math.max(0, m.t) * 0.35 - j * 0.012, a = (m.a || 0) + tt, e = (m.e || 0.8) - tt * 0.8, r = 250; p.setXYZ(i * 8 + j, Math.cos(a) * Math.cos(e) * r, m.t > 0 && m.t < 1.2 ? Math.sin(e) * r : -500, Math.sin(a) * Math.cos(e) * r); } });
+    p.needsUpdate = true; }
+  // fireworks
+  const on = show === 'fireworks' && n > 0.5;
+  fireworks.material.opacity = 1;
+  if (on) { fwTimer -= dt; if (fwTimer <= 0) { burst(); fwTimer = 0.5 + Math.random() * 1.2; } }
+  { const p = fireworks.geometry.attributes.position, c = fireworks.geometry.attributes.color;
+    for (let i = 0; i < FW; i++) { const f = fw[i]; if (f.life <= 0) { p.setY(i, -500); continue; } f.life -= dt; f.v.y -= 2.2 * dt; p.setXYZ(i, p.getX(i) + f.v.x * dt, p.getY(i) + f.v.y * dt, p.getZ(i) + f.v.z * dt); if (f.life < 0.5) c.setXYZ(i, c.getX(i) * 0.95, c.getY(i) * 0.95, c.getZ(i) * 0.95); }
+    p.needsUpdate = true; c.needsUpdate = true; }
 }
 
-// ---- live state --------------------------------------------------------------
-let now = null, online = false;
+// ---- live state: the real mind over WebSocket, or a stand-in in this browser ----------
+let now = null, local = null, fails = 0, lifeVersion = -1, lifeData = null;
 const feed = [];
 const target = new THREE.Vector3(PLACES.home.x, 0, PLACES.home.z);
+const api = (path, opts) => fetch(MIND + path, opts).then(r => r.json());
 function connect() {
+  let opened = false;
   const ws = new WebSocket(MIND.replace(/^http/, 'ws'));
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
@@ -93,50 +122,86 @@ function connect() {
     if (m.type === 'now') apply(m.now);
     if (m.type === 'feed') { feed.push(m.item); if (openPanel === 'feed') show('feed'); }
   };
-  ws.onopen = () => { online = true; $('offline').hidden = true; };
-  ws.onclose = () => { online = false; $('offline').hidden = false; setTimeout(connect, 4000); };
+  ws.onopen = () => { opened = true; fails = 0; if (local) { local.stop(); local = null; } $('offline').hidden = true; };
+  ws.onclose = () => {
+    if (!opened) fails++;
+    if (!local && (fails >= 2 || opened)) {
+      local = startLocalMind(item => { feed.push(item); if (openPanel === 'feed') show('feed'); });
+      feed.length = 0; feed.push(...local.feed); apply(local.now(), true);
+      $('offline').textContent = "Nena's own mind isn't online yet. This is a stand-in running in your browser, just for you."; $('offline').hidden = false;
+    }
+    setTimeout(connect, local ? 30000 : 2500);
+  };
   ws.onerror = () => ws.close();
 }
 connect();
+setInterval(() => { if (local) apply(local.now()); }, 200);
 
 const NEED_COLORS = { fullness: '#f2792e', energy: '#ffd93b', wonder: '#6a2fc4', joy: '#ff7fa3', calm: '#2fc6b3' };
 $('needs').innerHTML = NEEDS.map(k => `<div class="need"><span>${k[0].toUpperCase() + k.slice(1)}</span><div class="bar"><i id="need-${k}" style="background:${NEED_COLORS[k]}"></i></div></div>`).join('');
 const clockText = h => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')}`;
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
+async function refreshLife() {
+  try { lifeData = local ? local.life() : await api('/api/life'); dyn.setDecor(lifeData.decorList || [], now?.day || 1); if (openPanel === 'things') show('things'); } catch {}
+}
 function apply(n, snap) {
   now = n;
   target.set(n.pos.x, 0, n.pos.z);
   if (snap) nena.root.position.copy(target);
-  $('clock').textContent = `Day ${n.day} · ${clockText(n.hour)} · ${n.weather} · feeling ${n.mood}`;
+  const upcoming = n.event ? `${n.event.name} is on!` : (todaysEvent(n.day) ? `${todaysEvent(n.day).name} today` : '');
+  $('clock').textContent = `Day ${n.day} · ${cap(n.season)} ${n.dayOfSeason}/7 · ${clockText(n.hour)} · ${n.weather}`;
+  $('event').textContent = upcoming; $('event').hidden = !upcoming;
   $('doing').textContent = n.activity.label + (n.activity.detail && n.activity.phase === 'doing' ? `: ${n.activity.detail}` : '');
   $('thought').textContent = n.thought ? `"${n.thought}"` : '';
-  $('mind').textContent = n.mind.model ? `mind: ${n.mind.model} (last choice: ${n.mind.source})` : 'mind: scripted fallback (no model connected yet)';
+  $('coins').textContent = `${n.coins} coins · feeling ${n.mood}`;
+  $('mind').textContent = n.mind.local ? 'mind: stand-in in your browser' : n.mind.model ? `mind: ${n.mind.model} (last choice: ${n.mind.source})` : 'mind: scripted fallback (no model connected yet)';
   for (const k of NEEDS) $(`need-${k}`).style.width = `${Math.round(n.needs[k] * 100)}%`;
-  flag.rotation.z = n.mail ? 0 : -1.4; flag.position.y = n.mail ? 1.5 : 1.25;
+  town.flag.rotation.z = n.mail ? 0 : -1.4; town.flag.position.y = n.mail ? 1.5 : 1.25;
+  nena.setScarf(SCARVES[n.look.scarf] ?? SCARVES[0]);
+  town.setHouse(n.look.house, n.look.level);
+  dyn.setSpots(n.spots || []);
+  if (n.lifeVersion !== lifeVersion) { lifeVersion = n.lifeVersion; refreshLife(); }
 }
 
 // ---- panels ------------------------------------------------------------------
 let openPanel = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const api = (path, opts) => fetch(MIND + path, opts).then(r => r.json());
 const myName = () => { let n = localStorage.getItem('nena-name'); if (!n) { const a = ['soft', 'quiet', 'brave', 'tiny', 'sunny', 'frosty'], b = ['Snow', 'Pebble', 'Fish', 'Star', 'Mitten', 'Wave']; n = a[Math.random() * 6 | 0] + b[Math.random() * 6 | 0] + (10 + Math.random() * 90 | 0); localStorage.setItem('nena-name', n); } return n; };
-const md = t => esc(t).replace(/^# (.*)$/gm, '<h3>$1</h3>').replace(/^## (.*)$/gm, '<h3>$1</h3>').replace(/^- (.*)$/gm, '<div class="entry">$1</div>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+const md = t => esc(t).replace(/^#+ (.*)$/gm, '<h3>$1</h3>').replace(/^- (.*)$/gm, '<div class="entry">$1</div>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+const feedHtml = () => [...feed].reverse().map(i => i.result
+  ? `<div class="entry result">${esc(cap(i.label))}.<div class="dim">day ${i.day}, ${clockText(i.hour)}</div></div>`
+  : `<div class="entry"><b>${esc(cap(i.label))}${i.detail ? `: ${esc(i.detail)}` : ''}</b>${esc(i.reason)}<div class="dim">day ${i.day}, ${clockText(i.hour)} · ${esc(i.source)}</div></div>`).join('') || '<p>Nothing yet.</p>';
+const standIn = '<p class="dim">This needs her real mind, which is not online yet.</p>';
 
 async function show(name) {
   openPanel = name; $('panel').hidden = false;
   const body = $('panel-body');
   try {
     if (name === 'diary') {
+      if (local) { body.innerHTML = `<h2>Her diary</h2>${standIn}${feedHtml()}`; return; }
       const days = await api('/api/diary');
       body.innerHTML = `<h2>Her diary</h2>` + (days.length ? days.map(d => md(d.text)).join('') : '<p>Nothing written yet.</p>');
     } else if (name === 'feed') {
-      body.innerHTML = `<h2>Lately</h2><p class="dim">Every choice she makes, with her reason.</p>` + ([...feed].reverse().map(i => `<div class="entry"><b>${esc(i.label)}${i.detail ? `: ${esc(i.detail)}` : ''}</b>${esc(i.reason)}<div class="dim">day ${i.day}, ${clockText(i.hour)} · ${esc(i.source)}</div></div>`).join('') || '<p>Nothing yet.</p>');
+      body.innerHTML = `<h2>Lately</h2><p class="dim">Every choice she makes, with her reason, and what came of it.</p>${feedHtml()}`;
+    } else if (name === 'things') {
+      const l = lifeData; if (!l) { body.innerHTML = '<h2>Her things</h2><p>Nothing yet.</p>'; return; }
+      const got = Object.values(l.museum).reduce((t, a) => t + a.length, 0);
+      const cats = Object.entries(CATS).map(([cat, label]) => { const all = Object.keys(SPECIES).filter(k => SPECIES[k].cat === cat); return `<h3>${label} ${l.museum[cat].length}/${all.length}</h3><p>${all.map(k => l.museum[cat].includes(k) ? esc(k) : '<span class="dim">?</span>').join(' · ')}</p>`; }).join('');
+      const pockets = Object.entries(l.items).map(([k, v]) => `${v} ${esc(k)}`).join(', ') || 'empty';
+      body.innerHTML = `<h2>Her things</h2>
+        <p><b>${l.coins} coins.</b> House level ${l.house.level} of 3${l.loan ? ` (${l.house.paid} of ${l.loan} coins paid toward the next)` : ''}. ${l.decor} things placed around the island. ${l.photos} photos taken.${l.turnips.n ? ` Holding ${l.turnips.n} turnips bought at ${l.turnips.paid}; today's price is ${l.turnipPrice}.` : ''}</p>
+        <h3>In her pockets</h3><p>${pockets}</p>
+        <h3>Neighbours</h3>${Object.entries(l.friends).map(([k, v]) => `<div class="entry">${esc(k)}<div class="meter"><i style="width:${v * 10}%"></i></div></div>`).join('')}
+        <h3>Museum ${got}/${l.total}</h3><div class="meter"><i style="width:${got / l.total * 100}%"></i></div>${cats}`;
     } else if (name === 'memory') {
+      if (local) { body.innerHTML = `<h2>What she is carrying</h2>${standIn}`; return; }
       const m = await api('/api/memory');
       body.innerHTML = `<h2>What she is carrying</h2><p class="dim">${m.memories.length} of ${m.slots} slots. Each one fades a little every day; the weakest are forgotten.</p>` +
         (m.memories.map(x => `<div class="entry">${esc(x.text)}<div class="meter"><i style="width:${Math.round(x.strength * 100)}%"></i></div></div>`).join('') || '<p>Nothing yet. Leave her something.</p>') +
         `<h3>Lately interested in</h3><p>${Object.keys(m.interests).map(esc).join(', ') || 'nothing in particular'}</p>`;
     } else if (name === 'leave') {
+      if (local) { body.innerHTML = `<h2>Leave her something</h2>${standIn}`; return; }
       const mine = await api(`/api/notes?name=${encodeURIComponent(myName())}`).catch(() => []);
       body.innerHTML = `<h2>Leave her something</h2><p>It goes in her mailbox. She reads it in her own time and remembers who left it.</p>
         <form id="note"><input name="name" maxlength="24" value="${esc(myName())}" aria-label="Your name" /><textarea name="text" maxlength="240" placeholder="A message for Nena" required></textarea><button>Put it in the mailbox</button><p id="note-msg" class="dim"></p></form>
@@ -155,18 +220,18 @@ $('close').onclick = close;
 
 // ---- frame loop ----------------------------------------------------------------
 const clock = new THREE.Clock(), bubble = $('bubble'), head = new THREE.Vector3();
-let swimT = 0, heading = 0;
+let swimT = 0, heading = 0, elapsed = 0;
 function frame() {
-  const dt = Math.min(0.1, clock.getDelta());
-  const act = now?.activity || { phase: 'idle', action: 'idle' };
-  const pos = nena.root.position, k = 1 - Math.exp(-dt * 6);
+  const dt = Math.min(0.1, clock.getDelta()); elapsed += dt;
+  const act = now?.activity || { phase: 'idle', action: 'idle', anim: 'stand' };
+  const pos = nena.root.position, k = 1 - Math.exp(-dt * 6), doing = act.phase === 'doing';
 
-  // on the pond she slides in circles; asleep she is tucked by the igloo door
   const goal = target.clone();
-  if (act.phase === 'doing' && act.action === 'swim') { swimT += dt * 0.9; goal.set(pond.x + Math.cos(swimT) * 3, 0.12, pond.z + Math.sin(swimT) * 3); heading = -swimT; }
-  else if (act.phase === 'doing' && (act.action === 'sleep' || act.action === 'watch_film')) { const s = site(act.action === 'sleep' ? 'home' : 'cinema'); goal.set(s.x, 0, s.z); heading = 0; }   // indoors
-  else if (act.phase === 'doing' && ['read', 'rest', 'sunbathe', 'beachcomb'].includes(act.action)) heading = Math.atan2(-target.x, -target.z);   // back to the wall / the sea
-  else if (act.phase === 'doing' && act.action === 'go_fishing') heading = 0;   // facing the river
+  if (doing && act.anim === 'swim') { swimT += dt * 0.9; goal.set(town.pond.x + Math.cos(swimT) * 3, 0.12, town.pond.z + Math.sin(swimT) * 3); heading = -swimT; }            // circles on the pond
+  else if (doing && act.anim === 'dive') { swimT += dt * 0.5; const l = Math.hypot(target.x, target.z); goal.set(target.x / l * 33.5 + Math.cos(swimT) * 2, 0, target.z / l * 33.5 + Math.sin(swimT) * 2); heading = -swimT; }   // out in the sea
+  else if (doing && act.anim === 'inside' && act.place) { const s = site(act.place); goal.set(s.x, 0, s.z); heading = 0; }                                           // indoors
+  else if (doing && ['read', 'sit', 'lie'].includes(act.anim) || (doing && act.place === 'beach' && act.anim !== 'fish')) heading = Math.atan2(-target.x, -target.z);   // back to the wall / the sea
+  else if (doing && act.anim === 'fish') heading = act.place === 'river' ? 0 : Math.atan2(target.x, target.z);                                                       // facing the water
   else if (now) heading = now.heading;
   pos.lerp(goal, k);
   let dh = heading - nena.root.rotation.y; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
@@ -174,8 +239,13 @@ function frame() {
   nena.animate(dt, act);
 
   const hour = qs.has('hour') ? Number(qs.get('hour')) : now ? now.hour : 12;
-  setSky(hour, qs.get('weather') || now?.weather || 'clear', dt);
-  const sp = snowGeo.attributes.position;
+  const showEv = qs.get('show') || now?.event?.show || null;
+  setSky(hour, qs.get('weather') || now?.weather || 'clear', dt, showEv);
+  town.setNight(nightness, doing && act.action === 'watch_film', elapsed);
+  town.setSeason(qs.get('season') || now?.season || 'summer', !lifeData || lifeData.shaken !== now?.day);
+  town.setEvent(showEv);
+  dyn.update(dt, elapsed, now?.npcs, nightness);
+  const sp = snow.geometry.attributes.position;
   if (wx.snow > 0.02) { for (let i = 0; i < SNOW; i++) { let y = sp.getY(i) - dt * (1.5 + (i % 5) * 0.3); if (y < 0) y = 30; sp.setY(i, y); } sp.needsUpdate = true; }
 
   if (!window.__world?.freeze) {

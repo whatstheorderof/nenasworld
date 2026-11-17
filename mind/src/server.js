@@ -17,6 +17,7 @@ try {
 
 const { PLACES } = await import('../../shared/world.js');
 const { World } = await import('./world.js');
+const { Life } = await import('../../shared/life.js');
 const { Memory } = await import('./memory.js');
 const { Brain } = await import('./brain.js');
 const { provider, usage } = await import('./models.js');
@@ -30,27 +31,21 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 const seed = path.join(here, '..', 'data', 'character.md');
 if (!fs.existsSync(path.join(DATA_DIR, 'character.md')) && fs.existsSync(seed)) fs.copyFileSync(seed, path.join(DATA_DIR, 'character.md'));
 const memory = new Memory(DATA_DIR);
-const world = new World(memory.readJson('state.json', null), DAY_SECONDS);
+const life = new Life({ load: () => memory.readJson('life.json', null), save: v => memory.writeJson('life.json', v) });
+const world = new World(memory.readJson('state.json', null), DAY_SECONDS, life);
 const feed = memory.readJson('feed.json', []);
 const sockets = new Set();
 const broadcast = msg => { const s = JSON.stringify(msg); for (const ws of sockets) if (ws.readyState === 1) ws.send(s); };
 
-const brain = new Brain(world, memory, item => {
+const brain = new Brain(world, memory, life, item => {
   feed.push(item); if (feed.length > 200) feed.shift();
   broadcast({ type: 'feed', item });
 });
 
 function now() {
-  const mood = world.mood(), a = world.activity;
-  return {
-    name: 'Nena', day: world.day, hour: world.hour, night: world.isNight, weather: world.weather,
-    pos: world.pos, heading: world.heading,
-    activity: a ? { action: a.action, label: a.phase === 'walking' && a.place ? `walking to the ${PLACES[a.place].label.toLowerCase()}` : a.label, place: a.place, phase: a.phase, detail: a.detail, progress: a.phase === 'doing' ? 1 - a.left / a.dur : 0 } : { action: 'idle', label: 'thinking', phase: 'idle' },
-    needs: world.needs, mood: mood.label, heartbeat: mood.heartbeat,
+  return { name: 'Nena', ...world.view(), heartbeat: world.mood().heartbeat,
     thought: brain.thought, say: Date.now() < brain.sayUntil ? brain.say : null,
-    mail: memory.unread().length,
-    mind: { source: brain.lastSource, model: provider().model },
-  };
+    mail: memory.unread().length, mind: { source: brain.lastSource, model: provider().model } };
 }
 
 // ---- loops ---------------------------------------------------------------
@@ -58,7 +53,7 @@ let last = Date.now();
 setInterval(() => { const t = Date.now(); world.tick(Math.min(0.25, (t - last) / 1000)); last = t; }, 50);
 setInterval(() => brain.beat().catch(e => console.error('[brain]', e)), 1000);
 setInterval(() => broadcast({ type: 'now', now: now() }), 200);
-const save = () => { memory.writeJson('state.json', world.snapshot()); memory.writeJson('feed.json', feed); };
+const save = () => { memory.writeJson('state.json', world.snapshot()); memory.writeJson('feed.json', feed); life.store.save(life.s); };
 setInterval(save, 30000);
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { save(); process.exit(0); });
 
@@ -82,8 +77,9 @@ const server = http.createServer(async (req, res) => {
       const name = tidy(url.searchParams.get('name'), 24);
       return json(res, 200, memory.notes.filter(n => n.name === name).slice(-20).reverse().map(({ text, at, read, reply }) => ({ text, at, read, reply })));
     }
+    if (url.pathname === '/api/life') return json(res, 200, { ...life.summary(), decorList: life.s.decor });
     if (url.pathname === '/api/facts') return json(res, 200, { model: provider(), usage, daySeconds: DAY_SECONDS, bornAt: world.bornAt, visitors: Object.keys(memory.visitors).length });
-    if (url.pathname === '/') return json(res, 200, { ok: true, who: 'Nena', see: ['/api/now', '/api/feed', '/api/diary', '/api/memory', '/api/facts'] });
+    if (url.pathname === '/') return json(res, 200, { ok: true, who: 'Nena', see: ['/api/now', '/api/feed', '/api/diary', '/api/memory', '/api/life', '/api/facts'] });
   }
   if (req.method === 'POST' && url.pathname === '/api/notes') {
     const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;

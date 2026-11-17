@@ -62,37 +62,35 @@ export function buildNena() {
   function animate(dt, state) {
     t += dt;
     const walking = state.phase === 'walking';
-    const act = state.phase === 'doing' ? state.action : null;
+    const act = state.phase === 'doing' ? state.anim : null;
     const k = 1 - Math.exp(-dt * 8);
     const to = (obj, prop, v) => { obj[prop] += (v - obj[prop]) * k; };
 
     let roll = 0, pitch = 0, y = 0, flap = 0.25, footSwing = 0;
     if (walking) { const w = Math.sin(t * 9); roll = w * 0.16; y = Math.abs(w) * 0.05; footSwing = w * 0.16; flap = 0.5 + Math.abs(w) * 0.15; }
-    else if (act === 'eat') { pitch = Math.max(0, Math.sin(t * 5)) * 0.55; }
+    else if (act === 'peck') { pitch = Math.max(0, Math.sin(t * 4)) * 0.55; flap = 0.4; }
+    else if (act === 'flap') { roll = Math.sin(t * 2) * 0.05; flap = 0.9 + Math.sin(t * 10) * 0.35; y = Math.abs(Math.sin(t * 5)) * 0.04; }
     else if (act === 'swim') { pitch = 1.35; y = -0.42; flap = 1.2 + Math.sin(t * 8) * 0.2; }
+    else if (act === 'dive') { pitch = 1.35 + Math.sin(t * 1.3) * 0.5; y = -0.75 + Math.sin(t * 1.3) * 0.35; flap = 1.2; }
     else if (act === 'read') { pitch = 0.22; roll = Math.sin(t * 0.8) * 0.05; }
-    else if (act === 'draw') { roll = Math.sin(t * 2) * 0.05; flap = 0.9 + Math.sin(t * 10) * 0.35; }
-    else if (act === 'stargaze') { pitch = -0.38; }
-    else if (act === 'rest') { y = -0.08; roll = Math.sin(t * 1.2) * 0.03; }
-    else if (act === 'read_mail') { pitch = 0.3; flap = 0.6; }
-    else if (act === 'go_fishing') { pitch = 0.12; y = Math.sin(t * 1.5) * 0.02; flap = 0.9; }
-    else if (act === 'beachcomb') { pitch = Math.max(0, Math.sin(t * 2.2)) * 0.6; roll = Math.sin(t * 1.1) * 0.08; }
-    else if (act === 'sunbathe') { pitch = -1.4; y = -0.38; flap = 1.3; }
-    else if (act === 'garden') { pitch = Math.max(0, Math.sin(t * 3)) * 0.45; flap = 0.5 + Math.sin(t * 6) * 0.2; }
-    else if (act === 'snowman') { pitch = 0.25; flap = 0.9 + Math.sin(t * 9) * 0.4; y = Math.abs(Math.sin(t * 4.5)) * 0.05; }
+    else if (act === 'lookup') { pitch = -0.38; flap = 0.4 + Math.max(0, Math.sin(t * 3)) * 0.5; }
+    else if (act === 'lie') { pitch = -1.4; y = -0.38; flap = 1.3; }
+    else if (act === 'sit') { y = -0.08; roll = Math.sin(t * 1.2) * 0.03; }
+    else if (act === 'fish') { pitch = 0.12; y = Math.sin(t * 1.5) * 0.02; flap = 0.9; }
     else { roll = Math.sin(t * 1.5) * 0.04; y = Math.sin(t * 2.2) * 0.012; }
 
     to(body.rotation, 'z', roll); to(body.rotation, 'x', pitch); to(body.position, 'y', y);
     flippers.forEach((f, i) => to(f.rotation, 'z', (i ? 1 : -1) * flap));
-    const inside = act === 'sleep' || act === 'watch_film';   // she has gone indoors
+    const inside = act === 'inside';   // she has gone indoors
     body.visible = shadow.visible = !inside;
-    feet.forEach((f, i) => { f.position.z = 0.14 + (i ? 1 : -1) * footSwing; f.visible = !inside && act !== 'swim' && act !== 'sunbathe'; });
+    feet.forEach((f, i) => { f.position.z = 0.14 + (i ? 1 : -1) * footSwing; f.visible = !inside && !['swim', 'lie', 'dive'].includes(act); });
     zs.forEach((z, i) => {
-      z.visible = act === 'sleep';
+      z.visible = inside && state.action === 'sleep';
       const p = (t * 0.35 + i / 3) % 1;
       z.position.set(0.6 + p * 0.8, 3.4 + p * 2.2, 0); z.scale.setScalar(0.5 + p * 0.6); z.material.opacity = 1 - p;
     });
   }
 
-  return { root, animate };
+  const setScarf = hex => { scarf.material.color.set(hex); tail.material.color.set(hex); };
+  return { root, animate, setScarf };
 }

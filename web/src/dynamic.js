@@ -1,0 +1,87 @@
+// Things on the island that change: what Nena has built and planted, the fossils,
+// weeds, bottles and balloons that turn up, and her neighbours.
+import * as THREE from 'three';
+
+const flat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
+const add = (parent, geo, material, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, typeof material === 'number' ? flat(material) : material); m.position.set(x, y, z); parent.add(m); return m; };
+const box = (p, w, h, d, c, x, y, z) => add(p, new THREE.BoxGeometry(w, h, d), c, x, y, z);
+const WOOD = 0xc9531c, LIGHT = 0xf59b2f, STONE = 0x86a9cc;
+const PETALS = [0xffd93b, 0x6a2fc4, 0xff7fa3, 0x2f7f9a];
+
+function decorModel(kind, day, today, glows) {
+  const g = new THREE.Group();
+  const lit = c => { const m = flat(0xfff3c4, { emissive: c, emissiveIntensity: 0 }); glows.push(m); return m; };
+  switch (kind) {
+    case 'bench': box(g, 1.8, 0.14, 0.6, LIGHT, 0, 0.5, 0); box(g, 1.8, 0.5, 0.12, LIGHT, 0, 0.9, -0.26); for (const s of [-1, 1]) box(g, 0.14, 0.5, 0.5, WOOD, s * 0.75, 0.25, 0); break;
+    case 'lantern': box(g, 0.14, 1.5, 0.14, WOOD, 0, 0.75, 0); box(g, 0.42, 0.42, 0.42, lit(0xffc870), 0, 1.7, 0); box(g, 0.56, 0.08, 0.56, WOOD, 0, 1.95, 0); break;
+    case 'cairn': [0.55, 0.42, 0.3, 0.2].forEach((r, i) => { const m = add(g, new THREE.DodecahedronGeometry(r, 0), i % 2 ? 0x5f82ad : STONE, 0, 0.3 + i * 0.5, 0); m.rotation.y = i; m.scale.y = 0.7; }); break;
+    case 'shell arch': for (let i = 0; i <= 8; i++) { const a = (i / 8) * Math.PI; const m = add(g, new THREE.ConeGeometry(0.2, 0.4, 5), [0xff9aa8, 0xfffaf0, 0xffb45a][i % 3], Math.cos(a) * 1.1, 0.15 + Math.sin(a) * 1.7, 0); m.rotation.z = a - Math.PI / 2; } break;
+    case 'birdbath': add(g, new THREE.CylinderGeometry(0.16, 0.26, 0.9, 6), STONE, 0, 0.45, 0); add(g, new THREE.CylinderGeometry(0.6, 0.35, 0.22, 7), STONE, 0, 1.0, 0); add(g, new THREE.CylinderGeometry(0.48, 0.48, 0.05, 7), 0x58b7e8, 0, 1.1, 0); break;
+    case 'scarecrow': box(g, 0.12, 1.9, 0.12, WOOD, 0, 0.95, 0); box(g, 1.4, 0.12, 0.12, WOOD, 0, 1.35, 0); box(g, 0.7, 0.7, 0.3, 0x2f7f9a, 0, 1.15, 0); add(g, new THREE.SphereGeometry(0.3, 6, 5), 0xf7dc8f, 0, 1.95, 0); add(g, new THREE.ConeGeometry(0.42, 0.4, 6), LIGHT, 0, 2.3, 0); break;
+    case 'signpost': box(g, 0.14, 1.8, 0.14, WOOD, 0, 0.9, 0); box(g, 0.9, 0.28, 0.08, LIGHT, 0.3, 1.55, 0); box(g, 0.9, 0.28, 0.08, 0xfffaf0, -0.3, 1.15, 0); break;
+    case 'campfire': for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283; add(g, new THREE.DodecahedronGeometry(0.2, 0), STONE, Math.cos(a) * 0.6, 0.12, Math.sin(a) * 0.6); } for (let i = 0; i < 3; i++) { const m = box(g, 0.9, 0.14, 0.14, WOOD, 0, 0.14, 0); m.rotation.y = i * 1.05; } add(g, new THREE.ConeGeometry(0.28, 0.7, 5), lit(0xff8a1f), 0, 0.5, 0).material.color.set(0xff8a1f); break;
+    case 'wind chime': box(g, 0.12, 2.0, 0.12, WOOD, 0, 1.0, 0); box(g, 0.8, 0.1, 0.1, WOOD, 0.35, 1.95, 0); for (let i = 0; i < 3; i++) add(g, new THREE.ConeGeometry(0.09, 0.35 + i * 0.1, 5), [0xff9aa8, 0xfffaf0, 0xbfe8ff][i], 0.2 + i * 0.22, 1.6 - i * 0.05, 0); break;
+    case 'log stool': add(g, new THREE.CylinderGeometry(0.4, 0.44, 0.5, 7), LIGHT, 0, 0.25, 0); add(g, new THREE.CylinderGeometry(0.34, 0.34, 0.04, 7), 0xf7dc8f, 0, 0.52, 0); break;
+    case 'flowers': for (let i = 0; i < 5; i++) { const a = i * 1.26, r = i ? 0.55 : 0, c = PETALS[(i + Math.round(day)) % 4]; add(g, new THREE.CylinderGeometry(0.04, 0.05, 0.4, 4), 0x79c653, Math.cos(a) * r, 0.2, Math.sin(a) * r); add(g, new THREE.ConeGeometry(0.2, 0.22, 5), c, Math.cos(a) * r, 0.48, Math.sin(a) * r).rotation.x = Math.PI; } break;
+    case 'tree': { const age = Math.min(1, (today - day) / 3), k = 0.3 + age * 0.7; add(g, new THREE.CylinderGeometry(0.16, 0.22, 1.4, 5), WOOD, 0, 0.7, 0); add(g, new THREE.DodecahedronGeometry(1.0, 0), 0x4fae52, 0, 2.0, 0); g.scale.setScalar(k); break; }
+    default: box(g, 0.6, 0.6, 0.6, LIGHT, 0, 0.3, 0);
+  }
+  return g;
+}
+
+function spotModel(kind) {
+  const g = new THREE.Group();
+  if (kind === 'fossil') { const s = new THREE.Shape(); for (let i = 0; i < 10; i++) { const a = i / 10 * 6.283, r = i % 2 ? 0.2 : 0.55; s[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r); } const m = add(g, new THREE.ShapeGeometry(s), new THREE.MeshBasicMaterial({ color: 0x4a3a2a }), 0, 0.07, 0); m.rotation.x = -Math.PI / 2; }
+  else if (kind === 'weed') for (let i = 0; i < 4; i++) { const m = add(g, new THREE.ConeGeometry(0.1, 0.55, 4), 0x3f9a4a, (i - 1.5) * 0.14, 0.26, (i % 2) * 0.12); m.rotation.z = (i - 1.5) * 0.3; }
+  else if (kind === 'bottle') { const m = add(g, new THREE.CylinderGeometry(0.14, 0.14, 0.5, 6), flat(0x7fe0c8, { transparent: true, opacity: 0.85 }), 0, 0.16, 0); m.rotation.z = 1.2; add(g, new THREE.CylinderGeometry(0.06, 0.06, 0.2, 5), 0xf7dc8f, 0.3, 0.26, 0).rotation.z = 1.2; }
+  else if (kind === 'balloon') { const b = new THREE.Group(); b.name = 'float'; g.add(b); add(b, new THREE.SphereGeometry(0.7, 8, 6), 0xe8452c, 0, 6.2, 0).scale.y = 1.2; box(b, 0.03, 2.0, 0.03, 0xfffaf0, 0, 4.5, 0); box(b, 0.6, 0.6, 0.6, 0xffd93b, 0, 3.3, 0); box(b, 0.64, 0.14, 0.64, 0xe8452c, 0, 3.3, 0); }
+  return g;
+}
+
+function critter(kind) {
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const ball = (r, sx, sy, sz, c, x, y, z) => { const m = add(body, new THREE.SphereGeometry(r, 8, 6), c, x, y, z); m.scale.set(sx, sy, sz); return m; };
+  const eyes = (y, z, gap) => { for (const s of [-1, 1]) ball(0.06, 1, 1, 0.6, 0x141833, gap * s, y, z); };
+  if (kind === 'seal') { ball(0.6, 0.9, 0.75, 1.5, 0x9aa7b8, 0, 0.45, -0.2); ball(0.42, 1, 0.95, 1, 0x9aa7b8, 0, 0.8, 0.65); ball(0.3, 0.9, 0.6, 0.5, 0xdfe6ee, 0, 0.7, 0.95); ball(0.07, 1, 1, 1, 0x141833, 0, 0.78, 1.1); eyes(0.95, 0.98, 0.17);
+    for (const s of [-1, 1]) ball(0.25, 1.2, 0.2, 0.7, 0x7d8b9e, 0.6 * s, 0.2, 0.2); ball(0.3, 1.4, 0.2, 0.6, 0x7d8b9e, 0, 0.2, -1.1); }
+  else if (kind === 'puffin') { ball(0.4, 1, 1.25, 0.95, 0x1d2233, 0, 0.6, 0); ball(0.33, 0.9, 1.1, 0.55, 0xfdfaf2, 0, 0.52, 0.2); ball(0.2, 1, 1, 0.5, 0xfdfaf2, 0, 0.92, 0.26); eyes(0.95, 0.38, 0.12);
+    const beak = add(body, new THREE.ConeGeometry(0.16, 0.34, 4), 0xff5a2a, 0, 0.84, 0.48); beak.rotation.x = Math.PI / 2; beak.scale.x = 0.55; for (const s of [-1, 1]) box(g, 0.18, 0.06, 0.28, 0xff8a1f, 0.14 * s, 0.03, 0.1); }
+  else { ball(0.42, 0.9, 0.85, 1.3, 0xf4f1ea, 0, 0.55, -0.1); ball(0.34, 1, 0.95, 1, 0xf4f1ea, 0, 0.95, 0.5); const nose = add(body, new THREE.ConeGeometry(0.16, 0.36, 5), 0xf4f1ea, 0, 0.88, 0.85); nose.rotation.x = Math.PI / 2; ball(0.05, 1, 1, 1, 0x141833, 0, 0.88, 1.03); eyes(1.02, 0.78, 0.15);
+    for (const s of [-1, 1]) add(body, new THREE.ConeGeometry(0.13, 0.32, 4), 0xdcd6c8, 0.2 * s, 1.36, 0.42); const tail = ball(0.26, 0.8, 0.8, 1.6, 0xfdfaf2, 0, 0.6, -0.95); tail.rotation.x = -0.5;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(body, 0.14, 0.3, 0.14, 0xdcd6c8, 0.22 * sx, 0.15, -0.1 + sz * 0.4); const sc = add(body, new THREE.TorusGeometry(0.3, 0.07, 5, 8), 0x6a2fc4, 0, 0.78, 0.36); sc.rotation.x = 1.1; }
+  const shadow = add(g, new THREE.CircleGeometry(0.6, 10), new THREE.MeshBasicMaterial({ color: 0x1d2545, transparent: true, opacity: 0.2, depthWrite: false }), 0, 0.02, 0); shadow.rotation.x = -Math.PI / 2;
+  g.scale.setScalar(1.25); g.userData.body = body;
+  return g;
+}
+
+export function buildDynamic(scene) {
+  const decorG = new THREE.Group(), spotG = new THREE.Group(), npcG = new THREE.Group(); scene.add(decorG, spotG, npcG);
+  const glows = [], spots = new Map(), npcs = new Map();
+  let decorKey = '';
+
+  function setDecor(list, today) {
+    const key = JSON.stringify(list) + Math.floor(today);
+    if (key === decorKey) return; decorKey = key;
+    decorG.clear(); glows.length = 0;
+    list.forEach((d, i) => { const m = decorModel(d.kind, d.day, today, glows); m.position.set(d.x, 0, d.z); m.rotation.y = (i * 2.4) % 6.283; decorG.add(m); });
+  }
+  function setSpots(list) {
+    const seen = new Set(list.map(s => s.id));
+    for (const [id, m] of spots) if (!seen.has(id)) { spotG.remove(m); spots.delete(id); }
+    for (const s of list) if (!spots.has(s.id)) { const m = spotModel(s.kind); m.position.set(s.x, 0, s.z); spotG.add(m); spots.set(s.id, m); }
+  }
+  function update(dt, t, npcList, night) {
+    for (const m of glows) m.emissiveIntensity = 0.3 + night * 1.6;
+    for (const m of spots.values()) { const f = m.getObjectByName('float'); if (f) { f.position.y = Math.sin(t * 1.2) * 0.4; f.rotation.y = t * 0.4; } }
+    for (const n of npcList || []) {
+      let m = npcs.get(n.name);
+      if (!m) { m = critter(n.kind); m.position.set(n.x, 0, n.z); npcG.add(m); npcs.set(n.name, m); }
+      m.visible = n.out;
+      const k = 1 - Math.exp(-dt * 6);
+      m.position.x += (n.x - m.position.x) * k; m.position.z += (n.z - m.position.z) * k;
+      let dh = n.heading - m.rotation.y; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); m.rotation.y += dh * k;
+      const b = m.userData.body; b.rotation.z = n.moving ? Math.sin(t * 8 + m.id) * 0.12 : 0; b.position.y = n.moving ? Math.abs(Math.sin(t * 8 + m.id)) * 0.05 : Math.sin(t * 2 + m.id) * 0.01;
+    }
+  }
+  return { setDecor, setSpots, update };
+}
