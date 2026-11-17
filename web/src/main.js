@@ -4,7 +4,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { PLACES, NEEDS } from '../../shared/world.js';
+import { PLACES, NEEDS, site } from '../../shared/world.js';
 import { buildNena } from './nena.js';
 import { buildTown } from './town.js';
 
@@ -19,7 +19,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x7fe9ff, 70, 170);
 const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 400);
-camera.position.set(PLACES.home.x + 9, 7.5, PLACES.home.z + 13);
+camera.position.set(PLACES.home.x + 10, 9, PLACES.home.z + 15);
 const controls = new OrbitControls(camera, canvas);
 controls.target.set(PLACES.home.x, 1, PLACES.home.z);
 controls.enableDamping = true; controls.enablePan = false;
@@ -77,7 +77,7 @@ function setSky(hour, weather, dt) {
   aurora.children.forEach((m, i) => { m.material.opacity = n * wx.aurora * (0.55 + 0.2 * Math.sin(performance.now() / 1700 + i * 2)); });
   snow.material.opacity = wx.snow * 0.9;
   bloom.strength = n * 0.45;
-  setNight(n);
+  setNight(n, now?.activity?.phase === 'doing' && now.activity.action === 'watch_film', performance.now() / 1000);
   document.body.style.background = `#${sky.getHexString()}`;
 }
 
@@ -164,7 +164,9 @@ function frame() {
   // on the pond she slides in circles; asleep she is tucked by the igloo door
   const goal = target.clone();
   if (act.phase === 'doing' && act.action === 'swim') { swimT += dt * 0.9; goal.set(pond.x + Math.cos(swimT) * 3, 0.12, pond.z + Math.sin(swimT) * 3); heading = -swimT; }
-  else if (act.phase === 'doing' && ['read', 'rest', 'sleep'].includes(act.action)) heading = Math.atan2(-target.x, -target.z);   // sit with her back to the wall
+  else if (act.phase === 'doing' && (act.action === 'sleep' || act.action === 'watch_film')) { const s = site(act.action === 'sleep' ? 'home' : 'cinema'); goal.set(s.x, 0, s.z); heading = 0; }   // indoors
+  else if (act.phase === 'doing' && ['read', 'rest', 'sunbathe', 'beachcomb'].includes(act.action)) heading = Math.atan2(-target.x, -target.z);   // back to the wall / the sea
+  else if (act.phase === 'doing' && act.action === 'go_fishing') heading = 0;   // facing the river
   else if (now) heading = now.heading;
   pos.lerp(goal, k);
   let dh = heading - nena.root.rotation.y; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
@@ -176,9 +178,11 @@ function frame() {
   const sp = snowGeo.attributes.position;
   if (wx.snow > 0.02) { for (let i = 0; i < SNOW; i++) { let y = sp.getY(i) - dt * (1.5 + (i % 5) * 0.3); if (y < 0) y = 30; sp.setY(i, y); } sp.needsUpdate = true; }
 
-  const before = controls.target.clone();
-  controls.target.lerp(new THREE.Vector3(pos.x, 1, pos.z), 1 - Math.exp(-dt * 2.5));
-  camera.position.add(controls.target.clone().sub(before));   // camera travels with her
+  if (!window.__world?.freeze) {
+    const before = controls.target.clone();
+    controls.target.lerp(new THREE.Vector3(pos.x, 1, pos.z), 1 - Math.exp(-dt * 2.5));
+    camera.position.add(controls.target.clone().sub(before));   // camera travels with her
+  }
   controls.update();
   composer.render();
 

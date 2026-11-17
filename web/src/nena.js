@@ -73,18 +73,24 @@ export function buildNena() {
     else if (act === 'read') { pitch = 0.22; roll = Math.sin(t * 0.8) * 0.05; }
     else if (act === 'draw') { roll = Math.sin(t * 2) * 0.05; flap = 0.9 + Math.sin(t * 10) * 0.35; }
     else if (act === 'stargaze') { pitch = -0.38; }
-    else if (act === 'sleep') { pitch = 1.45; y = -0.45; }
     else if (act === 'rest') { y = -0.08; roll = Math.sin(t * 1.2) * 0.03; }
     else if (act === 'read_mail') { pitch = 0.3; flap = 0.6; }
+    else if (act === 'go_fishing') { pitch = 0.12; y = Math.sin(t * 1.5) * 0.02; flap = 0.9; }
+    else if (act === 'beachcomb') { pitch = Math.max(0, Math.sin(t * 2.2)) * 0.6; roll = Math.sin(t * 1.1) * 0.08; }
+    else if (act === 'sunbathe') { pitch = -1.4; y = -0.38; flap = 1.3; }
+    else if (act === 'garden') { pitch = Math.max(0, Math.sin(t * 3)) * 0.45; flap = 0.5 + Math.sin(t * 6) * 0.2; }
+    else if (act === 'snowman') { pitch = 0.25; flap = 0.9 + Math.sin(t * 9) * 0.4; y = Math.abs(Math.sin(t * 4.5)) * 0.05; }
     else { roll = Math.sin(t * 1.5) * 0.04; y = Math.sin(t * 2.2) * 0.012; }
 
     to(body.rotation, 'z', roll); to(body.rotation, 'x', pitch); to(body.position, 'y', y);
     flippers.forEach((f, i) => to(f.rotation, 'z', (i ? 1 : -1) * flap));
-    feet.forEach((f, i) => { f.position.z = 0.14 + (i ? 1 : -1) * footSwing; f.visible = act !== 'swim' && act !== 'sleep'; });
+    const inside = act === 'sleep' || act === 'watch_film';   // she has gone indoors
+    body.visible = shadow.visible = !inside;
+    feet.forEach((f, i) => { f.position.z = 0.14 + (i ? 1 : -1) * footSwing; f.visible = !inside && act !== 'swim' && act !== 'sunbathe'; });
     zs.forEach((z, i) => {
       z.visible = act === 'sleep';
       const p = (t * 0.35 + i / 3) % 1;
-      z.position.set(0.4 + p * 0.5, 0.9 + p * 1.4, 0); z.scale.setScalar(0.25 + p * 0.3); z.material.opacity = 1 - p;
+      z.position.set(0.6 + p * 0.8, 3.4 + p * 2.2, 0); z.scale.setScalar(0.5 + p * 0.6); z.material.opacity = 1 - p;
     });
   }
 

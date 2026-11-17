@@ -29,12 +29,12 @@ Preview a look without waiting: `http://localhost:5173/?hour=23&weather=aurora`
 | Models | `mind/src/models.js` | Pluggable provider. |
 | Server | `mind/src/server.js` | WebSocket for live state, plus `GET /api/now`, `/api/feed`, `/api/diary`, `/api/memory`, `/api/facts` and `POST /api/notes`. |
 | Island | `web/src/town.js`, `web/src/nena.js` | three.js, built from primitives. Bright and flat-shaded by day, glowing windows and signs at night. |
-| Places | `shared/world.js` | Where things are and what each action does to her needs. Shared by mind and web. |
+| Places | `shared/world.js` | Where things are (house, fish stall, pond, library, studio, cinema, lookout, igloo, garden, river, beach), what each of her 15 actions does to her needs, and the route planner that walks her around buildings. Shared by mind and web. |
 
 ## Not built yet
 
 - Models are made in code, not Blender. Blender was not reachable when this was built.
 - Storage is local files. For Vercel, the web folder deploys as a static Vite site
-  (set `VITE_MIND_URL`), but the mind needs an always-on host and a database
-  adapter in place of the file reads/writes in `memory.js`.
+  (set `VITE_MIND_URL`; `vercel.json` is included). The mind needs an always-on host
+  with a persistent disk mounted at `/data`; the `Dockerfile` builds it.
 - No web browsing, shop, jobs or coin.

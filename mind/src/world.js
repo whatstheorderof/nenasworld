@@ -1,7 +1,7 @@
 // The world: Nena's body, her needs, the clock and the weather.
 // Pure code, no model. It ticks 20 times a second and decides what is possible;
 // the brain only chooses among what the world offers.
-import { PLACES, ACTIONS, NEEDS, WORLD } from '../../shared/world.js';
+import { PLACES, ACTIONS, NEEDS, WORLD, route, blocked } from '../../shared/world.js';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
 const SPEED = 1.9; // metres per second, a waddle
@@ -18,7 +18,7 @@ export class World {
     this.lift = saved?.lift || 0;          // short-lived mood push from events, -1..1
     this.weather = saved?.weather || 'clear';
     this.weatherUntil = 0;
-    this.activity = null;                  // { action, phase:'walking'|'doing', target:{x,z}, left, detail }
+    this.activity = null;                  // { action, phase:'walking'|'doing', path:[{x,z}], left, detail }
     this.finished = [];                    // completed activities waiting for the brain to notice
   }
 
@@ -35,9 +35,16 @@ export class World {
     if (n.energy < 0.3 || (this.isNight && n.energy < 0.75)) add('sleep', 'tired');
     if (n.energy < 0.6 || n.calm < 0.4) add('rest', 'a quiet sit at home');
     if (n.fullness < 0.75) add('eat', n.fullness < 0.3 ? 'very hungry' : 'could eat');
+    const day = !this.isNight;
     if (n.energy > 0.25) add('swim', 'the pond is good for sliding');
     if (n.energy > 0.2) add('read', 'something new to learn');
     if (n.energy > 0.2) add('draw', 'make something');
+    if (n.energy > 0.2) add('watch_film', 'something is showing at the cinema');
+    if (n.fullness < 0.9) add('go_fishing', 'sit by the river and catch her own');
+    if (n.energy > 0.25) add('beachcomb', 'the tide leaves things on the sand');
+    if (day && this.weather === 'clear') add('sunbathe', 'the sand is warm');
+    if (day) add('garden', 'the flowers want looking after');
+    if (n.energy > 0.3) add('snowman', this.weather === 'snow' ? 'fresh snow by the igloo' : 'there is always snow by the igloo');
     add('stargaze', this.weather === 'aurora' ? 'the sky is lit up tonight' : 'look at the sky');
     if (unreadMail > 0) add('read_mail', `${unreadMail} thing${unreadMail > 1 ? 's' : ''} waiting in the mailbox`);
     add('wander', 'no plan');
@@ -50,10 +57,13 @@ export class World {
     let target;
     if (def.place) target = { x: PLACES[def.place].x, z: PLACES[def.place].z };
     else {
-      const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * 10;
-      target = { x: Math.cos(a) * r, z: Math.sin(a) * r };
+      for (let i = 0; i < 20; i++) {
+        const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * 11;
+        target = { x: Math.cos(a) * r, z: Math.sin(a) * r };
+        if (!blocked(target.x, target.z, 1.5)) break;
+      }
     }
-    this.activity = { action, label: def.label, place: def.place, phase: 'walking', target, left: def.dur, dur: def.dur, detail };
+    this.activity = { action, label: def.label, place: def.place, phase: 'walking', path: route(this.pos, target), left: def.dur, dur: def.dur, detail };
     return true;
   }
 
@@ -74,15 +84,14 @@ export class World {
     const a = this.activity;
     if (!a) return;
     if (a.phase === 'walking') {
-      const dx = a.target.x - this.pos.x, dz = a.target.z - this.pos.z;
+      const next = a.path[0];
+      if (!next) { a.phase = 'doing'; return; }
+      const dx = next.x - this.pos.x, dz = next.z - this.pos.z;
       const dist = Math.hypot(dx, dz);
-      if (dist < 0.15) { a.phase = 'doing'; return; }
+      if (dist < 0.15) { a.path.shift(); return; }
       const step = Math.min(dist, SPEED * dt);
       this.pos.x += (dx / dist) * step; this.pos.z += (dz / dist) * step;
       this.heading = Math.atan2(dx, dz);
-      const half = WORLD.size / 2 - 2;
-      this.pos.x = Math.max(-half, Math.min(half, this.pos.x));
-      this.pos.z = Math.max(-half, Math.min(half, this.pos.z));
     } else {
       const def = ACTIONS[a.action];
       for (const [k, total] of Object.entries(def.effects)) this.needs[k] = clamp01(this.needs[k] + (total / def.dur) * dt);
