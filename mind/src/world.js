@@ -2,7 +2,7 @@
 // things that turn up on the island. Pure code, no model. It ticks 20 times a second
 // and decides what is possible; the brain only chooses among what the world offers.
 // (No Node imports here, so the browser can run it too.)
-import { PLACES, NEEDS, NEIGHBOURS, BEACH, route, blocked, freeSpot } from '../../shared/world.js';
+import { PLACES, NEEDS, NEIGHBOURS, BEACH, ISLETS, route, blocked, freeSpot } from '../../shared/world.js';
 import { ACTIONS, calendar, currentEvent, painterIn } from '../../shared/data.js';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
@@ -25,6 +25,7 @@ export class World {
     this.spots = saved?.spots || [];       // fossils, weeds, bottles, balloons: { id, kind, x, z }
     this.spotDay = saved?.spotDay || 0;
     this.npcs = NEIGHBOURS.map(n => ({ name: n.name, kind: n.kind, home: n.home, x: n.home.x, z: n.home.z + 2.6, heading: 0, path: [], wait: 0, hold: 0, out: true }));
+    this.visitors = [];                    // people watching right now (set by the server)
     this.activity = null;                  // { action, phase:'walking'|'doing', path:[{x,z}], left, detail, ref, at }
     this.finished = [];                    // completed activities waiting for the brain to notice
   }
@@ -62,7 +63,7 @@ export class World {
   ctx(mail = 0) {
     const out = this.npcs.filter(n => n.out);
     return { n: this.needs, day: !this.isNight, night: this.isNight, hour: this.hour, dayN: this.day, weather: this.weather, cal: this.cal, event: this.event, life: this.life, mail,
-      has: kind => this.spots.some(s => s.kind === kind), npc: this.nearest(out), out: name => out.some(n => n.name === name), painter: painterIn(this.cal, this.hour) };
+      has: kind => this.spots.some(s => s.kind === kind), npc: this.nearest(out), out: name => out.some(n => n.name === name), visitors: this.visitors, painter: painterIn(this.cal, this.hour) };
   }
   options(mail) {
     const c = this.ctx(mail), out = [];
@@ -83,11 +84,13 @@ export class World {
     let target;
     if (action === 'event') { const e = this.event; if (!e) return false; a.event = e; a.label = e.label; a.place = e.place; target = PLACES[e.place]; }
     else if (def.place) target = PLACES[def.place];
-    else if (def.target === 'npc') { const n = def.who ? this.npcs.find(x => x.name === def.who && x.out) : this.ctx().npc; if (!n) return false; a.ref = n.name; n.hold = Date.now() + 90000; n.path = []; const dx = this.pos.x - n.x, dz = this.pos.z - n.z, l = Math.hypot(dx, dz) || 1; target = { x: n.x + (dx / l) * 1.7, z: n.z + (dz / l) * 1.7 }; for (let i = 1; i < 8 && blocked(target.x, target.z, 0.4); i++) { const ang = Math.atan2(dz, dx) + i * 0.8; target = { x: n.x + Math.cos(ang) * 1.7, z: n.z + Math.sin(ang) * 1.7 }; } if (!def.who) a.label = action === 'chat' ? `chatting with ${n.name}` : `giving ${n.name} a present`; }
+    else if (def.target === 'npc') { const n = def.who ? this.npcs.find(x => x.name === def.who && x.out) : this.ctx().npc; if (!n) return false; a.ref = n.name; n.hold = Date.now() + 90000; n.path = []; const dx = this.pos.x - n.x, dz = this.pos.z - n.z, l = Math.hypot(dx, dz) || 1; target = { x: n.x + (dx / l) * 1.7, z: n.z + (dz / l) * 1.7 }; for (let i = 1; i < 8 && blocked(target.x, target.z, 0.4); i++) { const ang = Math.atan2(dz, dx) + i * 0.8; target = { x: n.x + Math.cos(ang) * 1.7, z: n.z + Math.sin(ang) * 1.7 }; } a.hobby = n.doing; if (!def.who) a.label = action === 'chat' ? `chatting with ${n.name}` : action === 'join_hobby' ? `joining ${n.name} (${n.doing})` : `giving ${n.name} a present`; }
+    else if (def.target === 'patch') { const d = this.nearest(this.life.patches()); if (!d) return false; target = { x: d.x + 0.9, z: d.z + 0.3 }; }
     else if (def.target === 'ripe') { const d = this.life.ripe(this.day); if (!d) return false; target = { x: d.x + 1.0, z: d.z + 0.4 }; }
     else if (def.target === 'free') { target = this.life.freeSpot(); if (!target) return false; a.at = target; target = { x: target.x + 1.1, z: target.z + 0.4 }; }
     else if (def.target) { const s = this.nearest(this.spots.filter(x => x.kind === def.target)); if (!s) return false; a.ref = s.id; a.at = def.target === 'glow' ? { x: s.x, z: s.z } : undefined; target = { x: s.x + 0.9, z: s.z + 0.3 }; }
     else { for (let i = 0; i < 20; i++) { const ang = Math.random() * Math.PI * 2, r = 4 + Math.random() * 11; target = { x: Math.cos(ang) * r, z: Math.sin(ang) * r }; if (!blocked(target.x, target.z, 1.5)) break; } }
+    if (action === 'boat_trip') a.islet = Math.floor(Math.random() * ISLETS.length);
     a.path = route(this.pos, target);
     let len = 0, prev = this.pos; for (const p of a.path) { len += Math.hypot(p.x - prev.x, p.z - prev.z); prev = p; }
     a.ride = len > RIDE_OVER;
@@ -144,17 +147,25 @@ export class World {
       if (Date.now() < n.hold) continue;
       if (n.path.length) {
         const p = n.path[0], dx = p.x - n.x, dz = p.z - n.z, dist = Math.hypot(dx, dz);
-        if (dist < 0.15) { n.path.shift(); if (!n.path.length) { n.wait = 15 + Math.random() * 40; if (night) n.out = false; } continue; }
-        const step = Math.min(dist, 1.2 * dt); n.x += (dx / dist) * step; n.z += (dz / dist) * step; n.heading = Math.atan2(dx, dz);
+        if (dist < 0.15) { n.path.shift(); if (!n.path.length) { n.wait = 15 + Math.random() * 40; if (n.next) { n.doing = n.next.doing; n.anim = n.next.anim; n.wait = 50 + Math.random() * 50; n.next = null; } else if (n.anim === 'jog') { n.doing = null; n.anim = null; } if (night) { n.out = false; n.doing = null; n.anim = null; } } continue; }
+        const step = Math.min(dist, (n.anim === 'jog' ? 2.6 : 1.2) * dt); n.x += (dx / dist) * step; n.z += (dz / dist) * step; n.heading = Math.atan2(dx, dz);
         continue;
       }
       if (night) { if (n.out && Math.hypot(n.x - n.home.x, n.z - (n.home.z + 2.6)) > 1) n.path = route(n, { x: n.home.x, z: n.home.z + 2.6 }); else n.out = false; continue; }
       n.out = true; n.wait -= dt;
       if (n.wait > 0) continue;
+      const def = NEIGHBOURS.find(x => x.name === n.name);
+      n.doing = null; n.anim = null;
       let t;
       if (e && Math.random() < 0.8) { const p = PLACES[e.place]; t = { x: p.x + (Math.random() - 0.5) * 5, z: p.z + (Math.random() - 0.5) * 5 }; }
+      else if (Math.random() < 0.7) {                                    // off to do a hobby
+        const h = def.hobbies[Math.floor(Math.random() * def.hobbies.length)];
+        n.next = h;
+        if (h.loop) { const pts = []; for (let lap = 0; lap < 3; lap++) for (let i = 0; i < 8; i++) pts.push({ x: Math.cos(i / 8 * 6.283) * h.loop, z: Math.sin(i / 8 * 6.283) * h.loop }); n.path = [...route(n, pts[0]), ...pts.slice(1)]; n.doing = h.doing; n.anim = h.anim; n.next = null; continue; }
+        t = h.at;
+      }
       else { const keys = Object.keys(PLACES), p = PLACES[keys[Math.floor(Math.random() * keys.length)]]; t = { x: p.x + (Math.random() - 0.5) * 4, z: p.z + (Math.random() - 0.5) * 4 }; }
-      if (!blocked(t.x, t.z, 1.2) && Math.hypot(t.x, t.z) < 27) n.path = route(n, t); else n.wait = 2;
+      if (!blocked(t.x, t.z, 0.9) && Math.hypot(t.x, t.z) < 27.5) n.path = route(n, t); else { n.wait = 2; n.next = null; }
     }
   }
 
@@ -187,9 +198,10 @@ export class World {
       day: this.day, hour: this.hour, night: this.isNight, weather: this.weather, season: c.seasonName, dayOfSeason: c.dayOfSeason,
       event: e ? { id: e.id, name: e.name, show: e.show, place: e.place } : null,
       pos: this.pos, heading: this.heading,
-      activity: a ? { action: a.action, anim: a.anim, ride: a.phase === 'walking' && a.ride, label: a.phase === 'walking' ? (a.place ? `${a.ride ? 'riding her robot' : 'walking'} to the ${PLACES[a.place].label.toLowerCase()}` : a.ref && ACTIONS[a.action].target === 'npc' ? `going to find ${a.ref}` : a.action === 'wander' ? 'wandering' : `on her way (${a.label})`) : a.label, place: a.place, phase: a.phase, detail: a.detail, progress: a.phase === 'doing' ? 1 - a.left / a.dur : 0 } : { action: 'idle', label: 'thinking', phase: 'idle', anim: 'stand' },
+      activity: a ? { action: a.action, anim: a.anim, ride: a.phase === 'walking' && a.ride, label: a.phase === 'walking' ? (a.place ? `${a.ride ? 'riding her robot' : 'walking'} to the ${PLACES[a.place].label.toLowerCase()}` : a.ref && ACTIONS[a.action].target === 'npc' ? `going to find ${a.ref}` : a.action === 'wander' ? 'wandering' : `on her way (${a.label})`) : a.label, place: a.place, phase: a.phase, detail: a.detail, islet: a.islet, progress: a.phase === 'doing' ? 1 - a.left / a.dur : 0 } : { action: 'idle', label: 'thinking', phase: 'idle', anim: 'stand' },
       needs: this.needs, mood: this.mood().label,
-      npcs: this.npcs.map(n => ({ name: n.name, kind: n.kind, x: n.x, z: n.z, heading: n.heading, out: n.out, moving: n.path.length > 0 && Date.now() >= n.hold })),
+      npcs: this.npcs.map(n => ({ name: n.name, kind: n.kind, x: n.x, z: n.z, heading: n.heading, out: n.out, moving: n.path.length > 0 && Date.now() >= n.hold, doing: n.doing || null, anim: n.anim || null })),
+      camper: s.camper && !this.isNight ? { name: s.camper.name, kind: s.camper.kind } : null, visitors: this.visitors,
       spots: this.spots, coins: s.coins, look: { scarf: s.look.scarf, house: s.look.house, level: s.house.level, flag: s.look.flag || 0 }, lifeVersion: s.version,
       painter: painterIn(c, this.hour), crops: s.crops ? Math.min(2, this.day - s.crops) + 1 : 0,
     };

@@ -39,6 +39,11 @@ export const SPECIES = {
 };
 export const CATS = { fish: 'Fish', bug: 'Bugs', sea: 'Sea creatures', fossil: 'Fossils', art: 'Paintings' };
 export const SEASON_FIND = ['blossom petals', 'sea glass', 'mushroom', 'snowflake'];
+// Flowers: three colours come from seed. Patches of different colours growing near each
+// other can cross when watered, and the crosses can cross again.
+export const BLOOMS = { red: 0xe8452c, yellow: 0xffd93b, white: 0xfffaf0, orange: 0xff8a1f, pink: 0xff7fa3, mint: 0x9fe0c8, purple: 0x6a2fc4, blue: 0x58b7e8, black: 0x2a2a3a, gold: 0xffc400 };
+const CROSS = { 'red+yellow': 'orange', 'red+white': 'pink', 'white+yellow': 'mint', 'orange+pink': 'purple', 'mint+pink': 'blue', 'mint+orange': 'black', 'blue+purple': 'gold', 'black+purple': 'gold', 'black+blue': 'gold' };
+export const crossBloom = (a, b) => CROSS[[a, b].sort().join('+')] || null;
 export const SONGS = ['Slow Tide', 'Lamp Post Waltz', 'Fish Stall Shuffle', 'Snow Squeak', 'Two Left Flippers', 'Aurora Hum', 'Bo Is Asleep', 'Long Way Round'];
 // The painter's boat calls on these weekdays. Some of what he sells is not what he says it is.
 export const painterIn = (cal, hour) => (cal.weekday === 2 || cal.weekday === 5) && hour >= 8 && hour < 19;
@@ -60,6 +65,11 @@ export const STAMPS = [
   { id: 'sailor', name: 'Sea Legs', coins: 300, test: s => (s.n.boat_trip || 0) >= 5 },
   { id: 'songs', name: 'Record Collection', coins: 300, test: s => s.songs.length >= 5 },
   { id: 'party', name: 'Never Misses A Party', coins: 300, test: s => (s.n.event || 0) >= 5 },
+  { id: 'breeder', name: 'Flower Breeder', coins: 400, test: s => s.blooms.length >= 6 },
+  { id: 'goldbloom', name: 'The Gold One', coins: 1000, test: s => s.blooms.includes('gold') },
+  { id: 'host', name: 'Good Host', coins: 300, test: s => s.metCampers.length >= 4 },
+  { id: 'traveller', name: 'Seen Them All', coins: 400, test: s => s.islets.length >= 3 },
+  { id: 'joiner', name: 'Joins In', coins: 200, test: s => (s.n.join_hobby || 0) >= 8 },
   { id: 'rider', name: 'Robot Rider', coins: 100, test: s => (s.rides || 0) >= 20 },
 ];
 export function catchOne(cat, where, season, lucky = false, rand = Math.random) {
@@ -156,7 +166,11 @@ export const ACTIONS = {
   furnish_home: A('arranging her house', 'home', 45, { calm: 0.3, joy: 0.2 }, 'inside', c => c.life.count('furnishing') > 0, 'she has something new for the house', ['this goes by the window. no. there.']),
   design_flag: A('designing the island flag', 'studio', 60, { joy: 0.3, wonder: 0.15 }, 'flap', c => c.dayN - (c.life.s.look.flagDay || -9) > 5, 'the flag in the square could change', ['the flag should look like how the island feels.']),
   compose_tune: A('making up the island tune', 'home', 50, { joy: 0.3, wonder: 0.2 }, 'inside', c => c.dayN - (c.life.s.tuneDay || -9) > 7, 'the island could have a new tune', ['there is a tune in my head and it belongs to nobody else.']),
-  boat_trip:  A('out in the rowing boat', 'beach', 110, { wonder: 0.55, joy: 0.2, energy: -0.2 }, 'sail', c => c.day && c.hour < 16 && c.weather === 'clear' && c.cal.season !== 3 && c.n.energy > 0.5 && c.life.s.boatDay !== c.dayN, 'the rowing boat is on the sand and the sea is calm', ['i want to see what is out past the foam.']),
+  boat_trip:  A('out in the rowing boat', 'beach', 110, { wonder: 0.55, joy: 0.2, energy: -0.2 }, 'sail', c => c.day && c.hour < 16 && c.weather === 'clear' && c.cal.season !== 3 && c.n.energy > 0.5 && c.life.s.boatDay !== c.dayN, 'the rowing boat is on the sand and there are little islands out there', ['i want to see what is out past the foam.']),
+  water_flowers: A('watering her flower patches', '@patch', 30, { calm: 0.3, joy: 0.12 }, 'peck', c => c.life.patches().length > 0 && c.weather !== 'snow' && c.life.s.waterDay !== c.dayN, 'the flowers she planted want water (colours growing close together sometimes cross)', ['if the red ones and the white ones are friends, something happens.']),
+  visit_camper: A('visiting the campsite', 'camp', 45, { wonder: 0.4, joy: 0.25 }, 'stand', c => !!c.life.s.camper && c.day && c.life.s.campDay !== c.dayN, 'someone is camping on the island today', ['there is a new tent. someone from somewhere else.']),
+  join_hobby: A('joining in with a neighbour', '@npc', 45, { joy: 0.4, energy: -0.08 }, 'flap', c => !!c.npc && !!c.npc.doing && c.life.s.joinDay !== c.dayN, 'a neighbour is busy with their hobby', ['that looks fun. i am joining in.']),
+  greet_visitors: A('waving at the visitors', 'plaza', 15, { joy: 0.3 }, 'lookup', c => c.visitors.length > 0 && c.life.s.greeted !== Math.floor(c.dayN * 24 + c.hour), 'there are visitors on the island right now', ['there are gulls about. the watching kind.']),
   // skies and seasons
   wish:       A('wishing on shooting stars', 'lookout', 40, { wonder: 0.5, joy: 0.2 }, 'lookup', c => c.weather === 'meteors', 'shooting stars tonight', ['a star fell. quick. wish.']),
   event:      A('at the event', '', 80, { joy: 0.5, wonder: 0.2 }, 'flap', c => !!c.event && c.life.s.eventDone !== `${c.dayN}:${c.event.id}`, 'something is on today', ['i am not missing this.']),

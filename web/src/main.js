@@ -4,8 +4,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { PLACES, NEEDS, site } from '../../shared/world.js';
-import { SCARVES, CATS, SPECIES, STAMPS, todaysEvent } from '../../shared/data.js';
+import { PLACES, NEEDS, ISLETS, isletPos, site } from '../../shared/world.js';
+import { SCARVES, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
 import { buildNena, buildRobot } from './nena.js';
 import { buildTown } from './town.js';
 import { buildDynamic } from './dynamic.js';
@@ -110,7 +110,8 @@ function setSky(hour, weather, dt, show) {
 }
 
 // ---- live state: the real mind over WebSocket, or a stand-in in this browser ----------
-let now = null, local = null, fails = 0, lifeVersion = -1, lifeData = null;
+let now = null, local = null, fails = 0, lifeVersion = -1, lifeData = null, socket = null, myId = null;
+const sendMind = m => { if (socket?.readyState === 1) socket.send(JSON.stringify(m)); };
 const feed = [];
 const target = new THREE.Vector3(PLACES.home.x, 0, PLACES.home.z);
 const api = (path, opts) => fetch(MIND + path, opts).then(r => r.json());
@@ -119,13 +120,13 @@ function connect() {
   const ws = new WebSocket(MIND.replace(/^http/, 'ws'));
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
-    if (m.type === 'hello') { feed.length = 0; feed.push(...m.feed); apply(m.now, true); }
+    if (m.type === 'hello') { myId = m.you; feed.length = 0; feed.push(...m.feed); apply(m.now, true); }
     if (m.type === 'now') apply(m.now);
     if (m.type === 'feed') { feed.push(m.item); if (openPanel === 'feed') show('feed'); }
   };
-  ws.onopen = () => { opened = true; fails = 0; if (local) { local.stop(); local = null; } $('offline').hidden = true; };
+  ws.onopen = () => { opened = true; fails = 0; socket = ws; ws.send(JSON.stringify({ type: 'hello', name: myName() })); if (local) { local.stop(); local = null; } $('offline').hidden = true; };
   ws.onclose = () => {
-    if (!opened) fails++;
+    socket = null; if (!opened) fails++;
     if (!local && (fails >= 2 || opened)) {
       local = startLocalMind(item => { feed.push(item); if (openPanel === 'feed') show('feed'); });
       feed.length = 0; feed.push(...local.feed); apply(local.now(), true);
@@ -163,6 +164,9 @@ function apply(n, snap) {
   town.setHouse(n.look.house, n.look.level);
   town.setIsland(n.look.flag, n.painter, n.crops);
   parked.visible = !n.activity.ride;
+  dyn.setCamper(n.camper);
+  const vs = n.visitors || []; $('wave').hidden = !!local; $('visitors').textContent = vs.length ? `${vs.length} visitor${vs.length > 1 ? 's' : ''} here${vs.length < 5 ? ': ' + vs.map(v => v.name).join(', ') : ''}. Double-click the ground to fly your gull there.` : ''; $('visitors').hidden = !vs.length;
+  town.setAway(n.activity.phase === 'doing' && n.activity.anim === 'sail' ? n.activity.islet ?? 0 : null);
   dyn.setSpots(n.spots || []);
   if (n.lifeVersion !== lifeVersion) { lifeVersion = n.lifeVersion; refreshLife(); }
 }
@@ -198,6 +202,8 @@ async function show(name) {
         <p>Cosiness of her house: ${l.cosy}. ${l.tune ? `Island tune: ${esc(l.tune)}. ` : ''}The shop pays double for ${esc(l.hot)} today. Robot rides: ${l.rides}.</p>
         <h3>Stamps ${l.stamps.length}/${STAMPS.length}</h3><p>${STAMPS.map(st => l.stamps.includes(st.id) ? esc(st.name) : '<span class="dim">?</span>').join(' · ')}</p>
         ${l.songs.length ? `<h3>Records</h3><p>${l.songs.map(esc).join(' · ')}</p>` : ''}
+        <h3>Flower colours ${l.blooms.length}/${Object.keys(BLOOMS).length}</h3><p>${Object.keys(BLOOMS).map(k => l.blooms.includes(k) ? `<span style="display:inline-block;width:12px;height:12px;border-radius:6px;border:2px solid #1d2545;background:#${BLOOMS[k].toString(16).padStart(6, '0')}"></span> ${k}` : '<span class="dim">?</span>').join(' · ')}</p>
+        <h3>Travels and travellers</h3><p>Islets rowed to: ${l.islets.map(esc).join(', ') || 'none yet'} (${l.islets.length}/${ISLETS.length}). Campers met: ${l.metCampers.map(esc).join(', ') || 'none yet'}.${l.camper ? ` ${esc(l.camper.name)} the ${esc(l.camper.kind)} is at the campsite today.` : ''}</p>
         <h3>Neighbours</h3>${Object.entries(l.friends).map(([k, v]) => `<div class="entry">${esc(k)}<div class="meter"><i style="width:${v * 10}%"></i></div></div>`).join('')}
         <h3>Museum ${got}/${l.total}</h3><div class="meter"><i style="width:${got / l.total * 100}%"></i></div>${cats}`;
     } else if (name === 'memory') {
@@ -238,6 +244,14 @@ $('cam').onclick = () => {
   if (!freeCam) { const p = nena.root.position; const off = camera.position.clone().sub(controls.target).setLength(22); controls.target.set(p.x, 1, p.z); camera.position.copy(controls.target).add(off); if (camera.position.y < 6) camera.position.y = 6; }
 };
 
+// ---- visitors: your gull ----------------------------------------------------------------
+const ray = new THREE.Raycaster(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+canvas.addEventListener('dblclick', e => {
+  ray.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera);
+  const hit = new THREE.Vector3(); if (ray.ray.intersectPlane(groundPlane, hit)) sendMind({ type: 'move', x: hit.x, z: hit.z });
+});
+$('wave').onclick = () => sendMind({ type: 'wave' });
+
 // ---- frame loop ----------------------------------------------------------------
 const clock = new THREE.Clock(), bubble = $('bubble'), head = new THREE.Vector3();
 let swimT = 0, heading = 0, elapsed = 0;
@@ -250,7 +264,7 @@ function frame() {
   const goal = target.clone();
   if (doing && act.anim === 'swim') { swimT += dt * 0.9; goal.set(town.pond.x + Math.cos(swimT) * 3, 0.12, town.pond.z + Math.sin(swimT) * 3); heading = -swimT; }            // circles on the pond
   else if (doing && act.anim === 'dive') { swimT += dt * 0.5; const l = Math.hypot(target.x, target.z); goal.set(target.x / l * 33.5 + Math.cos(swimT) * 2, 0, target.z / l * 33.5 + Math.sin(swimT) * 2); heading = -swimT; }   // out in the sea
-  else if (doing && act.anim === 'sail') { swimT += dt * 0.12; const b = Math.atan2(target.z, target.x) + Math.sin(swimT) * 0.35; goal.set(Math.cos(b) * 36.5, -0.25, Math.sin(b) * 36.5); heading = -b + Math.cos(swimT) * 1.2; }   // out in the boat
+  else if (doing && act.anim === 'sail') { swimT += dt * 0.5; const ip = isletPos(act.islet ?? 0); goal.set(ip.x + Math.cos(swimT) * 1.6, 0.35, ip.z + Math.sin(swimT) * 1.6); heading = -swimT; if (pos.distanceTo(goal) > 12) pos.copy(goal); }   // ashore on a little island
   else if (doing && act.anim === 'inside' && act.place) { const s = site(act.place); goal.set(s.x, 0, s.z); heading = 0; }                                           // indoors
   else if (doing && ['read', 'sit', 'lie'].includes(act.anim) || (doing && act.place === 'beach' && act.anim !== 'fish')) heading = Math.atan2(-target.x, -target.z);   // back to the wall / the sea
   else if (doing && act.anim === 'fish') heading = act.place === 'river' ? 0 : Math.atan2(target.x, target.z);                                                       // facing the water
@@ -267,6 +281,7 @@ function frame() {
   town.setSeason(qs.get('season') || now?.season || 'summer', !lifeData || lifeData.shaken !== now?.day);
   town.setEvent(showEv);
   dyn.update(dt, elapsed, now?.npcs, nightness);
+  dyn.setVisitors(now?.visitors || [], elapsed, dt);
   const sp = snow.geometry.attributes.position;
   if (wx.snow > 0.02) { for (let i = 0; i < SNOW; i++) { let y = sp.getY(i) - dt * (1.5 + (i % 5) * 0.3); if (y < 0) y = 30; sp.setY(i, y); } sp.needsUpdate = true; }
 

@@ -2,7 +2,7 @@
 // windows and signs at night. Everything is built from primitives here, and
 // positions come from shared/world.js so the mind and the picture agree.
 import * as THREE from 'three';
-import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, site } from '../../shared/world.js';
+import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, isletPos, site } from '../../shared/world.js';
 import { HOUSE_LOOKS, FLAGS } from '../../shared/data.js';
 
 const P = {
@@ -214,6 +214,31 @@ export function buildTown() {
       mesh(new THREE.ConeGeometry(0.14, 0.4, 4), flat(0x3f9a4a), x, 0.35, z, cropStages[1]);
       mesh(new THREE.ConeGeometry(0.2, 0.5, 5), flat(0x3f9a4a), x, 0.4, z, cropStages[2]); mesh(new THREE.SphereGeometry(0.2, 6, 5), flat(i % 2 ? 0xff8a1f : 0xe8452c), x, 0.24, z + 0.16, cropStages[2]); } }
 
+  // ---- campsite: a striped tent, a log and a fire for whoever turns up ------------------
+  { const g = at('camp');
+    const sh = new THREE.Shape(); sh.moveTo(-1.7, 0); sh.lineTo(1.7, 0); sh.lineTo(0, 2.3); sh.closePath();
+    const geo = new THREE.ExtrudeGeometry(sh, { depth: 2.8, bevelEnabled: false }); geo.translate(0, 0, -1.4);
+    mesh(geo, flat(0xfff1d6), 0, 0, 0, g); for (const sx of [-1, 1]) { const st = box(0.5, 2.9, 2.84, 0x2fc6b3, sx * 0.85, 1.12, 0, g); st.rotation.z = sx * 0.637; st.scale.x = 0.12; }
+    box(0.9, 1.3, 0.1, 0x1d2545, 0, 0.65, 1.42, g);
+    const log = mesh(new THREE.CylinderGeometry(0.28, 0.28, 1.8, 7), flat(P.woodDark), -2.2, 0.28, 3.0, g); log.rotation.z = Math.PI / 2; log.rotation.y = 0.4;
+    for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283; mesh(new THREE.DodecahedronGeometry(0.2, 0), flat(P.rock), Math.cos(a) * 0.55, 0.12, 3.2 + Math.sin(a) * 0.55, g); }
+    mesh(new THREE.ConeGeometry(0.26, 0.65, 5), glow(0xff8a1f, 0xff8a1f), 0, 0.42, 3.2, g);
+    sign('CAMP', 1.3, g, 2.4, 1.2, 1.6); box(0.12, 1.0, 0.12, P.woodDark, 2.4, 0.5, 1.5, g); }
+
+  // ---- islets out at sea that she rows to ------------------------------------------------
+  const isletBoats = ISLETS.map((isl, i) => {
+    const p = isletPos(i), g = new THREE.Group(); g.position.set(p.x, -0.3, p.z); town.add(g);
+    mesh(new THREE.CylinderGeometry(9, 12, 0.9, 12), new THREE.MeshLambertMaterial({ color: P.sea, flatShading: true, transparent: true, opacity: 0.9 }), 0, -0.3, 0, g);
+    mesh(new THREE.CylinderGeometry(5.2, 5.8, 0.5, 9), flat(P.sand), 0, 0.1, 0, g); mesh(new THREE.CylinderGeometry(3.6, 4.2, 0.4, 8), flat(i === 1 ? P.rock : P.grass), 0, 0.42, 0, g);
+    mesh(new THREE.CylinderGeometry(4.6, 2.5, 3.5, 7), flat(P.rockDark), 0, -2.0, 0, g);
+    if (i === 0) for (const [x, z] of [[-1.4, 0.6], [1.2, -1]]) { mesh(new THREE.CylinderGeometry(0.2, 0.26, 1.5, 5), flat(P.woodDark), x, 1.3, z, g); mesh(new THREE.DodecahedronGeometry(1.2, 0), flat(0xffb7d0), x, 2.9, z, g); }
+    if (i === 1) { for (const [x, z, sc] of [[-1, 0.5, 1.3], [1.3, -0.8, 0.9], [0.4, 1.6, 0.6]]) { const m = mesh(new THREE.DodecahedronGeometry(sc, 0), flat(x > 0 ? P.rock : P.rockDark), x, 0.6 + sc * 0.5, z, g); m.scale.y = 0.8; } mesh(new THREE.DodecahedronGeometry(0.3, 0), glow(0xffe08a, 0xffd93b), -0.3, 1.9, 0.9, g); }
+    if (i === 2) for (const [x, z, sc] of [[-1.2, 0.4, 1.4], [1.1, -0.9, 1], [0.6, 1.5, 0.7]]) { mesh(new THREE.CylinderGeometry(0.22 * sc, 0.3 * sc, 1.3 * sc, 6), flat(0xfff1d6), x, 0.62 + 0.65 * sc, z, g); mesh(new THREE.CylinderGeometry(0.3 * sc, 1.0 * sc, 0.6 * sc, 8), flat([0xe8452c, 0x6a2fc4, 0xff8a1f][Math.round(sc * 10) % 3]), x, 0.62 + 1.5 * sc, z, g); }
+    const boat = new THREE.Group(); boat.visible = false; g.add(boat); boat.position.set(-Math.cos(isl.a) * 6, 0.1, -Math.sin(isl.a) * 6); boat.rotation.y = -isl.a;
+    box(1.5, 0.5, 2.6, 0x2f7f9a, 0, 0.2, 0, boat); box(1.7, 0.12, 2.8, 0xfffaf0, 0, 0.48, 0, boat);
+    return boat;
+  });
+
   // ---- cinema ------------------------------------------------------------
   const marquee = [];
   { const g = at('cinema');
@@ -275,6 +300,7 @@ export function buildTown() {
     { const p = PLACES.river; box(1.4, 0.16, 2.6, P.wood, p.x, 0.2, p.z + 1.6); for (const s of [-1, 1]) box(0.16, 0.6, 0.16, P.woodDark, p.x + s * 0.6, 0.1, p.z + 2.7);
       const rod = box(0.07, 2.4, 0.07, P.woodDark, p.x + 1.0, 1.2, p.z + 1.8); rod.rotation.x = 0.7; box(0.5, 0.4, 0.5, 0x2f7f9a, p.x - 1.1, 0.2, p.z + 0.3); } }
 
+  const beachBoat = new THREE.Group();
   // ---- beach: sand sector on the rim, sea beyond it ---------------------------------
   { const len = BEACH.to - BEACH.from;
     ground(new THREE.RingGeometry(BEACH.inner, R + 0.05, 24, 1, -BEACH.to, len), P.sand, 0, 0, 0.04);
@@ -288,7 +314,7 @@ export function buildTown() {
     box(1.3, 0.06, 2.4, 0x2fc6b3, -4.4, 0.08, -1.4, g); box(1.3, 0.07, 0.4, 0xfffaf0, -4.4, 0.09, -1.4, g);                 // towel
     for (const [x, z, s] of [[2.6, -1.8, 1], [3.3, -1.2, 0.7], [2.2, -1.0, 0.6]]) { mesh(new THREE.CylinderGeometry(0.45 * s, 0.55 * s, 0.7 * s, 6), flat(P.sandDark), x, 0.35 * s, z, g); mesh(new THREE.ConeGeometry(0.4 * s, 0.5 * s, 6), flat(P.sand), x, 0.95 * s, z, g); }  // sandcastle
     for (let i = 0; i < 9; i++) { const sh = mesh(new THREE.ConeGeometry(0.16, 0.3, 5), flat([0xff9aa8, 0xfffaf0, 0xffb45a][i % 3]), -5 + rand() * 10, 0.1, -5.5 + rand() * 3.5, g); sh.rotation.set(1.4, rand() * 6, 0); }
-    box(2.4, 0.5, 1.0, 0x2f7f9a, 4.6, 0.3, -3.4, g).rotation.y = 0.5; box(0.1, 1.6, 0.1, P.woodDark, 4.6, 1.0, -3.4, g); }  // little boat
+    beachBoat.position.set(4.6, 0, -3.4); beachBoat.rotation.y = 0.5; g.add(beachBoat); box(1.5, 0.5, 2.6, 0x2f7f9a, 0, 0.25, 0, beachBoat); box(1.7, 0.12, 2.8, 0xfffaf0, 0, 0.52, 0, beachBoat); }  // her rowing boat
 
   // ---- garden --------------------------------------------------------------------------
   { const p = PLACES.garden, g = new THREE.Group(); g.position.set(p.x + 2.4, 0, p.z - 1.0); g.rotation.y = 0.4; town.add(g);
@@ -304,7 +330,7 @@ export function buildTown() {
   for (const key of ['home', 'fish', 'library', 'studio', 'lookout', 'cinema', 'beach', 'museum', 'shop']) { const p = PLACES[key], l = Math.hypot(p.x, p.z); lamp(p.x * 0.6 + (p.z / l) * 1.5, p.z * 0.6 - (p.x / l) * 1.5); }
 
   // ---- decoration round the edge ------------------------------------------------------------
-  const extraObs = [...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home), { x: -10.6, z: 2.6 }];
+  const extraObs = [{ x: 6.2, z: 6.8 }, ...NEIGHBOURS.flatMap(n => n.hobbies.filter(h => h.at).map(h => h.at)), ...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home), { x: -10.6, z: 2.6 }];
   const clear = (x, z, pad) => !inBeach(x, z) && !nearRiver(x, z, 3.2) && extraObs.every(o => Math.hypot(o.x - x, o.z - z) > 3.6) && Object.keys(PLACES).every(k => { const s = site(k); return Math.hypot(s.x - x, s.z - z) > (s.r || 2.5) + pad && Math.hypot(PLACES[k].x - x, PLACES[k].z - z) > 3; });
   let placed = 0;
   for (let i = 0; i < 600 && placed < 30; i++) {
@@ -339,7 +365,8 @@ export function buildTown() {
   }
   function setHouse(look, level) { const l = HOUSE_LOOKS[look] || HOUSE_LOOKS[0]; house.wall.color.set(l.wall); house.roof.color.set(l.roof); house.extras[0].visible = level >= 2; house.extras[1].visible = level >= 3; }
   function setIsland(flag, painterIn, crops) { flagMat.color.set(FLAGS[flag] ?? FLAGS[0]); painter.visible = !!painterIn; cropStages.forEach((c, i) => { c.visible = crops === i + 1; }); }
+  function setAway(islet) { isletBoats.forEach((b, i) => { b.visible = islet === i; }); beachBoat.visible = islet == null; }
   function setEvent(show) { festival.visible = !!show; lanternsG.visible = show === 'lanterns'; }
   setHouse(0, 1);
-  return { town, setNight, setSeason, setHouse, setEvent, setIsland, pond, flag: town.userData.flag };
+  return { town, setNight, setSeason, setHouse, setEvent, setIsland, setAway, pond, flag: town.userData.flag };
 }

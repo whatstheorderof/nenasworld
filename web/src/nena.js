@@ -86,10 +86,10 @@ export function buildNena() {
 
     let roll = 0, pitch = 0, y = 0, flap = 0.25, footSwing = 0;
     const riding = walking && state.ride;
-    robot.visible = riding; boat.visible = act === 'sail';
+    robot.visible = riding; boat.visible = false;
     if (riding) robot.userData.brush.rotation.y = t * 14;
     if (riding) { y = 0.2; pitch = 0.1; roll = Math.sin(t * 3) * 0.04; flap = 0.75 + Math.sin(t * 6) * 0.08; }
-    else if (act === 'sail') { y = 0.32; roll = Math.sin(t * 1.3) * 0.06; flap = 0.6 + Math.sin(t * 2.5) * 0.4; }
+    else if (act === 'sail') { pitch = Math.max(0, Math.sin(t * 3)) * 0.5; flap = 0.4; }   // poking about on an islet
     else if (walking) { const w = Math.sin(t * 9); roll = w * 0.16; y = Math.abs(w) * 0.05; footSwing = w * 0.16; flap = 0.5 + Math.abs(w) * 0.15; }
     else if (act === 'peck') { pitch = Math.max(0, Math.sin(t * 4)) * 0.55; flap = 0.4; }
     else if (act === 'flap') { roll = Math.sin(t * 2) * 0.05; flap = 0.9 + Math.sin(t * 10) * 0.35; y = Math.abs(Math.sin(t * 5)) * 0.04; }
@@ -106,8 +106,8 @@ export function buildNena() {
     flippers.forEach((f, i) => to(f.rotation, 'z', (i ? 1 : -1) * flap));
     const inside = act === 'inside';   // she has gone indoors
     body.visible = shadow.visible = !inside;
-    feet.forEach((f, i) => { f.position.z = 0.14 + (i ? 1 : -1) * footSwing; f.visible = !inside && !['swim', 'lie', 'dive', 'sail'].includes(act); f.position.y = riding ? 0.3 : 0.045; });
-    shadow.visible = !inside && act !== 'sail';
+    feet.forEach((f, i) => { f.position.z = 0.14 + (i ? 1 : -1) * footSwing; f.visible = !inside && !['swim', 'lie', 'dive'].includes(act); f.position.y = riding ? 0.3 : 0.045; });
+
     zs.forEach((z, i) => {
       z.visible = inside && state.action === 'sleep';
       const p = (t * 0.35 + i / 3) % 1;

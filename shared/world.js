@@ -17,6 +17,7 @@ export const PLACES = {
   shop:    { label: 'Shop',         x: 20,    z: -3,    d: 4.6, r: 3.0 },
   igloo:   { label: 'Igloo',        x: -20,   z: -1,    d: 5.4, r: 3.3 },
   cafe:    { label: 'Cocoa Cart',   x: 4.6,   z: 5.2,   d: 1.9, r: 1.3 },
+  camp:    { label: 'Campsite',     x: 21.5,  z: 3.4,   d: 3.6, r: 2.0 },
   garden:  { label: 'Garden',       x: 7,     z: -3,    d: 0,   r: 0   },
   orchard: { label: 'Orchard',      x: 3.6,   z: -9.4,  d: 0,   r: 0   },
   rock:    { label: 'Big Rock',     x: -8.6,  z: 2.6,   d: 0,   r: 0   },
@@ -31,11 +32,30 @@ export function site(key) {
 }
 
 // Her neighbours and where their tents are pitched.
+// Each has hobbies: things they go and do on their own, which she can join in with.
 export const NEIGHBOURS = [
-  { name: 'Bo',   kind: 'seal',   home: { x: 8.5,   z: 24 },   says: ['the tide was loud last night.', 'i found a warm rock. it is mine now.', 'you smell like fish. that is a compliment.'] },
-  { name: 'Pip',  kind: 'puffin', home: { x: 10,    z: -22 },  says: ['i counted the fence planks again. still a lot.', 'have you seen the sky from the tower?', 'i am collecting interesting sticks.'] },
-  { name: 'Suvi', kind: 'fox',    home: { x: -25.5, z: 6.5 },  says: ['the snow by the igloo squeaks. did you notice?', 'i heard something in the river. probably a fish.', 'i like your scarf.'] },
+  { name: 'Bo',   kind: 'seal',   home: { x: 8.5,   z: 24 },   says: ['the tide was loud last night.', 'i found a warm rock. it is mine now.', 'you smell like fish. that is a compliment.'],
+    hobbies: [{ doing: 'sunbathing', at: { x: 13, z: 22.5 }, anim: 'lie' }, { doing: 'watching the pond', at: { x: 5.5, z: 14 }, anim: 'sit' }, { doing: 'fishing', at: { x: -12.5, z: 16.3 }, anim: 'sit' }] },
+  { name: 'Pip',  kind: 'puffin', home: { x: 10,    z: -22 },  says: ['i counted the fence planks again. still a lot.', 'have you seen the sky from the tower?', 'i am collecting interesting sticks.'],
+    hobbies: [{ doing: 'jogging round the square', anim: 'jog', loop: 6.5 }, { doing: 'doing star jumps', at: { x: -3.5, z: 3.5 }, anim: 'jump' }, { doing: 'collecting sticks', at: { x: 6, z: -8 }, anim: 'peck' }] },
+  { name: 'Suvi', kind: 'fox',    home: { x: -25.5, z: 6.5 },  says: ['the snow by the igloo squeaks. did you notice?', 'i heard something in the river. probably a fish.', 'i like your scarf.'],
+    hobbies: [{ doing: 'singing by the bridge', at: { x: -16.5, z: 16.4 }, anim: 'sing' }, { doing: 'reading outside the library', at: { x: -12.5, z: 10.5 }, anim: 'sit' }, { doing: 'smelling the flowers', at: { x: 5.2, z: -2.2 }, anim: 'peck' }] },
 ];
+// Travellers who sometimes pitch up at the campsite for a day.
+export const CAMPERS = [
+  { name: 'Odo', kind: 'otter', from: 'a river with too many bridges', says: 'every bridge has a troll. most of them are nice.' },
+  { name: 'Mirren', kind: 'hare', from: 'a hill where the wind never stops', says: 'you get used to leaning.' },
+  { name: 'Tuck', kind: 'owl', from: 'a forest that is mostly night', says: 'the trick is to like the dark first.' },
+  { name: 'Fen', kind: 'walrus', from: 'an ice shelf further north than north', says: 'your pond is very small. i like it.' },
+  { name: 'Lark', kind: 'hare', from: 'a town built on a very slow tortoise', says: 'we move house without moving house.' },
+];
+// Little islands out past the foam that she rows to.
+export const ISLETS = [
+  { name: 'Blossom Islet', a: 0.3, r: 52, gives: ['blossom petals', 'fruit', 'stick'] },
+  { name: 'Stone Islet', a: 0.95, r: 56, gives: ['stone', 'ore', 'clay'] },
+  { name: 'Mushroom Islet', a: 1.6, r: 52, gives: ['mushroom', 'sea glass', 'hum seed'] },
+];
+export const isletPos = i => ({ x: Math.cos(ISLETS[i].a) * ISLETS[i].r, z: Math.sin(ISLETS[i].a) * ISLETS[i].r });
 export const ORCHARD_TREES = [[3, -7.2], [5.6, -10.6], [1.6, -11.6]];
 
 // Things she cannot walk through.
@@ -81,6 +101,12 @@ export function route(a, b) {
   return pts.slice(1);
 }
 export const blocked = (x, z, pad = 1) => OBSTACLES.some(o => Math.hypot(o.x - x, o.z - z) < o.r + pad);
+const openAt = (x, z, others, gap) => Math.hypot(x, z) < 27 && !blocked(x, z, 1.8) && !inBeach(x, z) && !nearRiver(x, z, 2.5) && !Object.values(PLACES).some(p => Math.hypot(p.x - x, p.z - z) < 2.6) && !others.some(o => Math.hypot(o.x - x, o.z - z) < gap);
+// A free spot close to a point (for things that grow next to other things).
+export function freeNear(at, others = [], gap = 2.0, rand = Math.random) {
+  for (let i = 0; i < 40; i++) { const a = rand() * 6.283, r = 2.2 + rand() * 2.5, x = at.x + Math.cos(a) * r, z = at.z + Math.sin(a) * r; if (openAt(x, z, others, gap)) return { x: Math.round(x * 10) / 10, z: Math.round(z * 10) / 10 }; }
+  return null;
+}
 // An open bit of grass: on the island, off the beach and river, clear of buildings and of `others`.
 export function freeSpot(others = [], gap = 2.6, rand = Math.random) {
   for (let i = 0; i < 80; i++) {

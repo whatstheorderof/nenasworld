@@ -98,12 +98,31 @@ const server = http.createServer(async (req, res) => {
   json(res, 404, { error: 'Not found.' });
 });
 
-const wss = new WebSocketServer({ server });
+// Visitors: everyone with the page open is a little gull on the island. They can fly
+// about (double-click) and wave. Nena notices them; they cannot steer her.
+const wss = new WebSocketServer({ server, maxPayload: 2000 });
+const visitors = new Map();
+let nextId = 1, lastHello = 0;
+const publish = () => { world.visitors = [...visitors.values()].slice(0, 24); };
 wss.on('connection', ws => {
   sockets.add(ws);
-  ws.send(JSON.stringify({ type: 'hello', now: now(), feed: feed.slice(-30) }));
-  ws.on('close', () => sockets.delete(ws));
-  ws.on('error', () => sockets.delete(ws));
+  const id = nextId++, a = Math.random() * 6.283;
+  let msgs = 0, windowStart = Date.now();
+  ws.send(JSON.stringify({ type: 'hello', you: id, now: now(), feed: feed.slice(-30) }));
+  ws.on('message', raw => {
+    if (Date.now() - windowStart > 1000) { windowStart = Date.now(); msgs = 0; }
+    if (++msgs > 6) return;
+    let m; try { m = JSON.parse(raw); } catch { return; }
+    if (m.type === 'hello' && !visitors.has(id) && visitors.size < 60) {
+      const name = String(m.name || '').replace(/[^\p{L}\p{N}]/gu, '').slice(0, 16) || `gull${id}`;
+      visitors.set(id, { id, name, x: Math.cos(a) * 5, z: Math.sin(a) * 5, wave: 0 }); publish();
+    }
+    const v = visitors.get(id); if (!v) return;
+    if (m.type === 'move' && Number.isFinite(m.x) && Number.isFinite(m.z) && Math.hypot(m.x, m.z) < 60) { v.x = Math.round(m.x * 10) / 10; v.z = Math.round(m.z * 10) / 10; }
+    if (m.type === 'wave') { v.wave = Date.now(); world.bump(0.03); if (Date.now() - lastHello > 60000 && !world.isNight) { lastHello = Date.now(); brain.speak(`oh. hello ${v.name}.`, 6000); } }
+  });
+  const gone = () => { sockets.delete(ws); visitors.delete(id); publish(); };
+  ws.on('close', gone); ws.on('error', gone);
 });
 
 server.listen(PORT, () => {

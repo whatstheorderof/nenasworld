@@ -1,14 +1,14 @@
 // Nena's belongings and what comes of the things she does: pockets, coins, the museum,
 // what she has built and where she put it, her house, her scarves, her friendships.
 // Pure logic with an injected store, so the same code runs on the server and in the browser.
-import { SPECIES, MATERIAL_VALUE, RECIPES, SHOP, SCARVES, HOUSE_LOOKS, HOUSE_LOAN, SEASON_FIND, SONGS, STAMPS, FLAGS, catchOne, calendar } from './data.js';
-import { NEIGHBOURS, freeSpot } from './world.js';
+import { SPECIES, MATERIAL_VALUE, RECIPES, SHOP, SCARVES, HOUSE_LOOKS, HOUSE_LOAN, SEASON_FIND, SONGS, STAMPS, FLAGS, BLOOMS, crossBloom, catchOne, calendar } from './data.js';
+import { NEIGHBOURS, CAMPERS, ISLETS, freeSpot, freeNear } from './world.js';
 
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const an = w => (/^[aeiou]/.test(w) ? `an ${w}` : `a ${w}`);
 const DEFAULT = () => ({
-  coins: 0, items: {}, museum: { fish: [], bug: [], sea: [], fossil: [], art: [] }, decor: [], songs: [], stamps: [], n: {}, golden: {}, fakes: {}, cosy: 0, crops: 0, rides: 0, tune: null, hot: 'shell',
+  coins: 0, items: {}, museum: { fish: [], bug: [], sea: [], fossil: [], art: [] }, decor: [], songs: [], stamps: [], n: {}, golden: {}, fakes: {}, cosy: 0, crops: 0, rides: 0, tune: null, hot: 'shell', blooms: [], camper: null, metCampers: [], islets: [],
   look: { scarf: 0, scarves: [0], house: 0 }, house: { level: 1, paid: 0 },
   friends: Object.fromEntries(NEIGHBOURS.map(n => [n.name, 0])),
   turnips: { n: 0, paid: 0 }, turnipPrice: 100, shaken: 0, photos: 0, version: 0,
@@ -43,9 +43,11 @@ export class Life {
   decorHeld() { return Object.keys(RECIPES).filter(k => this.count(k) > 0); }
   giftable() { return this.count('gift') > 0 || this.count('fruit') > 0 || this.count('shell') > 0; }
   fruitReady(day) { return this.s.shaken !== day; }
+  patches() { return this.s.decor.filter(d => d.kind === 'flowers'); }
   ripe(day) { return this.s.decor.find(d => d.kind === 'coin tree' && day - d.day >= 3) || null; }
-  newDay(day) { this.s.turnipPrice = rint(45, 190); this.s.hot = pick(['shell', 'fruit', 'ore', 'clay', 'veg', 'mushroom', 'sea glass']); if (calendar(day).weekday === 0 && this.s.turnips.n) { this.s.turnips = { n: 0, paid: 0 }; } this.save(); }
-  place(kind, at, day) { this.s.decor.push({ kind, x: at.x, z: at.z, day }); if (this.s.decor.length > 45) this.s.decor.shift(); }
+  newDay(day) { this.s.turnipPrice = rint(45, 190); this.s.hot = pick(['shell', 'fruit', 'ore', 'clay', 'veg', 'mushroom', 'sea glass']);
+    const last = this.s.camper?.name; this.s.camper = Math.random() < 0.45 ? pick(CAMPERS.filter(c => c.name !== last)) : null; if (calendar(day).weekday === 0 && this.s.turnips.n) { this.s.turnips = { n: 0, paid: 0 }; } this.save(); }
+  place(kind, at, day, color) { this.s.decor.push({ kind, x: at.x, z: at.z, day, ...(color ? { color } : {}) }); if (this.s.decor.length > 45) this.s.decor.shift(); }
 
   // ---- what comes of an action. Returns { text, say?, remember?, lift? } or null -----------
   finish(action, a, w) {
@@ -97,7 +99,20 @@ export class Life {
         return { text: `sold ${t.n} turnips at ${s.turnipPrice} each, ${diff >= 0 ? `${diff} coins up` : `${-diff} coins down`}`, say: diff >= 0 ? 'turnips paid off.' : 'never trust a turnip.', lift: diff >= 0 ? 0.4 : -0.3 }; }
       case 'craft': { const can = this.craftable(); if (!can.length) return null; const k = pick(can); for (const [m, n] of Object.entries(RECIPES[k])) this.add(m, -n); this.add(k); return { text: `built ${an(k)}`, say: `${an(k)}. i made that.`, lift: 0.25 }; }
       case 'decorate': { const k = this.decorHeld()[0]; if (!k || !a.at) return null; this.add(k, -1); this.place(k, a.at, day); return { text: `put the ${k} out on the island`, remember: `i put ${an(k)} out where everyone can see it`, lift: 0.2 }; }
-      case 'plant_flowers': { if (!a.at) return null; this.add('flower seeds', -1); this.place('flowers', a.at, day); return { text: 'planted a patch of flowers' }; }
+      case 'plant_flowers': { if (!a.at) return null; this.add('flower seeds', -1); const col = pick(['red', 'yellow', 'white']); const near = this.patches().length && Math.random() < 0.7 ? freeNear(pick(this.patches()), s.decor) : null;   // she likes to plant them in clumps
+        this.place('flowers', near || a.at, day, col); if (!s.blooms.includes(col)) s.blooms.push(col); return { text: `planted a patch of ${col} flowers` }; }
+      case 'water_flowers': { s.waterDay = day; const ps = this.patches(); const pairs = [];
+        for (const p of ps) for (const q of ps) if (p !== q && Math.hypot(p.x - q.x, p.z - q.z) < 8) { const c = crossBloom(p.color || 'white', q.color || 'white'); if (c) pairs.push([p, c]); }
+        if (pairs.length && Math.random() < 0.45) { const [p, c] = pick(pairs), at = freeNear(p, s.decor); if (at) { const fresh = !s.blooms.includes(c); this.place('flowers', at, day, c); if (fresh) s.blooms.push(c);
+          return fresh ? { text: `watered the flowers and a new colour came up: ${c}`, say: `${c} ones! i did not plant ${c} ones.`, remember: `i grew ${c} flowers by planting two colours close together`, lift: c === 'gold' ? 0.6 : 0.35 } : { text: `watered the flowers. more ${c} ones came up` }; } }
+        return { text: 'watered her flower patches' }; }
+      case 'visit_camper': { const c = s.camper; if (!c) return null; s.campDay = day; const first = !s.metCampers.includes(c.name); if (first) s.metCampers.push(c.name);
+        if (!first && Math.random() < 0.5) { const k = pick(['gift', 'hum seed', 'furnishing', 'sapling']); this.add(k); return { text: `sat with ${c.name} at the campsite again. ${c.name} gave her ${k === 'furnishing' ? 'something for the house' : an(k)}`, lift: 0.25 }; }
+        return { text: `met ${c.name} the ${c.kind} at the campsite, from ${c.from}. ${c.name} said: "${c.says}"`, remember: first ? `${c.name} the ${c.kind} camped here. they come from ${c.from}.` : null, say: first ? `where is ${c.from.split(' ').slice(0, 3).join(' ')}...?` : null, lift: 0.3 }; }
+      case 'join_hobby': { const n = NEIGHBOURS.find(x => x.name === a.ref); if (!n) return null; s.joinDay = day; s.friends[n.name] = Math.min(10, s.friends[n.name] + 1);
+        return { text: `joined ${n.name}, who was ${a.hobby || 'busy'}`, remember: Math.random() < 0.3 ? `${n.name} likes ${a.hobby}. i tried it too.` : null, lift: 0.25 }; }
+      case 'greet_visitors': { s.greeted = Math.floor(day * 24 + w.hour); const names = (w.visitors || []).slice(0, 3).map(v => v.name); if (!names.length) return null;
+        return { text: `waved at ${names.join(', ')}${(w.visitors.length > 3) ? ' and the rest' : ''}`, say: `hello ${names[0]}!`, lift: 0.2 }; }
       case 'plant_tree': { if (!a.at) return null; this.add('sapling', -1); this.place('tree', a.at, day); return { text: 'planted a tree. it will take a few days', remember: `i planted a tree on day ${day}` }; }
       case 'cook': { const fish = Object.keys(s.items).find(k => SPECIES[k]?.cat === 'fish' && (this.has(k) || s.items[k] > 1)) || Object.keys(s.items).find(k => SPECIES[k]?.cat === 'fish');
         if (this.count('veg') && (fish || this.count('fruit'))) { this.add('veg', -1); if (fish) this.add(fish, -1); else this.add('fruit', -1); return { text: fish ? `made ${fish} and vegetable stew` : 'made a vegetable and fruit pie', lift: 0.15 }; }
@@ -128,9 +143,9 @@ export class Life {
       case 'furnish_home': { this.add('furnishing', -1); s.cosy++; return { text: `found a place for it. the house feels cosier (cosiness ${s.cosy})` }; }
       case 'design_flag': { s.look.flag = ((s.look.flag || 0) + rint(1, FLAGS.length - 1)) % FLAGS.length; s.look.flagDay = day; return { text: 'designed a new flag for the square', say: 'that is our flag now.', lift: 0.2 }; }
       case 'compose_tune': { const syl = ['do', 'la', 'pip', 'bo', 'su', 'mi', 'na', 'ne', 'fa', 'lo']; s.tune = Array.from({ length: 6 }, () => pick(syl)).join('-'); s.tuneDay = day; return { text: `made up a new island tune: ${s.tune}`, remember: `the island tune goes ${s.tune}` }; }
-      case 'boat_trip': { s.boatDay = day; const finds = [pick(['shell', 'sea glass', 'stick', 'clay']), pick(['fruit', 'stone', 'ore', 'hum seed'])]; for (const k of finds) this.add(k, rint(1, 2));
+      case 'boat_trip': { s.boatDay = day; const isl = ISLETS[a.islet ?? 0]; if (!s.islets.includes(isl.name)) s.islets.push(isl.name); const finds = [pick(isl.gives), pick(['shell', 'sea glass', ...isl.gives])]; for (const k of finds) this.add(k, rint(1, 2));
         const saw = pick(['a rock shaped like a sleeping whale', 'an islet with one tree and nobody on it', 'a buoy with a bell that nobody rings', 'the island from far away. it is small', 'something large under the boat, going the other way']);
-        return { text: `rowed out and came back with ${finds.join(' and ')}. she saw ${saw}`, remember: `out in the boat i saw ${saw}`, lift: 0.35 }; }
+        return { text: `rowed out to ${isl.name} and came back with ${finds.join(' and ')}. on the way she saw ${saw}`, remember: `i rowed to ${isl.name}. on the way i saw ${saw}`, lift: 0.35 }; }
       case 'take_photo': { s.photos++; return { text: 'took a photo of the view' }; }
       case 'wish': return { text: 'wished on a shooting star', remember: 'i made a wish on a falling star. i am not saying what.', lift: 0.3 };
       case 'event': { const e = a.event; if (!e) return null; let extra = ''; s.eventDone = `${day}:${e.id}`;
@@ -146,7 +161,7 @@ export class Life {
 
   summary() {
     const s = this.s;
-    return { coins: s.coins, items: s.items, museum: s.museum, total: Object.keys(SPECIES).length, decor: s.decor.length, house: s.house, loan: HOUSE_LOAN[s.house.level] || null, friends: s.friends, turnips: s.turnips, turnipPrice: s.turnipPrice, photos: s.photos, shaken: s.shaken, songs: s.songs, stamps: s.stamps, cosy: s.cosy, tune: s.tune, hot: s.hot, golden: s.golden, rides: s.rides };
+    return { coins: s.coins, items: s.items, museum: s.museum, total: Object.keys(SPECIES).length, decor: s.decor.length, house: s.house, loan: HOUSE_LOAN[s.house.level] || null, friends: s.friends, turnips: s.turnips, turnipPrice: s.turnipPrice, photos: s.photos, shaken: s.shaken, songs: s.songs, stamps: s.stamps, cosy: s.cosy, tune: s.tune, hot: s.hot, golden: s.golden, rides: s.rides, blooms: s.blooms, camper: s.camper, metCampers: s.metCampers, islets: s.islets };
   }
   freeSpot() { return freeSpot(this.s.decor); }
 }
