@@ -1,0 +1,11 @@
+{
+  "name": "nenas-world",
+  "private": true,
+  "scripts": {
+    "setup": "npm --prefix mind install && npm --prefix web install",
+    "mind": "npm --prefix mind start",
+    "web": "npm --prefix web run dev",
+    "build": "npm --prefix web run build"
+  },
+  "type": "module"
+}

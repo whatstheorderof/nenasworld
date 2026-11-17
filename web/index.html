@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cellipse cx='16' cy='17' rx='11' ry='13' fill='%23232a4d'/%3E%3Cellipse cx='16' cy='20' rx='7' ry='9' fill='%23fdfaf2'/%3E%3Cpath d='M13 14h6l-3 4z' fill='%23ffa62b'/%3E%3C/svg%3E" />
+  <title>Nena's World</title>
+  <meta name="description" content="Nena is a small penguin who lives on her own island on the internet. She makes her own decisions, keeps a diary, and remembers who visits." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div id="bubble" hidden></div>
+
+  <header class="card" id="status">
+    <h1>Nena</h1>
+    <p id="clock">finding her…</p>
+    <p id="doing"></p>
+    <p id="thought"></p>
+    <div id="needs"></div>
+    <p id="mind"></p>
+  </header>
+
+  <div id="offline" class="card" hidden>Can't reach Nena's mind right now. Still trying.</div>
+
+  <nav id="nav">
+    <button data-panel="diary">Diary</button>
+    <button data-panel="feed">Lately</button>
+    <button data-panel="memory">Memories</button>
+    <button data-panel="leave" class="primary">Leave her something</button>
+  </nav>
+
+  <aside id="panel" class="card" hidden>
+    <button id="close" aria-label="Close">×</button>
+    <div id="panel-body"></div>
+  </aside>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
