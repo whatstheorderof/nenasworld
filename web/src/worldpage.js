@@ -3,6 +3,7 @@
 // this browser. Feedback is always kept in this browser too, and also sent to the server when a
 // creator key is set there.
 import { WorldLog, dayText, FEEDBACK_TAGS } from '../../shared/worldlog.js';
+import { guidanceFrom } from '../../shared/guidance.js';
 
 const MIND = (import.meta.env.VITE_MIND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const $ = id => document.getElementById(id);
@@ -34,7 +35,17 @@ async function read() {
 
 const fbFor = d => d.feedback || localFb[d.day] || null;
 
+// what her mind is taking from the feedback right now
+function drawGuide() {
+  const fb = {}; for (const d of days) { const f = fbFor(d); if (f) fb[d.day] = f; }
+  const g = guidanceFrom(fb), more = Object.entries(g.boost).filter(([, v]) => v > 0).map(([k]) => k.replace(/_/g, ' ')), less = Object.entries(g.boost).filter(([, v]) => v < 0).map(([k]) => k.replace(/_/g, ' '));
+  const bits = [g.variety > 0.05 && 'mixing up her days more', g.pace > 0.05 && 'starting things a little sooner', g.pace < -0.05 && 'taking things a little slower',
+    more.length && `leaning towards ${more.slice(0, 6).join(', ')}`, less.length && `doing less ${less.slice(0, 6).join(', ')}`].filter(Boolean);
+  $('guide').hidden = !bits.length;
+  $('guide').innerHTML = `<b>How your feedback is shaping her now:</b> ${bits.join('; ')}. <span class="dim">Gentle nudges from your last five days of feedback. She still chooses for herself.</span>`;
+}
 function draw() {
+  drawGuide();
   if (!days.length) { $('days').innerHTML = `<p class="empty">Nothing recorded yet. Leave the island open for a little while and come back.</p>`; return; }
   $('days').innerHTML = days.map(d => {
     const coins = d.coins?.start != null && d.coins?.end != null ? d.coins.end - d.coins.start : null;
@@ -89,7 +100,7 @@ $('days').addEventListener('click', async e => {
     try { const r = await fetch(`${MIND}/api/world/feedback`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-creator-key': key }, body: JSON.stringify({ day, ...fb }) });
       where = r.ok ? 'on her mind server' : `in this browser (the server said: ${(await r.json()).error || r.status})`; } catch { where = 'in this browser (the server could not be reached)'; }
   }
-  card.querySelector('.saved').textContent = `saved ${where}`;
+  card.querySelector('.saved').textContent = `saved ${where}`; drawGuide();
 });
 
 const asText = () => `# Nena's world diary\n\n${days.map(d => dayText(d, fbFor(d))).join('\n\n')}\n`;

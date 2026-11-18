@@ -7,7 +7,9 @@ const TOPICS = ['how ice forms', 'what fish dream about', 'why the sky glows gre
 const DRAWINGS = ['a fish with very long whiskers', 'the pond from above', 'my house at night', 'a boat i have never seen', 'the lamp by the mailbox', 'someone waving', 'Bo asleep on a rock'];
 const FILMS = ['The Long Slide', 'A Fish Called Sunday', 'Night Train to the Ice', 'Two Lamps', 'The Lighthouse Keeper Sleeps'];
 
-export function chooseFallback(options, needs, recent, interests = []) {
+// guide: gentle nudges from her creator's feedback (shared/guidance.js); optional
+export function chooseFallback(options, needs, recent, interests = [], guide = null) {
+  const vary = guide?.variety || 0;
   const last = recent[recent.length - 1];
   let best = null, bestScore = -1e9;
   for (const o of options) {
@@ -19,8 +21,9 @@ export function chooseFallback(options, needs, recent, interests = []) {
     if (['event', 'read_mail', 'pop_balloon', 'open_bottle', 'wish', 'donate', 'sell_turnips', 'decorate', 'pick_coins', 'harvest', 'buy_art', 'trade_pearl', 'bury_coins', 'visit_camper', 'greet_visitors'].includes(o.action)) s += 0.7;   // things that will not wait
     if (['puddle_jump', 'chase_rainbow', 'fly_kite', 'watch_storm', 'ice_lolly', 'observe', 'buy_clothes', 'join_hobby', 'water_flowers', 'dig_fossil', 'craft', 'buy_turnips', 'pay_home', 'give_gift'].includes(o.action)) s += 0.3;
     if (o.action === 'wander') s -= 0.25;
-    if (o.action === last) s -= 0.8;
-    if (recent.includes(o.action)) s -= 0.3;
+    if (o.action === last) s -= 0.8 + 0.4 * vary;
+    if (recent.includes(o.action)) s -= 0.3 + 0.35 * vary;   // 'too repetitive' feedback widens the gap between repeats
+    s += guide?.boost?.[o.action] || 0;                     // 'more fishing', 'less reading'
     if (s > bestScore) { bestScore = s; best = o; }
   }
   const action = best.action;

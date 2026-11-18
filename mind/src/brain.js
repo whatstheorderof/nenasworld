@@ -3,10 +3,13 @@
 // in Nena's voice. If there is no model (or it fails), a scripted fallback picks.
 import { ACTIONS } from '../../shared/data.js';
 import { chooseFallback } from '../../shared/choose.js';
+import { guidanceFrom, paced } from '../../shared/guidance.js';
 import { scriptedReply } from '../../shared/chat.js';
 import { ask, provider } from './models.js';
 
 export class Brain {
+  // her creator's feedback on the world diary, as gentle guidance (re-read once a minute)
+  guide() { if (!this._guide || Date.now() - this._guideAt > 60000) { this._guide = guidanceFrom(this.memory.readJson('world-feedback.json', {})); this._guideAt = Date.now(); } return this._guide; }
   constructor(world, memory, life, onFeed) {
     this.world = world; this.memory = memory; this.life = life; this.onFeed = onFeed;
     this.nextThink = 0; this.thinking = false;
@@ -43,7 +46,7 @@ export class Brain {
       // rules, not the model, have the last word: must be on offer, and no third repeat in a row
       const offered = c => c && options.some(o => o.action === c.action);
       const thirdRepeat = c => this.recent.length >= 2 && this.recent.slice(-2).every(a => a === c.action) && options.length > 1;
-      if (!offered(choice) || thirdRepeat(choice)) { choice = chooseFallback(options, w.needs, this.recent, this.memory.topInterests(3)); source = 'fallback'; }
+      if (!offered(choice) || thirdRepeat(choice)) { choice = chooseFallback(options, w.needs, this.recent, this.memory.topInterests(3), this.guide()); source = 'fallback'; }
       if (!w.start(choice.action, choice.detail || null)) { this.nextThink = Date.now() + 3000; return; }
 
       this.recent.push(choice.action); if (this.recent.length > 8) this.recent.shift();
@@ -54,7 +57,7 @@ export class Brain {
       this.todayLog.push(item);
       this.memory.diaryLine(w.day, w.hour, `**${item.label}**${item.detail ? ` (${item.detail})` : ''}. ${item.reason}`);
       this.onFeed(item);
-      this.nextThink = Date.now() + mood.heartbeat * 1000;
+      this.nextThink = Date.now() + paced(mood.heartbeat, this.guide()) * 1000;
     } finally { this.thinking = false; }
   }
 
@@ -104,6 +107,7 @@ export class Brain {
       `Things she is carrying in her head:\n${this.memory.strongest(8).map(m => `- ${m.text}`).join('\n') || '- nothing yet'}`,
       `Lately interested in: ${this.memory.topInterests().join(', ') || 'nothing in particular'}.`,
       unreadCount ? `There ${unreadCount > 1 ? 'are' : 'is'} ${unreadCount} thing${unreadCount > 1 ? 's' : ''} waiting in her mailbox.` : '',
+      this.guide().notes.length ? `Notes from the person who looks after her island, about how her recent days have felt. Let them gently colour your choices; they are wishes, not orders, and Nena does not know about them:\n${this.guide().notes.map(t => `- ${t}`).join('\n')}` : '',
       `Offered actions:\n${options.map(o => `- ${o.action} (${o.where}): ${o.why}`).join('\n')}`,
     ].filter(Boolean).join('\n\n');
     const r = await ask(system, user, 200);
