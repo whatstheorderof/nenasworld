@@ -58,12 +58,21 @@ export const NEIGHBOURS = [
 ];
 // Travellers who sometimes pitch up at the campsite for a day.
 export const CAMPERS = [
-  { name: 'Odo', kind: 'otter', from: 'a river with too many bridges', says: 'every bridge has a troll. most of them are nice.' },
-  { name: 'Mirren', kind: 'hare', from: 'a hill where the wind never stops', says: 'you get used to leaning.' },
-  { name: 'Tuck', kind: 'owl', from: 'a forest that is mostly night', says: 'the trick is to like the dark first.' },
-  { name: 'Fen', kind: 'walrus', from: 'an ice shelf further north than north', says: 'your pond is a good size. i checked.' },
-  { name: 'Lark', kind: 'hare', from: 'a town built on a very slow tortoise', says: 'we move house without moving house.' },
+  { name: 'Odo', kind: 'otter', home: 'fountain', from: 'Fountain Round, the town with the pool in the middle', says: 'i swim the pool every morning. twice if nobody is looking.' },
+  { name: 'Mirren', kind: 'hare', home: 'gable', from: 'Little Gable, two cottages and a tower', says: 'there are only four of us. we take turns raising the flag.' },
+  { name: 'Tuck', kind: 'owl', home: 'hoop', from: 'the spire on Hoopstead', says: 'the trick is to like the dark first. the hole in the middle helps.' },
+  { name: 'Fen', kind: 'walrus', home: 'snowcap', from: 'Snowcap, the stone house under the snow', says: 'your pond is a good size. i checked.' },
+  { name: 'Lark', kind: 'hare', home: 'hoop', from: 'Hoopstead, the town built round a hole in the sky', says: 'you can walk all the way round and end up home. we do it for fun.' },
 ];
+// Neighbouring islands with towns on them, near enough to see from hers. The travellers who
+// pitch up at her campsite come from these. Models are in art/island.blend.
+export const TOWN_ISLANDS = [
+  { id: 'gable', name: 'Little Gable', model: 'IslandCottage', a: 1.15, r: 175, y: 4, scale: 2.3, about: 'Two cottages and a tower with a flag, inside a picket fence.' },
+  { id: 'snowcap', name: 'Snowcap', model: 'IslandRock', a: 3.15, r: 185, y: -3, scale: 2.3, about: 'A great stone house under a cap of snow, a dome tower and a red cottage.' },
+  { id: 'fountain', name: 'Fountain Round', model: 'IslandPlaza', a: 5.95, r: 205, y: 6, scale: 2.1, about: 'A round town square with a pool in the middle, houses all round it and topiary outside the fence.' },
+  { id: 'hoop', name: 'Hoopstead', model: 'IslandRing', a: 4.45, r: 212, y: 12, scale: 2.1, about: 'A town built in a ring round a hole in the sky, with a tall slate spire.' },
+];
+export const townPos = t => ({ x: Math.cos(t.a) * t.r, z: Math.sin(t.a) * t.r });
 // Little islands out past the foam that she rows to.
 export const ISLETS = [
   { name: 'Blossom Islet', a: 0.3, r: 30 * K + 24, gives: ['blossom petals', 'fruit', 'stick'] },

@@ -1,7 +1,7 @@
 // The sea chart: the sky around Nena's island split into a 7 × 7 grid of squares.
 // Shared so the mind can one day know which square she is in, and which ones she has charted.
 // Map x is world x; map "down" is world +z, so north (up on the chart) is world −z.
-import { WORLD, ISLETS, SKY_ISLANDS, isletPos } from './world.js';
+import { WORLD, ISLETS, SKY_ISLANDS, TOWN_ISLANDS, CAMPERS, isletPos, townPos } from './world.js';
 
 export const GRID = 7;                       // squares across
 export const CELL = 140;                     // metres per square
@@ -19,6 +19,9 @@ export const squareKey = (col, row) => `${COLS[col]}${row + 1}`;
 export function features() {
   const out = [{ id: 'home', kind: 'home', name: WORLD.name, x: 0, z: 0, r: WORLD.radius, about: 'Her home island: the town square, the pond and the river, the beach and the big tree.' }];
   ISLETS.forEach((isl, i) => { const p = isletPos(i); out.push({ id: `islet${i}`, kind: 'islet', name: isl.name, x: p.x, z: p.z, r: 7, about: `A little islet she rows to. Finds: ${isl.gives.join(', ')}.` }); });
+  for (const t of TOWN_ISLANDS) { const p = townPos(t), folk = CAMPERS.filter(c => c.home === t.id);
+    out.push({ id: t.id, kind: 'town', name: t.name, x: p.x, z: p.z, r: (t.id === 'fountain' || t.id === 'hoop' ? 13 : 10) * t.scale, model: t.model,
+      about: t.about + (folk.length ? ` Home of ${folk.map(c => `${c.name} the ${c.kind}`).join(' and ')}, who sometimes camp on her island.` : '') }); }
   for (const s of SKY_ISLANDS) out.push({ id: s.id, kind: 'sky', name: s.name, theme: s.theme, resources: s.resources, x: Math.cos(s.a) * s.r, z: Math.sin(s.a) * s.r, r: s.size,
     about: `Only a shape in the haze so far: ${s.theme}. One day she will get there.` });
   return out;

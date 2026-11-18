@@ -180,3 +180,10 @@ little animals with simple faces like Nena's, in soft colours that sit happily i
 ## Seasonal trees (TreeSapling, TreeYoung, TreeMature, TreeOld)
 Prompt: "A set of cute low-poly deciduous trees in four growth stages: a thin sapling, a young tree, a full mature tree with roots, and a big old tree with a gnarled bulging trunk, spreading roots and a dark hollow. Chunky faceted canopy puffs, warm brown bark, a few pebbles at the base. Each has seasonal parts: pink blossom dots for spring, snow caps on branches and a snow patch for winter, scattered orange leaves for autumn."
 Parts: body = bark; `LiveLeaves` (tree_leaf / tree_leaf2), `LiveBlossom` (tree_blossom), `LiveSnow` (tree_snow), `LiveFallen` (tree_fallen). Colours are set in web/src/trees.js per kind ('oak', 'cherry') and season — used on every island, and by trees Nena plants (they grow sapling → young → mature → old over 3 / 10 / 30 days).
+
+## Neighbouring town islands (IslandCottage, IslandRock, IslandPlaza, IslandRing)
+Seen in the distance; the campers come from them (TOWN_ISLANDS in shared/world.js). Shared parts: cream cottages with red or slate gable roofs, a chimney and lit windows (`glow_farwin`), a pointed picket fence, cobbled stepping-stone paths, cone trees with white dots and round fruit trees, and a rounded layered earth base.
+- Little Gable (IslandCottage): "Two cosy cottages and a round tower with a red flag inside a pointed picket fence, a winding stone path, polka-dot cone trees."
+- Snowcap (IslandRock): "A big tapering stone house with an arched door under a soft cap of snow, a round tower with a scalloped orange dome, a red-roofed cottage with a turret."
+- Fountain Round (IslandPlaza): "A round sandy plaza with a pool in the middle and benches round it, seven cottages facing in, a fence, and a ring of round topiary outside it."
+- Hoopstead (IslandRing): "A town on a ring of land round a hole in the sky: a stone inner wall, houses facing in and out, a tall slate spire, a fence round the rim."

@@ -77,7 +77,7 @@ const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xff
   for (let c = 0, k = 0; c < N; c++) {
     const below = c < 26, a = rnd() * 6.283, r = below ? 40 + rnd() * 130 : 130 + rnd() * 120, y = below ? -30 - rnd() * 26 : -18 + rnd() * 44, size = below ? 7 + rnd() * 6 : 6 + rnd() * 8;
     const cx = Math.cos(a) * r, cz = Math.sin(a) * r;
-    const blocksView = !below && [3.75, 5.25, 2.55].some(fa => Math.abs(Math.atan2(Math.sin(a - fa), Math.cos(a - fa))) < 0.16) && y > -6;   // keep the far islands in view
+    const blocksView = !below && [3.75, 5.25, 2.55, 1.15, 3.15, 5.95, 4.45].some(fa => Math.abs(Math.atan2(Math.sin(a - fa), Math.cos(a - fa))) < 0.16) && y > -6;   // keep the far islands in view
     for (let i = 0; i < PER; i++, k++) {
       if (blocksView) { m.position.set(0, -9999, 0); m.scale.setScalar(0.001); m.updateMatrix(); inst.setMatrixAt(k, m.matrix); continue; }
       const s = size * (0.55 + rnd() * 0.5) * (i === 0 ? 1.3 : 1);
@@ -359,7 +359,7 @@ async function show(name) {
         <h3>Flower colours ${l.blooms.length}/${Object.keys(BLOOMS).length}</h3><p>${Object.keys(BLOOMS).map(k => l.blooms.includes(k) ? `<span style="display:inline-block;width:12px;height:12px;border-radius:6px;border:2px solid #1d2545;background:#${BLOOMS[k].toString(16).padStart(6, '0')}"></span> ${k}` : '<span class="dim">?</span>').join(' · ')}</p>
         <h3>Wardrobe</h3><p>Hats: ${(l.hats || [0]).filter(i => i).map(i => esc(HATS[i])).join(', ') || 'none yet'}. Sunglasses: ${(l.glasses || [0]).filter(i => i).map(i => esc(GLASSES[i])).join(', ') || 'none yet'}.</p>
         <h3>Star chart ${(l.sky || []).length}/${SKY_LIST.length + SKY_RARE.length}</h3><p>${(l.sky || []).map(esc).join(' · ') || 'nothing yet'}</p>
-        <h3>Travels and travellers</h3><p>Islets rowed to: ${l.islets.map(esc).join(', ') || 'none yet'} (${l.islets.length}/${ISLETS.length}). Campers met: ${l.metCampers.map(esc).join(', ') || 'none yet'}.${l.camper ? ` ${esc(l.camper.name)} the ${esc(l.camper.kind)} is at the campsite today.` : ''}</p>
+        <h3>Travels and travellers</h3><p>Islets rowed to: ${l.islets.map(esc).join(', ') || 'none yet'} (${l.islets.length}/${ISLETS.length}). Campers met: ${l.metCampers.map(esc).join(', ') || 'none yet'}.${l.camper ? ` ${esc(l.camper.name)} the ${esc(l.camper.kind)} is at the campsite today${l.camper.from ? `, over from ${esc(l.camper.from)}` : ''}.` : ''}</p>
         <h3>Neighbours</h3>${Object.entries(l.friends).map(([k, v]) => `<div class="entry">${esc(k)}<div class="meter"><i style="width:${v * 10}%"></i></div></div>`).join('')}
         <h3>Museum ${got}/${l.total}</h3><div class="meter"><i style="width:${got / l.total * 100}%"></i></div>${cats}`;
       $('to-stamps').onclick = () => show('stamps');

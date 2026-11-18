@@ -119,6 +119,15 @@ function draw() {
     } else if (f.kind === 'islet') {
       const been = (state.info.islets || []).includes(f.name);
       blob(px, py, r, seed, 16); ctx.fillStyle = been ? '#d9c486' : 'rgba(0,0,0,0)'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.6; ctx.setLineDash(been ? [] : [3, 3]); ctx.stroke(); ctx.setLineDash([]);
+    } else if (f.kind === 'town') {   // neighbouring towns: inked in, with little roofs
+      const hole = f.id === 'hoop';
+      blob(px, py, r, seed, 24); ctx.fillStyle = '#c9cf8f'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+      if (hole) { ctx.beginPath(); ctx.arc(px, py, r * 0.52, 0, 7); ctx.fillStyle = '#e7d3a0'; ctx.fill(); ctx.stroke(); }
+      if (f.id === 'fountain') { ctx.beginPath(); ctx.arc(px, py, r * 0.5, 0, 7); ctx.fillStyle = '#ead7a6'; ctx.fill(); ctx.beginPath(); ctx.arc(px, py, r * 0.16, 0, 7); ctx.fillStyle = '#8fb6c8'; ctx.fill(); ctx.stroke(); }
+      if (f.id === 'snowcap') { ctx.beginPath(); ctx.arc(px, py - r * 0.15, r * 0.32, 0, 7); ctx.fillStyle = '#fbf8ee'; ctx.fill(); ctx.stroke(); }
+      const n = f.id === 'gable' ? 3 : hole ? 8 : 6, rr = hole ? r * 0.76 : f.id === 'fountain' ? r * 0.72 : r * 0.5;
+      for (let i = 0; i < n; i++) { const a = i / n * 6.28 + 0.4, hx = px + Math.cos(a) * rr, hy = py + Math.sin(a) * rr, w = Math.max(3, r * 0.14);
+        ctx.fillStyle = '#d9412b'; ctx.beginPath(); ctx.moveTo(hx - w, hy + w * 0.6); ctx.lineTo(hx, hy - w * 0.7); ctx.lineTo(hx + w, hy + w * 0.6); ctx.closePath(); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.stroke(); }
     } else {   // far sky islands: only sketched until she has been
       blob(px, py, r, seed, 22); ctx.fillStyle = 'rgba(107,74,43,.08)'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.8; ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]);
       ctx.save(); blob(px, py, r, seed, 22); ctx.clip(); ctx.strokeStyle = 'rgba(107,74,43,.18)'; ctx.lineWidth = 1;
@@ -168,8 +177,9 @@ function detail() {
 }
 function stats() {
   const fs = features(), islets = fs.filter(f => f.kind === 'islet'), been = (state.info.islets || []).length, far = fs.filter(f => f.kind === 'sky');
-  root.querySelector('#chart-stats').innerHTML = `<div><span>🏝️</span><b>${1 + been}</b><small>of ${1 + islets.length + far.length} islands charted</small></div>
+  root.querySelector('#chart-stats').innerHTML = `<div><span>🏝️</span><b>${1 + been + fs.filter(f => f.kind === 'town').length}</b><small>of ${fs.length} islands charted</small></div>
     <div><span>⛵</span><b>${been}/${islets.length}</b><small>islets rowed to</small></div>
+    <div><span>🏘️</span><b>${fs.filter(f => f.kind === 'town').length}</b><small>neighbouring towns</small></div>
     <div><span>☁️</span><b>${far.length}</b><small>far islands in the haze</small></div>`;
 }
 function loop() { state.t += 1 / 60; draw(); state.raf = requestAnimationFrame(loop); }

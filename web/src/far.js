@@ -2,7 +2,8 @@
 // each with one small sign of what lives there: smoke and a red glow on the
 // volcano, tiny lights in the forest, and light coming up through the hole in the ice.
 import * as THREE from 'three';
-import { SKY_ISLANDS } from '../../shared/world.js';
+import { SKY_ISLANDS, TOWN_ISLANDS, townPos } from '../../shared/world.js';
+import { whenKit, kitModel } from './kit.js';
 
 export function buildFarIslands(scene) {
   const root = new THREE.Group(); scene.add(root);
@@ -46,11 +47,21 @@ export function buildFarIslands(scene) {
     }
   }
 
+  // neighbouring islands with towns on them: proper models, near enough to make out, windows lit at night
+  const towns = new THREE.Group(); scene.add(towns);
+  const winMat = new THREE.MeshLambertMaterial({ color: 0xfff2c4, emissive: 0xffc870, emissiveIntensity: 0, flatShading: true });
+  for (const t of TOWN_ISLANDS) {
+    const g = new THREE.Group(), p = townPos(t); g.position.set(p.x, t.y, p.z); g.scale.setScalar(t.scale); g.rotation.y = -t.a - Math.PI / 2 + 0.5; g.userData.isl = t; towns.add(g);
+    whenKit(() => { const m = kitModel(t.model, { glow_farwin: winMat }); if (m) g.add(m); });
+  }
+
   const tmp = new THREE.Color();
   function update(t, night, dayTint) {
     root.children.forEach((g, i) => { g.position.y = g.userData.isl.y + Math.sin(t * 0.08 + i * 2) * 1.5; g.rotation.y = Math.sin(t * 0.02 + i) * 0.05; });
     for (const [m, c] of mats) m.color.copy(tmp.set(c).lerp(dayTint, 0.25).multiplyScalar(1 - night * 0.55));
     glows.forEach(m => { m.opacity = 0.25 + night * 0.65; });
+    towns.children.forEach((g, i) => { g.position.y = g.userData.isl.y + Math.sin(t * 0.1 + i * 1.7) * 1.2; });
+    winMat.emissiveIntensity = night * 1.4;
     sparks.forEach(m => { m.opacity = night * (0.6 + Math.sin(t * 2) * 0.25); });
     smoke.forEach(p => { const { k, S } = p.userData, f = (k + t * 0.02) % 1; p.position.set(-S * 0.1 + f * S * 0.5, S * (0.95 + f * 0.9), f * S * 0.15); p.scale.setScalar(0.6 + f * 1.8); p.material.opacity = (1 - f) * 0.45 * (1 - night * 0.4); });
   }
