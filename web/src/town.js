@@ -25,7 +25,7 @@ export function buildTown() {
   const town = new THREE.Group();
   const glowMats = [];   // emissive materials that switch on at night
   const signs = [];      // redrawn once the web font has loaded
-  const lamps = [], torches = [], swayers = [];
+  const lamps = [], torches = [], swayers = [], heroes = [];   // heroes: the big objects on rooftops
   const rand = rng(11);
   const flat = color => new THREE.MeshLambertMaterial({ color: pastel(color), flatShading: true });
   const glow = (color = P.glow, base = 0xcdeeff) => { const m = new THREE.MeshLambertMaterial({ color: pastel(base), emissive: color, emissiveIntensity: 0, flatShading: true }); glowMats.push(m); return m; };
@@ -68,20 +68,19 @@ export function buildTown() {
     town.add(inst); }
   // ---- reusable bits ---------------------------------------------------
   // A sign is its own lit board, so it reads by day and glows at night.
-  function sign(text, w, parent, x, y, z, { bg = '#1d2545', fg = '#ffd66b', board = true } = {}) {
-    const c = document.createElement('canvas'); c.width = 512; c.height = 160;
+  function sign(text, w, parent, x, y, z, { bg = '#1d2545', fg = '#ffd66b', board = true, h = w * 160 / 512 } = {}) {
+    const ch = Math.round(512 * h / w), c = document.createElement('canvas'); c.width = 512; c.height = ch;
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
     const draw = () => {
       const g = c.getContext('2d');
-      g.fillStyle = bg; g.fillRect(0, 0, 512, 160);
-      let size = 120; g.textAlign = 'center'; g.textBaseline = 'middle';
-      do { g.font = `900 ${size}px Nunito, "Arial Black", sans-serif`; size -= 6; } while (g.measureText(text).width > 450 && size > 30);
-      g.fillStyle = fg; g.fillText(text, 256, 88);
+      g.fillStyle = bg; g.fillRect(0, 0, 512, ch);
+      let size = Math.min(120, ch * 0.78); g.textAlign = 'center'; g.textBaseline = 'middle';
+      do { g.font = `900 ${size}px Nunito, "Arial Black", sans-serif`; size -= 4; } while (g.measureText(text).width > 450 && size > 24);
+      g.fillStyle = fg; g.fillText(text, 256, ch * 0.55);
       tex.needsUpdate = true;
     };
     draw(); signs.push(draw);
-    const h = w * 160 / 512;
-    const m = new THREE.MeshBasicMaterial({ map: tex, fog: false }); m.userData.sign = true; glowMats.push(m);
+    const m = new THREE.MeshBasicMaterial({ map: tex, fog: false }); m.userData.sign = true; m.userData.light = /^#[e-f]/i.test(bg); glowMats.push(m);   // pale boards only glow a little, or they wash out
     if (board) box(w + 0.24, h + 0.24, 0.16, P.woodDark, x, y, z - 0.06, parent);
     return mesh(new THREE.PlaneGeometry(w, h), m, x, y, z + 0.035, parent);
   }
@@ -203,7 +202,8 @@ export function buildTown() {
     for (let i = 0; i < 4; i++) mesh(new THREE.CylinderGeometry(0.22, 0.26, 2.4, 6), flat(0xfffaf0), -2.4 + i * 1.6, 1.2, 2.45, g);
     box(6.4, 0.3, 1.6, 0xd9cfb8, 0, 0.15, 2.6, g); box(6.0, 0.25, 0.9, 0xd9cfb8, 0, 2.5, 2.45, g); box(1.2, 1.9, 0.14, 0x5f82ad, 0, 0.95, 2.13, g);
     for (const sx of [-1, 1]) box(1.0, 1.0, 0.14, glow(), sx * 1.9, 1.7, 2.13, g);
-    sign('MUSEUM', 3.2, g, 0, 3.05, 2.2, { bg: '#5f82ad', fg: '#fffaf0' }); }
+    sign('MUSEUM', 3.2, g, 0, 3.05, 2.2, { bg: '#5f82ad', fg: '#fffaf0' });
+    building(g, 'Museum', {}, 'MUSEUM', [2.6, 0.43], { bg: '#2c3157', fg: '#f4eee2' }); }
 
   // ---- shop and workbench ----------------------------------------------------
   { const g = hut('shop', { w: 5, h: 3.4, depth: 4, label: 'SHOP', wall: 0x9fe0c8, roof: 0xf2792e, trim: 0x2f7f9a });
@@ -409,18 +409,23 @@ export function buildTown() {
   }
   const front = key => town.children.find(o => o.isGroup && Math.abs(o.position.x - site(key).x) < 0.01 && Math.abs(o.position.z - site(key).z) < 0.01);
 
+  // Swap a place's simple shapes for its Blender building once the kit loads. Everything
+  // already in the group is the stand-in; window glass and bulbs become night lights.
+  function building(g, name, swap, label, [w, h], colours, motion = 'bob', done) {
+    whenKit(() => {
+      const warm = glow(0xffe0a0, 0xfff1cf), bulbs = glow(0xffe08a, 0xfff6d8);
+      const b = kitBuilding(name, { glow_shopwindow: warm, glow_bulb: bulbs, ...swap }); if (!b) return;
+      g.clear(); g.add(b.group);
+      const a = b.anchors.SignAnchor; if (a && label) sign(label, w, g, a.x, a.y, a.z, { ...colours, board: false, h });
+      if (b.anchors.Hero) heroes.push({ o: b.hero, y: b.hero.position.y, motion });
+      done?.();
+    });
+  }
   // ---- cookie shop: pastel storefront, striped awning, a giant cookie on the roof ----------------
-  const heroes = [];
   { const g = at('cookie'), simple = new THREE.Group(); g.add(simple);
     box(5.2, 3.6, 3.6, 0xd9a3b4, 0, 2.2, 0, simple); box(5.8, 0.4, 4.1, 0x9cc9b8, 0, 4.2, 0, simple);
     mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.24, 12), flat(0xa8794a), 0, 5.4, -1.4, simple).rotation.x = Math.PI / 2;
-    whenKit(() => {
-      const warm = glow(0xffe0a0, 0xfff1cf), bulbs = glow(0xffe08a, 0xfff6d8);
-      const b = kitBuilding('CookieShop', { glow_shopwindow: warm, glow_bulb: bulbs }); if (!b) return;
-      g.remove(simple); g.add(b.group);
-      const a = b.anchors.SignAnchor; sign('Cookie Shop', 3.1, g, a.x, a.y, a.z, { bg: '#f4eee2', fg: '#c45a7a', board: false });
-      heroes.push({ o: b.hero, y: b.hero.position.y, spin: 0 });
-    }); }
+    building(g, 'CookieShop', {}, 'Cookie Shop', [3.22, 0.56], { bg: '#f4eee2', fg: '#c45a7a' }); }
 
   // ---- cinema ------------------------------------------------------------
   const marquee = [];
@@ -431,7 +436,9 @@ export function buildTown() {
     for (let i = 0; i < 7; i++) { const m = new THREE.MeshLambertMaterial({ color: 0xfff3c4, emissive: 0xffe08a, emissiveIntensity: 0, flatShading: true }); marquee.push(m); box(0.28, 0.28, 0.28, m, -2.4 + i * 0.8, 2.42, 4.0, g); }
     box(1.6, 2.0, 0.14, 0x3c2a86, 0, 1.0, 2.53, g);                                     // doors
     for (const s of [-1, 1]) box(1.3, 1.8, 0.12, glow(0xff9aa8, 0xffd9de), s * 2.5, 1.5, 2.53, g);   // poster cases
-    sign('CINEMA', 4.2, g, 0, 3.75, 2.62, { bg: '#fff3c4', fg: '#e8452c' }); }
+    sign('CINEMA', 4.2, g, 0, 3.75, 2.62, { bg: '#fff3c4', fg: '#e8452c' });
+    const chase = [0, 1, 2].map(() => { const m = new THREE.MeshLambertMaterial({ color: 0xfff3c4, emissive: 0xffe08a, emissiveIntensity: 0, flatShading: true }); return m; });
+    building(g, 'Cinema', { glow_marquee0: chase[0], glow_marquee1: chase[1], glow_marquee2: chase[2], glow_poster: glow(0xff9aa8, 0xffd9de) }, 'CINEMA', [4.4, 0.76], { bg: '#2c3157', fg: '#f3dc9b' }, 'spin', () => { marquee.length = 0; marquee.push(...chase); }); }
 
   // ---- lookout tower -------------------------------------------------------
   { const g = at('lookout');
@@ -564,10 +571,10 @@ export function buildTown() {
 
   // nightness 0..1 switches windows, signs and lamps on; `film` makes the cinema lights chase
   function setNight(n, film, t) {
-    for (const m of glowMats) { if (m.userData.sign) m.color.setScalar(0.92 + n * 0.3); else m.emissiveIntensity = n * (m.userData.soft ? 0.5 : 1.6); }
+    for (const m of glowMats) { if (m.userData.sign) m.color.setScalar(0.92 + n * (m.userData.light ? 0.06 : 0.3)); else m.emissiveIntensity = n * (m.userData.soft ? 0.5 : 1.6); }
     for (const l of lamps) l.intensity = n * 9;
     marquee.forEach((m, i) => { m.emissiveIntensity = film ? (Math.floor(t * 4 + i) % 3 === 0 ? 2.2 : 0.5) : n * 1.2; });
-    for (const h of heroes) { h.o.position.y = h.y + Math.sin(t * 1.3) * 0.06; h.o.rotation.z = Math.sin(t * 0.7) * 0.06; }   // rooftop signs bob gently
+    for (const h of heroes) { if (h.motion === 'spin') h.o.rotation.z = -t * (film ? 1.6 : 0.35); else { h.o.position.y = h.y + Math.sin(t * 1.3) * 0.06; h.o.rotation.z = Math.sin(t * 0.7) * 0.06; } }   // rooftop things bob, the film reel turns
   }
   const SEASON = { spring: [0xb9e36a, 0x86cf5c, 0xffb7d0], summer: [0xb4dc5a, 0x79c653, 0x4fae52], autumn: [0xd8cf62, 0xc2a84a, 0xf2792e], winter: [0xeef6fb, 0xd5e6f2, 0xdfeaf2] };
   function setSeason(name, fruitReady) {
