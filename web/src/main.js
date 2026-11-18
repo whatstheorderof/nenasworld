@@ -18,6 +18,7 @@ import { buildFarIslands } from './far.js';
 import { makeFeelings } from './feelings.js';
 import { waterMaterial, tickWater } from './water.js';
 import { buildSky, HORIZON } from './sky.js';
+import { openChart, updateChart, closeChart, chartOpen } from './chart.js';
 const feelings = makeFeelings();
 
 const MIND = (import.meta.env.VITE_MIND_URL || 'http://localhost:8787').replace(/\/$/, '');
@@ -274,10 +275,17 @@ function connect() {
 setTimeout(connect, 0);
 setInterval(() => { if (local) apply(local.now()); }, 200);
 $('status').onclick = () => $('status').classList.toggle('open');
+$('map-btn').onclick = () => (chartOpen() ? closeChart() : openChart({ islets: lifeData?.islets || [], at: now?.pos, heading: now?.heading }));
 $('offline').onclick = () => { $('offline').hidden = true; };   // on phones the card starts small
 
 const NEED_COLORS = { fullness: '#f2792e', energy: '#ffd93b', wonder: '#6a2fc4', joy: '#ff7fa3', calm: '#2fc6b3' };
-$('needs').innerHTML = NEEDS.map(k => `<div class="need"><span>${k[0].toUpperCase() + k.slice(1)}</span><div class="bar"><i id="need-${k}" style="background:${NEED_COLORS[k]}"></i></div></div>`).join('');
+const NEED_ICONS = { fullness: '🍙', energy: '⚡', wonder: '✨', joy: '💗', calm: '🍃' };
+$('needs').innerHTML = NEEDS.map(k => `<div class="need" id="needbox-${k}"><svg viewBox="0 0 40 40"><circle class="track" cx="20" cy="20" r="16"/><circle class="fill" id="need-${k}" cx="20" cy="20" r="16" stroke="${NEED_COLORS[k]}" pathLength="100" stroke-dasharray="100" stroke-dashoffset="50"/></svg><span>${NEED_ICONS[k]}</span><small>${k[0].toUpperCase() + k.slice(1)}</small></div>`).join('');
+const MOOD_FACES = { content: '🙂', curious: '🧐', delighted: '🤩', happy: '😊', hungry: '😋', 'put out': '😤', restless: '😣', sleepy: '🥱', asleep: '😴', unsettled: '😟', 'a little flat': '😔' };
+const WEATHER_ICONS = { clear: '☀️', cloudy: '☁️', rain: '🌧️', storm: '⛈️', wind: '🌬️', heat: '🔥', rainbow: '🌈', snow: '❄️', mist: '🌫️', aurora: '🌌', meteors: '🌠' };
+const SEASON_ICONS = { spring: '🌸', summer: '🌿', autumn: '🍂', winter: '❄️' };
+const DOING_ICONS = [[/sleep|nap/, '💤'], [/eat|cook|bake|cookie|cocoa|lolly|drink/, '🍪'], [/fish/, '🎣'], [/read|library|letter/, '📖'], [/draw|paint|art|craft|compose|tune|record/, '🎨'], [/storm|rain/, '⛈️'], [/star|observ|sky|cloud|gaze|wish/, '🔭'], [/garden|flower|plant|crop|harvest|weed|tree/, '🌱'], [/swim|dive|boat|sea|beach|sunbathe/, '🌊'], [/film|cinema/, '🎬'], [/museum|fossil|dig/, '🦴'], [/buy|sell|shop|clothes|turnip|trade/, '🛍️'], [/chat|greet|friend|camper|hobby|gift/, '💬'], [/photo/, '📷'], [/snowman/, '⛄'], [/kite/, '🪁'], [/coin/, '🪙'], [/walk|wander|way|riding|going/, '👣']];
+const doingIcon = (a = {}) => { const s = `${a.action || ''} ${a.label || ''}`; for (const [re, ic] of DOING_ICONS) if (re.test(s)) return ic; return '💭'; };
 const clockText = h => { const hh = Math.floor(h) % 24, mm = String(Math.floor((h % 1) * 60)).padStart(2, '0'); return settings.clock24 ? `${String(hh).padStart(2, '0')}:${mm}` : `${hh % 12 || 12}:${mm} ${hh < 12 ? 'am' : 'pm'}`; };
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -289,13 +297,18 @@ function apply(n, snap) {
   target.set(n.pos.x, 0, n.pos.z);
   if (snap) nena.root.position.copy(target);
   const upcoming = n.event ? `${n.event.name} is on!` : (todaysEvent(n.day) ? `${todaysEvent(n.day).name} today` : '');
-  $('clock').textContent = `Day ${n.day} · ${cap(n.season)} ${n.dayOfSeason}/7 · ${clockText(n.hour)} · ${WEATHER_WORDS[qs.get('weather') || n.weather] || n.weather}`;
+  { const w = qs.get('weather') || n.weather; $('clock').innerHTML = `<span>Day ${n.day}</span><span>${SEASON_ICONS[n.season] || ''} ${cap(n.season)} ${n.dayOfSeason}/7</span><span>${n.night ? '🌙' : '🕑'} ${clockText(n.hour)}</span><span>${WEATHER_ICONS[w] || ''} ${cap(WEATHER_WORDS[w] || w)}</span>`; }
+  $('mood').textContent = `${MOOD_FACES[n.mood] || '🙂'} ${n.mood}`;
+  $('doing-ico').textContent = doingIcon(n.activity);
+  { const pr = n.activity.phase === 'doing' && n.activity.progress > 0; $('doing-bar').hidden = !pr; if (pr) $('doing-bar').firstChild.style.width = `${Math.round(n.activity.progress * 100)}%`; }
   $('event').textContent = upcoming; $('event').hidden = !upcoming;
   $('doing').textContent = n.activity.label + (n.activity.detail && n.activity.phase === 'doing' ? `: ${n.activity.detail}` : '');
   $('thought').textContent = n.thought ? `"${n.thought}"` : '';
-  $('coins').textContent = `${n.coins} coins · feeling ${n.mood}`;
-  $('mind').textContent = n.mind.local ? 'mind: stand-in in your browser' : n.mind.model ? `mind: ${n.mind.model} (last choice: ${n.mind.source})` : 'mind: scripted fallback (no model connected yet)';
-  for (const k of NEEDS) $(`need-${k}`).style.width = `${Math.round(n.needs[k] * 100)}%`;
+  $('coins').innerHTML = `<i class="coin"></i>${n.coins}`;
+  { const m = $('mind'); m.textContent = n.mind.local ? 'stand-in mind' : n.mind.model ? 'her own mind' : 'scripted mind'; m.className = n.mind.local ? 'standin' : n.mind.model ? 'live' : 'scripted';
+    m.title = n.mind.local ? 'Her own mind is not online yet: a stand-in is running in your browser' : n.mind.model ? `Mind: ${n.mind.model} (last choice: ${n.mind.source})` : 'Scripted fallback: no model connected yet'; }
+  for (const k of NEEDS) { const v = Math.round(n.needs[k] * 100); $(`need-${k}`).setAttribute('stroke-dashoffset', 100 - v); const b = $(`needbox-${k}`); b.title = `${cap(k)}: ${v}%`; b.classList.toggle('low', v < 25); }
+  updateChart({ at: n.activity.action === 'boat_trip' && n.activity.phase === 'doing' && n.activity.islet != null ? isletPos(n.activity.islet) : n.pos, heading: n.heading });
   town.flag.rotation.z = n.mail ? 0 : -1.4; town.flag.position.y = n.mail ? 1.5 : 1.25;
   nena.setScarf(SCARVES[n.look.scarf] ?? SCARVES[0]);
   // what she wears depends on the weather as well as her wardrobe
@@ -452,8 +465,8 @@ addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());
 $('cam').onclick = () => {
   freeCam = !freeCam;
-  controls.enablePan = freeCam; controls.maxDistance = freeCam ? 300 : 140; controls.maxPolarAngle = freeCam ? 1.55 : 1.45;
-  $('cam').textContent = freeCam ? 'Follow Nena' : 'Free camera';
+  controls.enablePan = freeCam; controls.maxDistance = freeCam ? 300 : 165; controls.maxPolarAngle = freeCam ? 1.55 : 1.45;
+  $('cam').classList.toggle('on', freeCam); $('cam').title = freeCam ? 'Follow Nena again' : 'Roam the island yourself';
   $('camhelp').hidden = !freeCam; if (freeCam) $('offline').hidden = true;
   if (matchMedia('(pointer: coarse)').matches) $('camhelp').textContent = 'Drag to look · pinch to zoom · two fingers to move';
   if (!freeCam) { const p = nena.root.position; const off = camera.position.clone().sub(controls.target).setLength(22); controls.target.set(p.x, 1, p.z); camera.position.copy(controls.target).add(off); if (camera.position.y < 6) camera.position.y = 6; }
