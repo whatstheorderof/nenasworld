@@ -119,7 +119,10 @@ export function buildTown() {
       mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.7, 7), flat(0x5f82ad), 0, 0.35, 0, g); mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.2, 7), warm(), 0, 0.78, 0, g); mesh(new THREE.ConeGeometry(0.22, 0.16, 7), flat(0x5f82ad), 0, 0.96, 0, g); top = 0.8; }
     else if (kind === 'torch') {    // beach torch
       box(0.12, 2.0, 0.12, 0xc9744a, 0, 1.0, 0, g); mesh(new THREE.CylinderGeometry(0.2, 0.12, 0.3, 6), flat(0x8a5a3a), 0, 2.1, 0, g);
-      const f = mesh(new THREE.ConeGeometry(0.17, 0.5, 5), glow(0xff8a1f, 0xffb45a), 0, 2.45, 0, g); f.userData.flicker = true; torches.push(f); top = 2.4; }
+      const f = mesh(new THREE.ConeGeometry(0.17, 0.5, 5), glow(0xff8a1f, 0xffb45a), 0, 2.45, 0, g); f.userData.flicker = true; f.userData.keep = true; torches.push(f); top = 2.4; }
+    // the Blender lamp replaces the simple one (the torch keeps its live flame)
+    const model = { classic: 'LampClassic', globes: 'LampGlobes', hanging: 'LampHanging', bollard: 'LampBollard', torch: 'LampTorch' }[kind], light = warm();
+    whenKit(() => { const m = kitModel(model, { glow_lampwarm: light }); if (!m) return; for (const c of [...g.children]) if (!c.userData.keep) g.remove(c); g.add(m); });
     if (lamps.length < 14 && kind !== 'bollard') { const l = new THREE.PointLight(kind === 'torch' ? 0xff9a4a : 0xffc870, 0, 12, 1.8); l.position.set(x, top, z); town.add(l); lamps.push(l); }
     return g;
   }
@@ -233,6 +236,7 @@ export function buildTown() {
     const t = mesh(new THREE.ConeGeometry(2.0, 2.6, 6), flat(col), 0, 1.3, 0, g); t.rotation.y = 0.52;
     box(0.9, 1.3, 0.2, 0x1d2545, 0, 0.65, 1.62, g); box(0.1, 0.9, 0.1, P.woodDark, 0, 3.0, 0, g); box(0.5, 0.3, 0.05, 0xfffaf0, 0.28, 3.25, 0, g);
     box(0.5, 0.5, 0.5, glow(0xffe08a, 0xfff3c4), 1.9, 0.25, 1.6, g);
+    building(g, 'BellTent', { tent_canvas: flat(col) }, null, [0, 0], {}, 'none');
   });
 
   // ---- festival things in the square, only out for events ------------------------------
@@ -265,7 +269,8 @@ export function buildTown() {
     const roof = mesh(new THREE.ExtrudeGeometry(gable, { depth: 0.5, bevelEnabled: false }), flat(0xe8452c), 0, 2.35, -0.25, board); void roof;
     [[-0.6, 1.85, 0xfff1d6], [0.1, 1.9, 0xffd9de], [0.65, 1.7, 0xdff3ff], [-0.45, 1.3, 0xfff3c4], [0.35, 1.25, 0xfff1d6], [-0.85, 1.1, 0xe2f5e0]].forEach(([x, y, c], i) => {
       const n = box(0.48, 0.4, 0.02, c, x, y, 0.11, board); n.rotation.z = (i % 2 ? 1 : -1) * 0.08; box(0.06, 0.06, 0.03, 0xe8452c, x, y + 0.15, 0.13, board); });
-    sign('NOTICES', 1.5, board, 0, 2.62, 0.3, { bg: '#fff1d6', fg: '#e8452c' }); }
+    sign('NOTICES', 1.5, board, 0, 2.62, 0.3, { bg: '#fff1d6', fg: '#e8452c' });
+    building(board, 'Noticeboard', {}, 'NOTICES', [1.3, 0.3], { bg: '#f4eee2', fg: '#c45a7a' }, 'none', () => board.traverse(o => { o.userData.clickable = 'board'; })); }
   // the noticeboard reads as one thing to click
   board.traverse(o => { o.userData.clickable = 'board'; });
   // ---- the painter's boat (only moored on some days) ---------------------------------
@@ -293,7 +298,8 @@ export function buildTown() {
     const log = mesh(new THREE.CylinderGeometry(0.28, 0.28, 1.8, 7), flat(P.woodDark), -2.2, 0.28, 3.0, g); log.rotation.z = Math.PI / 2; log.rotation.y = 0.4;
     for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283; mesh(new THREE.DodecahedronGeometry(0.2, 0), flat(P.rock), Math.cos(a) * 0.55, 0.12, 3.2 + Math.sin(a) * 0.55, g); }
     mesh(new THREE.ConeGeometry(0.26, 0.65, 5), glow(0xff8a1f, 0xff8a1f), 0, 0.42, 3.2, g);
-    sign('CAMP', 1.3, g, 2.4, 1.2, 1.6); box(0.12, 1.0, 0.12, P.woodDark, 2.4, 0.5, 1.5, g); }
+    sign('CAMP', 1.3, g, 2.4, 1.2, 1.6); box(0.12, 1.0, 0.12, P.woodDark, 2.4, 0.5, 1.5, g);
+    building(g, 'Campsite', { glow_fire: glow(0xff8a1f, 0xffb45a) }, 'CAMP', [1.2, 0.34], { bg: '#f4eee2', fg: '#c45a7a' }, 'none'); }
 
   // ---- islets out at sea that she rows to ------------------------------------------------
   const isletBoats = ISLETS.map((isl, i) => {
@@ -456,7 +462,8 @@ export function buildTown() {
     for (const sx of [-1, 1]) box(0.15, 0.8, 3.2, P.woodDark, sx * 1.5, 4.95, 0, g);
     const scope = mesh(new THREE.CylinderGeometry(0.16, 0.24, 1.3, 6), flat(0x2f7f9a), 0, 5.3, 0.6, g); scope.rotation.x = -1.0;
     box(0.5, 0.5, 0.5, glow(0x9cf6ff), 0, 6.1, -1.2, g);
-    box(0.12, 1.5, 0.12, P.woodDark, 0, 5.3, -1.2, g); }
+    box(0.12, 1.5, 0.12, P.woodDark, 0, 5.3, -1.2, g);
+    building(g, 'Lookout', {}, null, [0, 0], {}, 'none'); }
 
   // ---- igloo and snowman -----------------------------------------------------
   { const g = at('igloo');
@@ -467,7 +474,8 @@ export function buildTown() {
     const s = new THREE.Group(); s.position.set(-2.6, 0, 5.2); g.add(s);
     mesh(new THREE.SphereGeometry(0.7, 7, 5), flat(P.snow), 0, 0.6, 0, s); mesh(new THREE.SphereGeometry(0.5, 7, 5), flat(P.snow), 0, 1.5, 0, s);
     const nose = mesh(new THREE.ConeGeometry(0.09, 0.4, 5), flat(0xff8a1f), 0.2, 1.5, 0.4, s); nose.rotation.x = Math.PI / 2; nose.rotation.z = -0.4;
-    box(0.5, 0.1, 0.5, 0x1d2545, 0, 1.95, 0, s); box(0.34, 0.4, 0.34, 0x1d2545, 0, 2.2, 0, s); }
+    box(0.5, 0.1, 0.5, 0x1d2545, 0, 1.95, 0, s); box(0.34, 0.4, 0.34, 0x1d2545, 0, 2.2, 0, s);
+    building(g, 'Igloo', { glow_igloo: glow(0xffb45a, 0xffd08a) }, null, [0, 0], {}, 'none'); }
 
   // ---- ice pond ----------------------------------------------------------------
   const pond = site('pond');
@@ -525,7 +533,8 @@ export function buildTown() {
     mesh(new THREE.CylinderGeometry(0.25, 0.3, 0.5, 6), flat(0x2fc6b3), -2.3, 0.25, 0.9, g); }
 
   // ---- mailbox and lamps -----------------------------------------------------------------
-  { box(0.2, 1.1, 0.2, P.woodDark, 1.5, 0.55, -0.6); box(0.7, 0.5, 0.95, 0xe8452c, 1.5, 1.3, -0.6);
+  { const mb = [box(0.2, 1.1, 0.2, P.woodDark, 1.5, 0.55, -0.6), box(0.7, 0.5, 0.95, 0xe8452c, 1.5, 1.3, -0.6)];
+    whenKit(() => { const m = kitModel('Mailbox'); if (!m) return; m.position.set(1.5, 0, -0.6); town.add(m); for (const o of mb) town.remove(o); });
     town.userData.flag = box(0.08, 0.5, 0.3, 0xffd93b, 1.9, 1.5, -0.6); }
   // the square: four double-globe posts round the edge
   for (const deg of [20, 110, 200, 290]) { const a = deg * Math.PI / 180; lamp(Math.cos(a) * (SQUARE - 0.9), Math.sin(a) * (SQUARE - 0.9), 'globes', -a); }
