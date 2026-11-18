@@ -569,10 +569,10 @@ function frame() {
   town.setLights(nightness, elapsed);
   far.update(elapsed, nightness, sky);
   dots.uniforms.amount.value = 1 - nightness * 0.5;   // lighter touch at night so the glow reads
-  dyn.update(dt, elapsed, now?.npcs, nightness);
+  dyn.update(dt, elapsed, qs.get('npcs') ? now?.npcs?.map(n => ({ ...n, out: true })) : now?.npcs, nightness);   // ?npcs=1 shows everyone (previews)
   { const p = nena.root.position, edge = Math.hypot(controls.target.x, controls.target.z) / WORLD.radius;
     sound.update(dt, { ...wx, day: 1 - nightness, summer: (now?.season || '') === 'summer', seaNear: 0.35 + Math.max(0, edge - 0.4) * 1.2 }); void p; }
-  dyn.setVisitors(now?.visitors || [], elapsed, dt);
+  dyn.setVisitors([...(now?.visitors || []), ...(qs.get('gull') && now ? [{ id: -1, name: 'a gull', x: now.pos.x + 1.6, z: now.pos.z + 1.2, wave: Date.now() }] : [])], elapsed, dt);   // ?gull=1 previews a visitor
   const sp = snow.geometry.attributes.position;
   if (wx.snow > 0.02) { for (let i = 0; i < SNOW; i++) { let y = sp.getY(i) - dt * (1.5 + (i % 5) * 0.3); if (y < 0) y = 30; sp.setY(i, y); } sp.needsUpdate = true; }
 
@@ -599,4 +599,4 @@ function frame() {
   requestAnimationFrame(frame);
 }
 frame();
-window.__world = { camera, controls, nena, sound, site, town };   // handy in the console
+window.__world = { scene, camera, controls, nena, sound, site, town, npcs: () => now?.npcs || [], camper: () => now?.camper, pos: () => now?.pos };   // handy in the console

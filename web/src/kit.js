@@ -32,7 +32,7 @@ export const whenKit = f => { if (roots) { try { f(); } catch (e) { console.warn
 function material(src) {
   if (mats[src.name]) return mats[src.name];
   const col = src.color.clone(); if (/^(isl_|house_)/.test(src.name)) col.setHex(pastel(col.getHex()));
-  return mats[src.name] = Object.assign(new THREE.MeshLambertMaterial({ color: col, flatShading: true }), { name: src.name });
+  return mats[src.name] = Object.assign(new THREE.MeshLambertMaterial({ color: col, flatShading: !/^chr_/.test(src.name) }), { name: src.name });   // characters are smooth, like Nena
 }
 
 // A merged copy of an asset: a Group holding one mesh per material.

@@ -2,6 +2,7 @@
 // weeds, bottles and balloons that turn up, and her neighbours.
 import * as THREE from 'three';
 import { pastel } from './palette.js';
+import { whenKit, kitParts } from './kit.js';
 import { BLOOMS } from '../../shared/data.js';
 import { PLACES, site } from '../../shared/world.js';
 
@@ -72,6 +73,9 @@ function critter(kindIn) {
   if (kindIn === 'hare') body.children.filter(o => o.geometry?.type === 'ConeGeometry' && o.position.y > 1.3).forEach(o => { o.scale.y = 2.6; o.position.y += 0.4; });
   if (kindIn === 'walrus') for (const sd of [-1, 1]) add(body, new THREE.ConeGeometry(0.05, 0.4, 4), 0xfffaf0, 0.12 * sd, 0.5, 1.0).rotation.x = Math.PI;
   g.scale.setScalar(1.25); g.userData.body = body;
+  // the Blender model for this animal replaces the simple one
+  const model = { seal: 'Seal', puffin: 'Puffin', fox: 'Fox', otter: 'Otter', hare: 'Hare', owl: 'Owl', walrus: 'Walrus' }[kindIn];
+  whenKit(() => { const m = kitParts(model); if (!m) return; body.clear(); body.add(m); g.scale.setScalar(1); });
   return g;
 }
 
@@ -97,6 +101,7 @@ function gull(name) {
   add(b, new THREE.SphereGeometry(0.2, 6, 5), 0xfffaf0, 0, 0.22, 0.32); const bk = add(b, new THREE.ConeGeometry(0.07, 0.24, 4), 0xffa62b, 0, 0.2, 0.55); bk.rotation.x = Math.PI / 2;
   const wings = [-1, 1].map(sd => { const w = add(b, new THREE.BoxGeometry(0.7, 0.05, 0.36), 0xcfd8e3, sd * 0.5, 0.05, 0); return w; });
   g.add(label(name)); g.userData = { body: b, wings };
+  whenKit(() => { const m = kitParts('Gull'); if (!m) return; b.clear(); b.add(m); g.userData.wings = [m.getObjectByName('GullWingR'), m.getObjectByName('GullWingL')]; });
   return g;
 }
 function label(text, y = 2.6) {
