@@ -63,26 +63,29 @@ export function kitParts(name, swap = {}) {
 // The plain geometry of an asset (for instanced things like fence planks).
 export function kitGeometry(name) { const m = kitModel(name); return m ? m.children[0].geometry : null; }
 
-// A building: everything merged per material for speed, except its rooftop `Hero` object,
-// which stays its own group so it can bob or turn. Named empties come back as positions.
+// A building: everything merged per material for speed, except its moving sections. Nodes
+// named `Hero` (the rooftop object) or `Live<Name>` (e.g. LiveDome) stay their own groups so the
+// site can bob, turn or light them. Named empties come back as positions in `anchors`.
 const builds = {};
+const LIVE = /^(Hero|Live[A-Z][A-Za-z]*?)\d*$/;
 export function kitBuilding(name, swap = {}) {
   const root = roots?.[name]; if (!root) return null;
   if (!builds[name]) {
-    const inv = root.matrixWorld.clone().invert(); let heroNode = null; root.traverse(o => { if (!heroNode && /^Hero\d*$/.test(o.name)) heroNode = o; });
-    const heroInv = heroNode ? heroNode.matrixWorld.clone().invert() : null;
-    const body = {}, hero = {}, anchors = {};
+    const inv = root.matrixWorld.clone().invert(), lives = new Map(), anchors = {};
+    root.traverse(o => { if (o !== root && LIVE.test(o.name)) lives.set(o, o.name.match(LIVE)[1]); });
+    const owner = o => { for (let p = o.parent; p; p = p.parent) if (lives.has(p)) return p; return null; };
+    const packs = { body: {} }; for (const n of lives.values()) packs[n] = {};
     root.traverse(o => {
       if (!o.isMesh) { if (o !== root) anchors[o.name.replace(/\d{3}$/, '')] = new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)); return; }
-      let inHero = false; for (let p = o.parent; p; p = p.parent) if (p === heroNode) inHero = true;
-      const g = plain(o.geometry); g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inHero ? heroInv : inv, o.matrixWorld));
-      ((inHero ? hero : body)[o.material.name] ||= { src: o.material, geos: [] }).geos.push(g);
+      const lp = owner(o), key = lp ? lives.get(lp) : 'body';
+      const g = plain(o.geometry); g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(lp ? lp.matrixWorld.clone().invert() : inv, o.matrixWorld));
+      (packs[key][o.material.name] ||= { src: o.material, geos: [] }).geos.push(g);
     });
     const pack = byMat => Object.values(byMat).map(({ src, geos }) => ({ src, geo: mergeGeometries(geos) }));
-    builds[name] = { body: pack(body), hero: pack(hero), anchors };
+    builds[name] = { packs: Object.fromEntries(Object.entries(packs).map(([k, v]) => [k, pack(v)])), anchors };
   }
   const b = builds[name], make = list => { const g = new THREE.Group(); for (const { src, geo } of list) g.add(new THREE.Mesh(geo, swap[src.name] || material(src))); return g; };
-  const group = make(b.body), hero = make(b.hero);
-  if (b.anchors.Hero) { hero.position.copy(b.anchors.Hero); group.add(hero); }
-  return { group, hero, anchors: b.anchors };
+  const group = make(b.packs.body), parts = {};
+  for (const [k, list] of Object.entries(b.packs)) if (k !== 'body') { parts[k] = make(list); if (b.anchors[k]) parts[k].position.copy(b.anchors[k]); group.add(parts[k]); }
+  return { group, hero: parts.Hero || new THREE.Group(), parts, anchors: b.anchors };
 }

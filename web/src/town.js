@@ -184,7 +184,8 @@ export function buildTown() {
     for (let i = 0; i < 4; i++) { const f = mesh(new THREE.ConeGeometry(0.16, 0.6, 4), flat(i % 2 ? 0x8fd3ff : 0xbfe8ff), -1.3 + i * 0.85, 1.2, 0.2, g); f.rotation.z = Math.PI / 2; f.rotation.y = 0.3; }
     box(0.6, 0.4, 0.4, glow(0xffe08a, 0xfff3c4), 1.6, 2.5, -0.5, g);
     box(0.14, 1.0, 0.14, P.woodDark, 0, 4.0, -0.6, g);
-    sign('FISH', 2.4, g, 0, 4.7, -0.6); }
+    sign('FISH', 2.4, g, 0, 4.7, -0.6);
+    building(g, 'FishStall', {}, 'FISH', [2.2, 0.44], { bg: '#f4eee2', fg: '#5f82ad' }); }
 
   building(hut('library', { w: 5.6, h: 3.8, depth: 4, label: 'BOOKS', wall: 0xf7b34a, roof: 0x2f7f9a }), 'Library', {}, 'LIBRARY', [1.3, 0.38], { bg: '#f4eee2', fg: '#c45a7a' });
   { const g = hut('studio', { w: 4.8, h: 3.4, depth: 4, label: 'STUDIO', wall: 0xff8f6b, roof: 0x6a2fc4 }), eg = new THREE.Group(); eg.userData.keep = true; g.add(eg);
@@ -249,7 +250,8 @@ export function buildTown() {
     for (let i = 0; i < 5; i++) box(0.5, 0.12, 1.7, i % 2 ? 0xfffaf0 : 0x8a5a3a, -1.0 + i * 0.5, 2.7, 0.1, g).rotation.x = 0.2;
     mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.26, 7), flat(0xfffaf0), -0.5, 1.35, 0.2, g); mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.5, 7), glow(0xffb45a, 0xe8452c), 0.5, 1.46, 0, g);
     sign('COCOA', 1.5, g, 0, 0.62, 0.62, { bg: '#fff1d6', fg: '#8a5a3a' });
-    for (const [x, z] of [[-1.9, 1.9], [1.9, 2.1]]) mesh(new THREE.CylinderGeometry(0.34, 0.38, 0.45, 7), flat(P.wood), x, 0.22, z, g); }
+    for (const [x, z] of [[-1.9, 1.9], [1.9, 2.1]]) mesh(new THREE.CylinderGeometry(0.34, 0.38, 0.45, 7), flat(P.wood), x, 0.22, z, g);
+    building(g, 'CocoaCart', {}, 'COCOA', [1.8, 0.55], { bg: '#f4eee2', fg: '#a8794a' }); }
 
   // ---- flagpole in the square (she designs the flag) -------------------------------
   const flagMat = flat(FLAGS[0]);
@@ -316,14 +318,15 @@ export function buildTown() {
     const roof = mesh(new THREE.ConeGeometry(2.1, 2.2, 4), flat(0xe8452c), 0, 11.1, 0, g); roof.rotation.y = Math.PI / 4; mesh(new THREE.SphereGeometry(0.22, 6, 5), flat(0xffd93b), 0, 12.3, 0, g);
     const faceMat = new THREE.MeshLambertMaterial({ color: 0xfffaf0, emissive: 0xffe9b0, emissiveIntensity: 0 }); faceMat.userData.soft = true; glowMats.push(faceMat);
     for (let f = 0; f < 4; f++) {
-      const face = new THREE.Group(); face.rotation.y = f * Math.PI / 2; g.add(face);
+      const face = new THREE.Group(); face.rotation.y = f * Math.PI / 2; face.userData.keep = true; g.add(face);   // faces and hands stay live
       const disc = mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.08, 20), faceMat, 0, 8.5, 1.28, face); disc.rotation.x = Math.PI / 2;
       const rim = mesh(new THREE.TorusGeometry(1.0, 0.09, 5, 20), flat(0x1d2545), 0, 8.5, 1.3, face);
       for (let i = 0; i < 12; i++) { const a = i / 12 * 6.283, big = i % 3 === 0; const tk = box(0.07, big ? 0.24 : 0.12, 0.03, 0x1d2545, Math.sin(a) * 0.8, 8.5 + Math.cos(a) * 0.8, 1.34, face); tk.rotation.z = -a; }
       const mk = (len, w, col) => { const pivot = new THREE.Group(); pivot.position.set(0, 8.5, 1.36); face.add(pivot); box(w, len, 0.03, col, 0, len / 2 - 0.08, 0, pivot); return pivot; };
       clockHands.push({ hour: mk(0.5, 0.11, 0x1d2545), minute: mk(0.78, 0.07, 0xe8452c) });
       box(0.1, 0.1, 0.06, 0x1d2545, 0, 8.5, 1.38, face); void rim;
-    } }
+    }
+    building(g, 'Clocktower', {}, null, [0, 0], {}, 'none'); }
   // night lights: the lighthouse turns, torches flicker, fairy lights twinkle
   const tmpC = new THREE.Color();
   function setLights(night, t) {
@@ -375,7 +378,8 @@ export function buildTown() {
     mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.2, 8), flat(0x3c2a86), 0, 2.75, 3.1, dome).rotation.x = 0.95;
     const sm = new THREE.MeshLambertMaterial({ color: 0xdff3ff, emissive: 0x9cf6ff, emissiveIntensity: 0 }); scopeLight = sm;
     mesh(new THREE.CircleGeometry(0.34, 10), sm, 0, 2.86, 3.25, dome).rotation.x = 0.95 - Math.PI / 2;
-    sign('OBSERVATORY', 3.6, g, 0, 3.35, 2.68, { bg: '#3c2a86', fg: '#fffaf0' }); }
+    sign('OBSERVATORY', 3.6, g, 0, 3.35, 2.68, { bg: '#3c2a86', fg: '#fffaf0' });
+    building(g, 'Observatory', { glow_scope: sm, glow_star: glow(0x9cf6ff, 0xdff3ff) }, 'OBSERVATORY', [2.3, 0.36], { bg: '#2c3157', fg: '#f4eee2' }, 'none', b => { if (b.parts.LiveDome) { b.parts.LiveDome.rotation.y = dome.rotation.y; dome = b.parts.LiveDome; } }); }
 
   // ---- lighthouse: a striped tower whose beam sweeps the island and the sky at night --------
   const beam = new THREE.Group(); let beamLamp = null, beamLight = null;
@@ -392,6 +396,7 @@ export function buildTown() {
     beamLamp = new THREE.MeshLambertMaterial({ color: 0xfff3c4, emissive: 0xffe9a0, emissiveIntensity: 0 }); mesh(new THREE.SphereGeometry(0.5, 10, 8), beamLamp, 0, topY + 1.05, 0, g);
     mesh(new THREE.ConeGeometry(1.25, 1.1, 10), flat(0xe8452c), 0, topY + 2.35, 0, g); mesh(new THREE.SphereGeometry(0.18, 6, 5), flat(0xffd93b), 0, topY + 3.0, 0, g);
     sign('LIGHTHOUSE', 2.2, g, 0, 3.2, 2.04, { bg: '#e8452c', fg: '#fffaf0' });
+    building(g, 'Lighthouse', { glow_lamp: beamLamp, glass_lantern: new THREE.MeshLambertMaterial({ color: 0xdff3ff, transparent: true, opacity: 0.4 }) }, 'LIGHTHOUSE', [1.9, 0.34], { bg: '#f4eee2', fg: '#c45a7a' });
     // the beam: two long soft cones pointing opposite ways, turning round
     const s = site('lighthouse'); beam.position.set(s.x, topY + 1.05, s.z); town.add(beam);
     const c = document.createElement('canvas'); c.width = 4; c.height = 128; const gx = c.getContext('2d'); const gr = gx.createLinearGradient(0, 0, 0, 128);
@@ -421,8 +426,8 @@ export function buildTown() {
       for (const c of [...g.children]) if (!c.userData.keep) g.remove(c);   // keep live bits (like the studio easel)
       g.add(b.group);
       const a = b.anchors.SignAnchor; if (a && label) sign(label, w, g, a.x, a.y, a.z, { ...colours, board: false, h });
-      if (b.anchors.Hero) heroes.push({ o: b.hero, y: b.hero.position.y, motion });
-      done?.();
+      if (b.anchors.Hero && motion !== 'none') heroes.push({ o: b.hero, y: b.hero.position.y, motion });
+      done?.(b);
     });
   }
   // ---- cookie shop: pastel storefront, striped awning, a giant cookie on the roof ----------------
