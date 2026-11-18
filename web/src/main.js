@@ -261,7 +261,9 @@ function connect() {
   };
   ws.onerror = () => ws.close();
 }
-connect();
+// start once this whole file has run: on https the stand-in starts straight away, and it
+// uses things declared further down (the open panel, season names)
+setTimeout(connect, 0);
 setInterval(() => { if (local) apply(local.now()); }, 200);
 $('status').onclick = () => $('status').classList.toggle('open');
 $('offline').onclick = () => { $('offline').hidden = true; };   // on phones the card starts small
