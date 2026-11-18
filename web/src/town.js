@@ -350,6 +350,7 @@ export function buildTown() {
   }
   // wind: trees lean and sway, the flag streams out
   function setWind(w, t) {
+    blades.material.uniforms.uWind.value += (w - blades.material.uniforms.uWind.value) * 0.05;   // grass leans more in a breeze
     for (const g of swayers) { g.rotation.z = Math.sin(t * 1.6 + g.id) * 0.04 * w + 0.05 * w; g.rotation.x = Math.cos(t * 1.3 + g.id) * 0.03 * w; }
     const f = town.userData.flagCloth; if (f) { f.rotation.y = Math.sin(t * (2 + w * 6)) * (0.25 + w * 0.35); f.rotation.z = -0.15 * (1 - w); }
   }
@@ -597,11 +598,52 @@ export function buildTown() {
     for (const m of glowMats) { if (m.userData.sign) m.color.setScalar(0.92 + n * (m.userData.light ? 0.06 : 0.3)); else m.emissiveIntensity = n * (m.userData.soft ? 0.5 : 1.6); }
     for (const l of lamps) l.intensity = n * 9;
     marquee.forEach((m, i) => { m.emissiveIntensity = film ? (Math.floor(t * 4 + i) % 3 === 0 ? 2.2 : 0.5) : n * 1.2; });
-    for (const h of heroes) { if (h.motion === 'spin') h.o.rotation.z = -t * (film ? 1.6 : 0.35); else { h.o.position.y = h.y + Math.sin(t * 1.3) * 0.06; h.o.rotation.z = Math.sin(t * 0.7) * 0.06; } }   // rooftop things bob, the film reel turns
+    blades.material.uniforms.uTime.value = t; blades.material.uniforms.uNight.value = n;
+    for (const h of heroes) { if (h.motion === 'spin') h.o.rotation.z = -t * (film ? 1.6 : 0.35); else { h.o.position.y = h.y + (1 + Math.sin(t * 1.3)) * 0.035; h.o.rotation.z = Math.sin(t * 0.7) * 0.04; } }   // rooftop things lift gently off their perch and settle back; the film reel turns
   }
-  const SEASON = { spring: [0xb9e36a, 0x86cf5c, 0xffb7d0], summer: [0xb4dc5a, 0x79c653, 0x4fae52], autumn: [0xd8cf62, 0xc2a84a, 0xf2792e], winter: [0xeef6fb, 0xd5e6f2, 0xdfeaf2] };
+  // grass, darker grass, leaves, then the grass blades' base and tip (already pastel: used as they are)
+  // ---- grass blades: thousands of little tufts, kept off paths, water, sand and buildings ------
+  const blades = (() => {
+    const tuft = new THREE.BufferGeometry(), pos = [], hgt = [];
+    for (let k = 0; k < 4; k++) {   // four blades fanned round a tuft, each a thin bent triangle
+      const a = k / 4 * Math.PI * 2 + 0.4, ox = Math.cos(a) * 0.07, oz = Math.sin(a) * 0.07, h = 0.34 + (k % 2) * 0.14, lean = 0.1;
+      const px = -Math.sin(a) * 0.035, pz = Math.cos(a) * 0.035;
+      pos.push(ox - px, 0, oz - pz, ox + px, 0, oz + pz, ox * 1.8 + Math.cos(a) * lean, h, oz * 1.8 + Math.sin(a) * lean); hgt.push(0, 0, 1);
+    }
+    tuft.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); tuft.setAttribute('h', new THREE.Float32BufferAttribute(hgt, 1)); tuft.computeVertexNormals();
+    const mat = new THREE.ShaderMaterial({ side: THREE.DoubleSide, fog: true,
+      uniforms: { ...THREE.UniformsLib.fog, uTime: { value: 0 }, uWind: { value: 0.3 }, uNight: { value: 0 }, uBase: { value: new THREE.Color(0x6fb46a) }, uTip: { value: new THREE.Color(0xbfe39c) } },
+      vertexShader: `attribute float h; uniform float uTime, uWind; varying float vH; varying vec2 vW;
+        #include <fog_pars_vertex>
+        void main() { vH = h; vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0); vW = w.xz;
+          float sway = sin(uTime * (1.6 + uWind * 3.0) + w.x * 0.35 + w.z * 0.27) * (0.05 + uWind * 0.16) * h;
+          w.x += sway; w.z += sway * 0.6; vec4 mvPosition = viewMatrix * w; gl_Position = projectionMatrix * mvPosition;
+          #include <fog_vertex>
+        }`,
+      fragmentShader: `uniform vec3 uBase, uTip; uniform float uNight; varying float vH; varying vec2 vW;
+        #include <fog_pars_fragment>
+        void main() { vec3 c = mix(uBase, uTip, vH) * (0.92 + 0.08 * sin(vW.x * 1.7 + vW.y * 2.3)); c = mix(c, c * vec3(0.11, 0.14, 0.26), uNight);   // darker and bluer at night, like the ground
+          gl_FragColor = vec4(c, 1.0);
+          #include <colorspace_fragment>
+          #include <fog_fragment>
+        }` });
+    const N = 5200, inst = new THREE.InstancedMesh(tuft, mat, N), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3();
+    const pondS = site('pond');
+    let n = 0;
+    for (let tries = 0; tries < N * 6 && n < N; tries++) {
+      const r = Math.sqrt(rand()) * (R - 1.6), a = rand() * Math.PI * 2, x = Math.cos(a) * r, z = Math.sin(a) * r;
+      if (Math.hypot(x, z) < SQUARE + 0.6 || inBeach(x, z) || nearRiver(x, z, 2.4) || onPath(x, z, 0.9) || blockedAt(x, z)) continue;
+      if (Math.hypot(pondS.x - x, pondS.z - z) < PLACES.pond.r * 1.65 + 1.2) continue;
+      if (Object.keys(PLACES).some(k => { const s2 = site(k); return Math.hypot(s2.x - x, s2.z - z) < (s2.r || 0) + 0.9; })) continue;
+      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rand() * 6.28); const k = 0.7 + rand() * 0.8; sc.set(k, k * (0.8 + rand() * 0.6), k);
+      m4.compose(p.set(x, 0, z), q, sc); inst.setMatrixAt(n++, m4);
+    }
+    inst.count = n; inst.frustumCulled = false; town.add(inst); return inst;
+  })();
+  const SEASON = { spring: [0xa8d88a, 0x8cc77c, 0xf4bfd0, 0x7fbf74, 0xc4e8a4], summer: [0x9fd486, 0x82c276, 0x86c97a, 0x6fb46a, 0xbfe39c], autumn: [0xc9d08a, 0xb3b672, 0xeab08a, 0x9fa564, 0xe2dc9c], winter: [0xeef6fb, 0xd5e6f2, 0xdfeaf2, 0xc9d9e6, 0xf6fbff] };
   function setSeason(name, fruitReady) {
-    const c = SEASON[name] || SEASON.summer; grassMat.color.set(pastel(c[0])); grassDarkMat.color.set(pastel(c[1])); leafMat.color.set(pastel(c[2]));
+    const c = SEASON[name] || SEASON.summer; grassMat.color.set(c[0]); grassDarkMat.color.set(c[1]); leafMat.color.set(c[2]);
+    blades.material.uniforms.uBase.value.set(c[3]); blades.material.uniforms.uTip.value.set(c[4]); blades.visible = name !== 'winter';
     fruit.forEach(f => { f.visible = fruitReady && name !== 'winter'; });
   }
   function setHouse(look, level) { const l = HOUSE_LOOKS[look] || HOUSE_LOOKS[0]; house.wall.color.set(pastel(l.wall)); house.roof.color.set(pastel(l.roof)); house.extras[0].visible = level >= 2; house.extras[1].visible = level >= 3; }
