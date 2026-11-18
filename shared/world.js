@@ -5,9 +5,9 @@
 // K stretches the whole layout: buildings stay the same size, the island and the gaps between things grow.
 export const K = 1.65;
 // The scale each saved layout was drawn at, so her things can be moved out when the island grows.
-export const LAYOUT_K = { 1: 1, 2: 1.35, 3: 1.35, 4: 1.35, 5: 1.65 };
+export const LAYOUT_K = { 1: 1, 2: 1.35, 3: 1.35, 4: 1.35, 5: 1.65, 6: 1.65 };
 export const SQUARE = 7.5;   // radius of the round pebble town square
-export const WORLD = { size: 88, radius: 30 * K, name: "Nena's World", layout: 5 };
+export const WORLD = { size: 88, radius: 30 * K, name: "Nena's World", layout: 6 };
 const POND_Z = 9.7 * K + 10.3;     // centre of the pond
 const DZ = POND_Z - 19.2;           // the river runs out of the pond, so it moves with it
 
@@ -33,6 +33,7 @@ export const PLACES = {
   rock:    { label: 'Big Rock',     x: -8.6,  z: 2.6,   d: 0,   r: 0   },
   river:   { label: 'River',        x: -9,    z: 16.2,  d: 0,   r: 0   },
   beach:   { label: 'Beach',        x: 14.2,  z: 19.9,  d: 0,   r: 0   },
+  cookie:  { label: 'Cookie Shop',  x: -19.7, z: -7.2,  d: 4.6, r: 3.0 },
 };
 
 for (const p of Object.values(PLACES)) { p.x = Math.round(p.x * K * 10) / 10; p.z = Math.round(p.z * K * 10) / 10; }

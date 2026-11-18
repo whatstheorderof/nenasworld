@@ -3,21 +3,24 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { pastel } from './palette.js';
 
 let roots = null;
 const waiting = [], merged = {}, mats = {};
 new GLTFLoader().load(`${import.meta.env.BASE_URL}models/island.glb`, gltf => {
   roots = {}; for (const o of gltf.scene.children) roots[o.name] = o;
   gltf.scene.updateMatrixWorld(true);
-  for (const f of waiting.splice(0)) f();
+  for (const f of waiting.splice(0)) try { f(); } catch (e) { console.warn('[kit]', e); }
 }, undefined, err => console.warn('[kit] island models did not load, keeping the simple ones', err));
 
 // Run `f` once the kit is here (straight away if it already is).
-export const whenKit = f => { if (roots) f(); else waiting.push(f); };
+export const whenKit = f => { if (roots) { try { f(); } catch (e) { console.warn('[kit]', e); } } else waiting.push(f); };
 
 // One shared material per Blender material name, unless the caller swaps it for its own.
 function material(src) {
-  return mats[src.name] ||= Object.assign(new THREE.MeshLambertMaterial({ color: src.color.clone() }), { name: src.name });
+  if (mats[src.name]) return mats[src.name];
+  const col = src.color.clone(); if (/^(isl_|house_)/.test(src.name)) col.setHex(pastel(col.getHex()));
+  return mats[src.name] = Object.assign(new THREE.MeshLambertMaterial({ color: col, flatShading: true }), { name: src.name });
 }
 
 // A merged copy of an asset: a Group holding one mesh per material.
@@ -48,3 +51,28 @@ export function kitParts(name, swap = {}) {
 
 // The plain geometry of an asset (for instanced things like fence planks).
 export function kitGeometry(name) { const m = kitModel(name); return m ? m.children[0].geometry : null; }
+
+// A building: everything merged per material for speed, except its rooftop `Hero` object,
+// which stays its own group so it can bob or turn. Named empties come back as positions.
+const builds = {};
+export function kitBuilding(name, swap = {}) {
+  const root = roots?.[name]; if (!root) return null;
+  if (!builds[name]) {
+    const inv = root.matrixWorld.clone().invert(); let heroNode = null; root.traverse(o => { if (!heroNode && /^Hero\d*$/.test(o.name)) heroNode = o; });
+    const heroInv = heroNode ? heroNode.matrixWorld.clone().invert() : null;
+    const body = {}, hero = {}, anchors = {};
+    root.traverse(o => {
+      if (!o.isMesh) { if (o !== root) anchors[o.name.replace(/\d{3}$/, '')] = new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)); return; }
+      let inHero = false; for (let p = o.parent; p; p = p.parent) if (p === heroNode) inHero = true;
+      const g = o.geometry.clone(); for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k);
+      g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inHero ? heroInv : inv, o.matrixWorld));
+      ((inHero ? hero : body)[o.material.name] ||= { src: o.material, geos: [] }).geos.push(g.index ? g.toNonIndexed() : g);
+    });
+    const pack = byMat => Object.values(byMat).map(({ src, geos }) => ({ src, geo: mergeGeometries(geos) }));
+    builds[name] = { body: pack(body), hero: pack(hero), anchors };
+  }
+  const b = builds[name], make = list => { const g = new THREE.Group(); for (const { src, geo } of list) g.add(new THREE.Mesh(geo, swap[src.name] || material(src))); return g; };
+  const group = make(b.body), hero = make(b.hero);
+  if (b.anchors.Hero) { hero.position.copy(b.anchors.Hero); group.add(hero); }
+  return { group, hero, anchors: b.anchors };
+}

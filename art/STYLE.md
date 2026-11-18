@@ -1,0 +1,178 @@
+# Nena's World: art style and Blender briefs
+
+The look is taken from Zane's cookie shop reference: a **charming, low-poly, pastel storybook town**.
+Every building and prop in Nena's World is redesigned to this guide. Each one has its own brief
+below, written like the original cookie shop prompt, and that brief is what gets built.
+
+## The look
+
+- **Low-poly, softly faceted.** Shapes are simple and chunky, edges are slightly bevelled, faces
+  are flat-shaded. There's no high detail and no subdivision blobs. Things should look like
+  painted wooden toys.
+- **Pastel first, with a few deep accents.** Walls and big shapes are pastel. Frames, sign boards
+  and outlines use one deep colour (chocolate brown or deep navy) so the pastels read clearly.
+- **Storefront grammar.** Almost every building is built from the same parts:
+  - a low **plinth** in a contrasting pastel
+  - pastel **walls** with lighter **corner pilasters**
+  - a **cornice** along the top with a **scalloped trim**
+  - **big display windows** with thin white frames and something charming behind the glass
+  - a **door** with a small round porthole window and a step
+  - a **sign board** in a dark frame, ringed with little warm bulbs
+  - a **striped or scalloped awning**
+  - **two planters** with round topiary either side of the door
+  - one **giant "hero" object** on the roof that says what the place is (a cookie, a film reel,
+    a fish, a telescope...)
+- **Warm and inviting.** Windows glow warm cream at night, bulbs twinkle, light spills out onto
+  the pavement in front. By day the light is soft and sunny.
+- **A pavement apron.** Buildings sit on a pale grey paving-slab pad that joins the pebble paths.
+- **Cosy clutter.** Small details reward a close look: cookies on window shelves, a bell over the
+  door, a watering can, a cat-sized bench.
+
+## Palette
+
+| Use | Colour | Hex |
+|---|---|---|
+| Pink walls / awning stripe | blush pink | `#d9a3b4` |
+| Mint trim / doors / cornice | sage mint | `#9cc9b8` |
+| Lavender plinths | lavender | `#b7aede` |
+| Cream / warm white | cream | `#f4eee2` |
+| Butter yellow | butter | `#f3dc9b` |
+| Sky blue walls | powder blue | `#a9cbe6` |
+| Peach walls / planters | peach | `#ecc3a4` |
+| Sign text / accents | raspberry | `#c45a7a` |
+| Frames, sign boards, chocolate | chocolate | `#4a2f28` |
+| Cookie / wood | biscuit brown | `#a8794a` |
+| Window glow (night) | warm cream | `#fff1cf` |
+| Paving | soft grey | `#cfd2d6` |
+| Grass | soft green | `#a8d58e` |
+| Darker grass / bushes | sage | `#86bf7c` |
+| Pines | teal green | `#5fa596` |
+| Rocks | blue grey | `#a9b8c9` |
+| Water | pastel blue | `#8fc4e8` |
+
+Nena keeps her own colours (navy coat, orange beak, teal scarf). She's meant to stand out from her world.
+
+## Technical rules (so models drop straight into the site)
+
+- Blender scene is Z-up. **The front faces -Y.** One unit = one metre; Nena is about 1.5 tall,
+  a doorway is about 1.7, a one-storey shop is about 3.5 to 4.5.
+- Each asset has one **root empty** at its centre on the ground, named after the asset
+  (`CookieShop`, `Cinema`...). Footprints must fit the place's circle in `shared/world.js`.
+- **Material names are the contract with the code:**
+  - `glow_*`: lights up at night (window glass, bulbs, lanterns)
+  - `sign_*`: part of the sign board
+  - `house_wall` / `house_roof`: recolourable by the owner
+  - `isl_*`: shared kit colours
+- **Empties the code looks for:** `SignAnchor` (where the canvas text goes, so the sign stays
+  crisp and can be renamed), `Hero` (the rooftop object, which can spin or bob), `Door`.
+- Keep it light: up to about 3k triangles for a building and 500 for a prop.
+  Flat shading, no textures unless needed.
+- Export: `web/public/models/<file>.glb`, Y-up, apply modifiers. Sources live in `art/*.blend`.
+
+## Briefs
+
+Each brief is the prompt the model is built from.
+
+### Cookie Shop *(new)*
+Create a colorful, stylized 3D cookie shop in Blender. Give it a pastel-pink exterior with
+cream pilasters and a lavender plinth, large display windows with trays of cookies on the sills,
+a pink-and-white striped scalloped awning, a mint door with a round porthole window, a dark
+framed sign that says "Cookie Shop" ringed with warm bulbs, and a giant chocolate chip cookie
+above the entrance. Add a mint cornice with a scalloped trim, two planters with round topiary,
+and a paved pavement apron. Warm, inviting light in the windows. Charming low-poly style.
+
+### Nena's House
+Create a cosy, stylized 3D cottage for a little penguin in Blender. Give it cream walls with
+sage-mint pilasters and a lavender plinth, a blush-pink gable roof with a scalloped bargeboard,
+a round attic window, a mint front door with a porthole window and a step, two square paned
+windows with flower boxes, a chimney, and a small sign above the door that reads "NENA". Add a
+doormat, a mailbox and a pavement apron. A side room and an upstairs can be added later and must
+match. Warm light in the windows. Charming low-poly style.
+
+### Cinema
+Create a colorful, stylized 3D small-town cinema in Blender. Give it a lavender exterior with
+cream pilasters, a deep-navy marquee sign that says "CINEMA" ringed with chasing bulbs, two
+poster cases either side of double mint doors, a little ticket booth window, a scalloped
+butter-yellow canopy over the entrance, and a giant film reel on the roof. Add a red carpet
+strip and a pavement apron. Warm, inviting light. Charming low-poly style.
+
+### Museum
+Create a stylized 3D little museum in Blender. Give it powder-blue walls, cream columns at the
+front, a cream triangular pediment with a scalloped edge, wide steps, tall arched windows showing
+a fossil and a framed painting, a dark sign that says "MUSEUM", and a giant golden fossil shell
+on the roof. Pavement apron and two topiary planters. Charming low-poly style.
+
+### General Shop and Workbench
+Create a colorful, stylized 3D corner shop in Blender. Give it a butter-yellow exterior with mint
+trim, big display windows full of jars, tools and seed packets, a mint-and-white striped awning,
+a dark sign that says "SHOP" with warm bulbs, crates of fruit by the door, and a giant shopping
+bag on the roof. Beside it, a chunky wooden workbench with a vice and tools. Charming low-poly style.
+
+### Clothes Shop
+Create a colorful, stylized 3D boutique in Blender. Give it a blush-pink exterior with lavender
+trim, big windows with little mannequins in scarves and hats, a lavender-and-white striped awning,
+a dark sign that says "CLOTHES" with warm bulbs, a hat stand by the door, and a giant hat with a
+bow on the roof. Charming low-poly style.
+
+### Library
+Create a stylized 3D cosy library in Blender. Give it a sage-mint exterior with cream trim, tall
+windows with bookshelves visible inside, a round reading-nook bay window, a dark sign that says
+"LIBRARY", a book-return box, a bench, and a giant open book on the roof. Charming low-poly style.
+
+### Studio
+Create a stylized 3D artist's studio in Blender. Give it a peach exterior with mint trim, a big
+slanted skylight, an easel and paint pots outside, a dark sign that says "STUDIO", and a giant
+paintbrush and palette on the roof. Charming low-poly style.
+
+### Fish Stall
+Create a stylized 3D seaside fish stall in Blender. A powder-blue wooden counter with a blue-and-
+white striped scalloped canopy, crates of ice with little fish, a chalkboard price sign, hanging
+lanterns, and a giant smiling fish on top. Charming low-poly style.
+
+### Cocoa Cart
+Create a stylized 3D cocoa cart in Blender. A small butter-yellow cart with big wheels, a pink-
+and-white striped umbrella, steaming mugs on the counter, a chalkboard menu, and a giant mug of
+cocoa with a marshmallow on top. Charming low-poly style.
+
+### Observatory
+Create a stylized 3D tiny observatory in Blender. A round lavender tower with cream bands, a
+silver-blue dome with an opening slit and a telescope poking out, little star-shaped windows that
+glow, and a dark sign that says "OBSERVATORY". Charming low-poly style.
+
+### Lighthouse
+Create a stylized 3D lighthouse in Blender. A tapering tower in blush-pink and cream stripes, a
+mint balcony with railings, a glowing lantern room, a lavender cap with a weathervane, and a
+little cottage door at the base. Charming low-poly style.
+
+### Clocktower
+Create a stylized 3D town clocktower in Blender. A slim cream tower with mint corners, a big
+round clock face on each side, a blush-pink pointed roof with a scalloped trim, and a little bell.
+Charming low-poly style.
+
+### Lookout
+Create a stylized 3D wooden lookout tower in Blender. Biscuit-brown legs, a mint platform with
+railings, a pink-and-white striped flag, a ladder and a telescope. Charming low-poly style.
+
+### Igloo
+Create a stylized 3D igloo in Blender: chunky ice blocks in white and pale blue, a rounded
+entrance tunnel, a little warm glow inside, and a snowman beside it with a mint scarf. Charming
+low-poly style.
+
+### Campsite and neighbours' tents
+Create stylized 3D tents in Blender: triangular tents in pastel pink, mint and lavender with
+scalloped door flaps, a log seat, a stone ring campfire with glowing embers, and bunting between
+two poles. Charming low-poly style.
+
+### Street lamps, fairy lights and small props
+Stylized low-poly street props in a pastel palette: a mint lamp post with a warm globe, a
+double-globe lavender lamp, a hanging lantern, a knee-high bollard light, a beach torch, a
+noticeboard with a little roof, a mailbox, benches, planters and bins. Warm glowing bulbs.
+
+### Nature kit
+Stylized low-poly nature in a pastel palette: tiered teal pines with a snowy tip, round orchard
+trees with fruit, sage bushes, blue-grey faceted rocks, pastel flowers, a pebble path and a
+rounded plank fence. Simple chunky shapes and flat shading.
+
+### Characters (after the island)
+Bo the seal, Pip the puffin, Suvi the fox, the campers and the visiting gulls: chunky rounded
+little animals with simple faces like Nena's, in soft colours that sit happily in the pastel town.

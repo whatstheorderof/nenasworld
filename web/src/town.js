@@ -5,7 +5,8 @@
 import * as THREE from 'three';
 import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, BOARD, RING, OBSTACLES, onPath, nearRiver as riverBand } from '../../shared/world.js';
 import { drawPicture } from './art.js';
-import { whenKit, kitModel, kitParts, kitGeometry } from './kit.js';
+import { pastel } from './palette.js';
+import { whenKit, kitModel, kitParts, kitGeometry, kitBuilding } from './kit.js';
 import { HOUSE_LOOKS, FLAGS } from '../../shared/data.js';
 
 const P = {
@@ -26,8 +27,8 @@ export function buildTown() {
   const signs = [];      // redrawn once the web font has loaded
   const lamps = [], torches = [], swayers = [];
   const rand = rng(11);
-  const flat = color => new THREE.MeshLambertMaterial({ color, flatShading: true });
-  const glow = (color = P.glow, base = 0xcdeeff) => { const m = new THREE.MeshLambertMaterial({ color: base, emissive: color, emissiveIntensity: 0, flatShading: true }); glowMats.push(m); return m; };
+  const flat = color => new THREE.MeshLambertMaterial({ color: pastel(color), flatShading: true });
+  const glow = (color = P.glow, base = 0xcdeeff) => { const m = new THREE.MeshLambertMaterial({ color: pastel(base), emissive: color, emissiveIntensity: 0, flatShading: true }); glowMats.push(m); return m; };
   const mesh = (geo, material, x = 0, y = 0, z = 0, parent = town) => { const m = new THREE.Mesh(geo, material); m.position.set(x, y, z); parent.add(m); return m; };
   const box = (w, h, d, color, x, y, z, parent) => mesh(new THREE.BoxGeometry(w, h, d), typeof color === 'number' ? flat(color) : color, x, y, z, parent);
   const blockedAt = (x, z) => OBSTACLES.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 1.2);
@@ -67,7 +68,7 @@ export function buildTown() {
     town.add(inst); }
   // ---- reusable bits ---------------------------------------------------
   // A sign is its own lit board, so it reads by day and glows at night.
-  function sign(text, w, parent, x, y, z, { bg = '#1d2545', fg = '#ffd66b' } = {}) {
+  function sign(text, w, parent, x, y, z, { bg = '#1d2545', fg = '#ffd66b', board = true } = {}) {
     const c = document.createElement('canvas'); c.width = 512; c.height = 160;
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
     const draw = () => {
@@ -81,7 +82,7 @@ export function buildTown() {
     draw(); signs.push(draw);
     const h = w * 160 / 512;
     const m = new THREE.MeshBasicMaterial({ map: tex, fog: false }); m.userData.sign = true; glowMats.push(m);
-    box(w + 0.24, h + 0.24, 0.16, P.woodDark, x, y, z - 0.06, parent);
+    if (board) box(w + 0.24, h + 0.24, 0.16, P.woodDark, x, y, z - 0.06, parent);
     return mesh(new THREE.PlaneGeometry(w, h), m, x, y, z + 0.035, parent);
   }
   // Gable roof: a triangular prism with a little overhang.
@@ -123,7 +124,7 @@ export function buildTown() {
     if (lamps.length < 14 && kind !== 'bollard') { const l = new THREE.PointLight(kind === 'torch' ? 0xff9a4a : 0xffc870, 0, 12, 1.8); l.position.set(x, top, z); town.add(l); lamps.push(l); }
     return g;
   }
-  const petalMats = {}, petalMat = c => petalMats[c] ||= new THREE.MeshLambertMaterial({ color: c });
+  const petalMats = {}, petalMat = c => petalMats[c] ||= new THREE.MeshLambertMaterial({ color: pastel(c), flatShading: true });
   function flower(x, z, s, color, parent = town) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rand() * 6.28; g.scale.setScalar(s); parent.add(g);
     mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.9, 5), flat(P.grassDark), 0, 0.45, 0, g);
@@ -136,7 +137,7 @@ export function buildTown() {
     mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.16, 6), flat(P.centre), 0, 0.05, 0, head);
     whenKit(() => { const m = kitModel('Flower', { isl_petal: petalMat(color) }); if (m) { g.clear(); g.add(m); } });
   }
-  let rocks = 0; const rockMats = {}, rockMat = c => rockMats[c] ||= new THREE.MeshLambertMaterial({ color: c });
+  let rocks = 0; const rockMats = {}, rockMat = c => rockMats[c] ||= new THREE.MeshLambertMaterial({ color: pastel(c), flatShading: true });
   function rock(x, z, s, parent = town) {
     const c = rand() > 0.5 ? P.rock : P.rockDark, m = mesh(new THREE.DodecahedronGeometry(s, 0), flat(c), x, s * 0.45, z, parent); m.rotation.set(rand(), rand() * 6, rand()); m.scale.y = 0.75;
     const kind = rocks++ % 3, turn = m.rotation.y;
@@ -151,7 +152,7 @@ export function buildTown() {
   }
 
   // ---- her house ---------------------------------------------------------
-  const house = { wall: new THREE.MeshLambertMaterial({ color: 0xfff1d6 }), roof: new THREE.MeshLambertMaterial({ color: 0xe8452c }), extras: [] };
+  const house = { wall: new THREE.MeshLambertMaterial({ color: pastel(0xfff1d6), flatShading: true }), roof: new THREE.MeshLambertMaterial({ color: pastel(0xe8452c), flatShading: true }), extras: [] };
   { const g = at('home'), w = 5.2, h = 3.2, depth = 4.4, trim = 0x2f7f9a, hp = new THREE.Group(), win = glow(); g.add(hp);
     mesh(new THREE.BoxGeometry(w, h, depth), house.wall, 0, h / 2, 0, hp);
     for (const s of [-1, 1]) box(0.3, h, 0.3, trim, s * (w / 2), h / 2, depth / 2, hp);
@@ -212,7 +213,7 @@ export function buildTown() {
 
   // ---- orchard: leaves change with the season, fruit shows when it is ready -----------
   const fruit = [];
-  const seasonLeaves = new THREE.MeshLambertMaterial(); seasonLeaves.color = leafMat.color;   // the same Color, so seasons still tint it
+  const seasonLeaves = new THREE.MeshLambertMaterial({ flatShading: true }); seasonLeaves.color = leafMat.color;   // the same Color, so seasons still tint it
   for (const [x, z] of ORCHARD_TREES) {
     const old = [mesh(new THREE.CylinderGeometry(0.28, 0.36, 1.8, 6), flat(P.woodDark), x, 0.9, z), mesh(new THREE.DodecahedronGeometry(1.5, 0), leafMat, x, 2.9, z), mesh(new THREE.DodecahedronGeometry(1.0, 0), leafMat, x + 0.5, 3.8, z - 0.3)];
     old[1].rotation.y = rand() * 3; const turn = old[1].rotation.y;
@@ -221,7 +222,7 @@ export function buildTown() {
   }
   // the big rock she chips at
   { const m = mesh(new THREE.DodecahedronGeometry(1.5, 0), flat(P.rockDark), BIG_ROCK.x, 0.9, BIG_ROCK.z); m.scale.y = 0.9;
-    whenKit(() => { const k = kitModel('Rock1', { isl_rock_dark: new THREE.MeshLambertMaterial({ color: P.rockDark }) }); if (!k) return; k.position.set(BIG_ROCK.x, 0, BIG_ROCK.z); k.scale.set(1.75, 1.6, 1.75); town.add(k); town.remove(m); }); mesh(new THREE.DodecahedronGeometry(0.35, 0), glow(0xffe08a, 0xffd93b), BIG_ROCK.x + 0.9, 1.5, BIG_ROCK.z + 0.6); }
+    whenKit(() => { const k = kitModel('Rock1', { isl_rock_dark: new THREE.MeshLambertMaterial({ color: pastel(P.rockDark), flatShading: true }) }); if (!k) return; k.position.set(BIG_ROCK.x, 0, BIG_ROCK.z); k.scale.set(1.75, 1.6, 1.75); town.add(k); town.remove(m); }); mesh(new THREE.DodecahedronGeometry(0.35, 0), glow(0xffe08a, 0xffd93b), BIG_ROCK.x + 0.9, 1.5, BIG_ROCK.z + 0.6); }
 
   // ---- neighbours' tents -----------------------------------------------------------
   NEIGHBOURS.forEach((n, i) => {
@@ -293,7 +294,7 @@ export function buildTown() {
   // ---- islets out at sea that she rows to ------------------------------------------------
   const isletBoats = ISLETS.map((isl, i) => {
     const p = isletPos(i), g = new THREE.Group(); g.position.set(p.x, -0.3, p.z); town.add(g);
-    mesh(new THREE.CylinderGeometry(9, 12, 0.9, 12), new THREE.MeshLambertMaterial({ color: P.sea, flatShading: true, transparent: true, opacity: 0.9 }), 0, -0.3, 0, g);
+    mesh(new THREE.CylinderGeometry(9, 12, 0.9, 12), new THREE.MeshLambertMaterial({ color: pastel(P.sea), flatShading: true, transparent: true, opacity: 0.9 }), 0, -0.3, 0, g);
     mesh(new THREE.CylinderGeometry(5.2, 5.8, 0.5, 9), flat(P.sand), 0, 0.1, 0, g); mesh(new THREE.CylinderGeometry(3.6, 4.2, 0.4, 8), flat(i === 1 ? P.rock : P.grass), 0, 0.42, 0, g);
     mesh(new THREE.CylinderGeometry(4.6, 2.5, 3.5, 7), flat(P.rockDark), 0, -2.0, 0, g);
     if (i === 0) for (const [x, z] of [[-1.4, 0.6], [1.2, -1]]) { mesh(new THREE.CylinderGeometry(0.2, 0.26, 1.5, 5), flat(P.woodDark), x, 1.3, z, g); mesh(new THREE.DodecahedronGeometry(1.2, 0), flat(0xffb7d0), x, 2.9, z, g); }
@@ -408,6 +409,19 @@ export function buildTown() {
   }
   const front = key => town.children.find(o => o.isGroup && Math.abs(o.position.x - site(key).x) < 0.01 && Math.abs(o.position.z - site(key).z) < 0.01);
 
+  // ---- cookie shop: pastel storefront, striped awning, a giant cookie on the roof ----------------
+  const heroes = [];
+  { const g = at('cookie'), simple = new THREE.Group(); g.add(simple);
+    box(5.2, 3.6, 3.6, 0xd9a3b4, 0, 2.2, 0, simple); box(5.8, 0.4, 4.1, 0x9cc9b8, 0, 4.2, 0, simple);
+    mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.24, 12), flat(0xa8794a), 0, 5.4, -1.4, simple).rotation.x = Math.PI / 2;
+    whenKit(() => {
+      const warm = glow(0xffe0a0, 0xfff1cf), bulbs = glow(0xffe08a, 0xfff6d8);
+      const b = kitBuilding('CookieShop', { glow_shopwindow: warm, glow_bulb: bulbs }); if (!b) return;
+      g.remove(simple); g.add(b.group);
+      const a = b.anchors.SignAnchor; sign('Cookie Shop', 3.1, g, a.x, a.y, a.z, { bg: '#f4eee2', fg: '#c45a7a', board: false });
+      heroes.push({ o: b.hero, y: b.hero.position.y, spin: 0 });
+    }); }
+
   // ---- cinema ------------------------------------------------------------
   const marquee = [];
   { const g = at('cinema');
@@ -456,7 +470,7 @@ export function buildTown() {
         pos.push(p.x + nx * width / 2, y, p.z + nz * width / 2, p.x - nx * width / 2, y, p.z - nz * width / 2);
         if (i < N) idx.push(i * 2, i * 2 + 2, i * 2 + 1, i * 2 + 1, i * 2 + 2, i * 2 + 3); }
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
-      const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide })); town.add(m); return m;
+      const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: pastel(color), side: THREE.DoubleSide })); town.add(m); return m;
     };
     ribbon(4.2, P.sandDark, 0.06); ribbon(3.0, P.river, 0.09);
     const end = pts[pts.length - 1], a = Math.atan2(end.z, end.x);
@@ -477,7 +491,7 @@ export function buildTown() {
     ground(new THREE.RingGeometry(BEACH.inner, R + 0.05, 24, 1, -BEACH.to, len), P.sand, 0, 0, 0.04);
     ground(new THREE.RingGeometry(BEACH.inner - 1.2, BEACH.inner, 24, 1, -BEACH.to - 0.03, len + 0.06), P.sandDark, 0, 0, 0.035);
     mesh(new THREE.CylinderGeometry(R + 0.3, R - 1, 0.7, 24, 1, false, Math.PI / 2 - BEACH.to, len), flat(P.sandDark), 0, -0.36, 0);
-    const sea = mesh(new THREE.CylinderGeometry(R + 9, R + 5, 0.9, 20, 1, false, Math.PI / 2 - BEACH.to - 0.1, len + 0.2), new THREE.MeshLambertMaterial({ color: P.sea, flatShading: true, transparent: true, opacity: 0.92 }), 0, -0.55, 0);
+    const sea = mesh(new THREE.CylinderGeometry(R + 9, R + 5, 0.9, 20, 1, false, Math.PI / 2 - BEACH.to - 0.1, len + 0.2), new THREE.MeshLambertMaterial({ color: pastel(P.sea), flatShading: true, transparent: true, opacity: 0.92 }), 0, -0.55, 0);
     ground(new THREE.RingGeometry(R + 0.05, R + 0.8, 24, 1, -BEACH.to, len), 0xffffff, 0, 0, -0.08);   // foam line
     town.userData.sea = sea;
     const b = PLACES.beach, g = new THREE.Group(); g.position.set(b.x, 0, b.z); g.rotation.y = Math.atan2(-b.x, -b.z); town.add(g);
@@ -553,14 +567,15 @@ export function buildTown() {
     for (const m of glowMats) { if (m.userData.sign) m.color.setScalar(0.92 + n * 0.3); else m.emissiveIntensity = n * (m.userData.soft ? 0.5 : 1.6); }
     for (const l of lamps) l.intensity = n * 9;
     marquee.forEach((m, i) => { m.emissiveIntensity = film ? (Math.floor(t * 4 + i) % 3 === 0 ? 2.2 : 0.5) : n * 1.2; });
+    for (const h of heroes) { h.o.position.y = h.y + Math.sin(t * 1.3) * 0.06; h.o.rotation.z = Math.sin(t * 0.7) * 0.06; }   // rooftop signs bob gently
   }
   const SEASON = { spring: [0xb9e36a, 0x86cf5c, 0xffb7d0], summer: [0xb4dc5a, 0x79c653, 0x4fae52], autumn: [0xd8cf62, 0xc2a84a, 0xf2792e], winter: [0xeef6fb, 0xd5e6f2, 0xdfeaf2] };
   function setSeason(name, fruitReady) {
-    const c = SEASON[name] || SEASON.summer; grassMat.color.set(c[0]); grassDarkMat.color.set(c[1]); leafMat.color.set(c[2]);
+    const c = SEASON[name] || SEASON.summer; grassMat.color.set(pastel(c[0])); grassDarkMat.color.set(pastel(c[1])); leafMat.color.set(pastel(c[2]));
     fruit.forEach(f => { f.visible = fruitReady && name !== 'winter'; });
   }
-  function setHouse(look, level) { const l = HOUSE_LOOKS[look] || HOUSE_LOOKS[0]; house.wall.color.set(l.wall); house.roof.color.set(l.roof); house.extras[0].visible = level >= 2; house.extras[1].visible = level >= 3; }
-  function setIsland(flag, painterIn, crops) { flagMat.color.set(FLAGS[flag] ?? FLAGS[0]); painter.visible = !!painterIn; cropStages.forEach((c, i) => { c.visible = crops === i + 1; }); }
+  function setHouse(look, level) { const l = HOUSE_LOOKS[look] || HOUSE_LOOKS[0]; house.wall.color.set(pastel(l.wall)); house.roof.color.set(pastel(l.roof)); house.extras[0].visible = level >= 2; house.extras[1].visible = level >= 3; }
+  function setIsland(flag, painterIn, crops) { flagMat.color.set(pastel(FLAGS[flag] ?? FLAGS[0])); painter.visible = !!painterIn; cropStages.forEach((c, i) => { c.visible = crops === i + 1; }); }
   function setAway(islet) { isletBoats.forEach((b, i) => { b.visible = islet === i; }); beachBoat.visible = islet == null; }
   function setEvent(show) { festival.visible = !!show; lanternsG.visible = show === 'lanterns'; }
   setHouse(0, 1);

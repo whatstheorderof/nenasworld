@@ -11,7 +11,7 @@ export const SEASON_WEATHER = [
 ];
 export const WEATHER_WORDS = { clear: 'clear', cloudy: 'cloudy', rain: 'raining', storm: 'stormy', wind: 'windy', heat: 'heatwave', rainbow: 'rainbow', snow: 'snowing', mist: 'misty', aurora: 'aurora', meteors: 'shooting stars' };
 // In a storm she only goes where there is a roof.
-export const STORM_SAFE = ['home', 'cinema', 'museum', 'shop', 'tailor', 'library', 'observatory', 'cafe', 'studio'];
+export const STORM_SAFE = ['home', 'cinema', 'museum', 'shop', 'tailor', 'library', 'observatory', 'cafe', 'studio', 'cookie'];
 export function calendar(day) {
   const d = (day - 1) % 28;
   return { season: Math.floor(d / 7), seasonName: SEASONS[Math.floor(d / 7)], dayOfSeason: (d % 7) + 1, weekday: (day - 1) % 7, year: Math.floor((day - 1) / 28) + 1, dayOfYear: d + 1 };
@@ -214,6 +214,8 @@ export const ACTIONS = {
   watch_storm: A('watching the storm', 'home', 60, { wonder: 0.4, calm: -0.05 }, 'inside', c => c.weather === 'storm', 'there is thunder over the island', ['count after the flash. one. two.']),
   fly_kite: A('flying a kite', 'lookout', 50, { joy: 0.45, wonder: 0.2, energy: -0.08 }, 'lookup', c => c.weather === 'wind' && c.day, 'the wind is strong enough for a kite', ['the wind wants something to carry.']),
   chase_rainbow: A('walking to the end of the rainbow', '@free', 35, { wonder: 0.5, joy: 0.3 }, 'lookup', c => c.weather === 'rainbow', 'there is a rainbow over the island', ['a rainbow. i am going to find where it lands.']),
+  buy_cookie: A('buying a cookie', 'cookie', 25, { fullness: 0.25, joy: 0.25 }, 'stand', c => c.hour >= 7 && c.hour < 20 && c.life.s.coins >= 10 && c.n.fullness < 0.8 && c.life.s.cookieDay !== c.dayN, 'the cookie shop smells of warm cookies', ['warm cookies. i can smell them from here.', 'one cookie. maybe two.']),
+  bake_cookies: A('baking cookies at the cookie shop', 'cookie', 60, { joy: 0.3, wonder: 0.12, calm: 0.1, energy: -0.06 }, 'inside', c => c.hour >= 8 && c.hour < 18 && c.life.s.bakedDay !== c.dayN && c.dayN % 3 === 0, 'the baker lets her help in the kitchen', ['flour on my flippers. worth it.', 'i want to make something that smells this good.']),
   ice_lolly: A('eating an ice lolly', 'cafe', 25, { fullness: 0.15, joy: 0.3, energy: 0.1 }, 'sit', c => c.weather === 'heat', 'it is very hot and the cart has ice lollies', ['too hot. something cold, now.']),
   cloud_shapes: A('finding shapes in the clouds', 'beach', 35, { calm: 0.35, wonder: 0.3 }, 'lie', c => c.day && c.weather === 'cloudy' && c.cal.season !== 3, 'the clouds are low and slow', ['that one is a fish. that one is also a fish.']),
   // skies and seasons

@@ -1,10 +1,11 @@
 // Things on the island that change: what Nena has built and planted, the fossils,
 // weeds, bottles and balloons that turn up, and her neighbours.
 import * as THREE from 'three';
+import { pastel } from './palette.js';
 import { BLOOMS } from '../../shared/data.js';
 import { PLACES, site } from '../../shared/world.js';
 
-const flat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
+const flat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color: pastel(color), flatShading: true, ...extra });
 const add = (parent, geo, material, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, typeof material === 'number' ? flat(material) : material); m.position.set(x, y, z); parent.add(m); return m; };
 const box = (p, w, h, d, c, x, y, z) => add(p, new THREE.BoxGeometry(w, h, d), c, x, y, z);
 const WOOD = 0xc9531c, LIGHT = 0xf59b2f, STONE = 0x86a9cc;
