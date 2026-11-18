@@ -311,7 +311,6 @@ export function buildTown() {
   // ---- islets out at sea that she rows to ------------------------------------------------
   const isletBoats = ISLETS.map((isl, i) => {
     const p = isletPos(i), g = new THREE.Group(); g.position.set(p.x, -0.3, p.z); town.add(g);
-    mesh(new THREE.CylinderGeometry(9, 12, 0.9, 12), waterMaterial({ scale: 3.4 }), 0, -0.3, 0, g);
     mesh(new THREE.CylinderGeometry(5.2, 5.8, 0.5, 9), flat(P.sand), 0, 0.1, 0, g); mesh(new THREE.CylinderGeometry(3.6, 4.2, 0.4, 8), flat(i === 1 ? P.rock : P.grass), 0, 0.42, 0, g);
     mesh(new THREE.CylinderGeometry(4.6, 2.5, 3.5, 7), flat(P.rockDark), 0, -2.0, 0, g);
     if (i === 0) for (const [x, z, st, sc] of [[-1.4, 0.6, 2, 0.6], [1.5, -1.1, 1, 0.75], [1.4, 1.7, 0, 0.9]]) { const t = makeTree(st, 'cherry'); t.position.set(x, 0.62, z); t.rotation.y = x * 2; t.scale.setScalar(sc); g.add(t); }
@@ -499,9 +498,10 @@ export function buildTown() {
   // ---- river: pond -> waterfall on the west rim ------------------------------------
   { const pts = [[pond.x - PLACES.pond.r + 1.5, pond.z], ...RIVER].map(([x, z]) => new THREE.Vector3(x, 0, z));
     const curve = new THREE.CatmullRomCurve3(pts);
-    const ribbon = (width, color, y, material) => {
-      const N = 40, pos = [], idx = [];
-      for (let i = 0; i <= N; i++) { const p = curve.getPoint(i / N), t = curve.getTangent(i / N), nx = -t.z, nz = t.x;
+    const widen = u => 1 + Math.max(0, (u - 0.5) / 0.5) ** 1.5 * 1.1;   // the river spreads out as it nears the falls
+    const ribbon = (width0, color, y, material) => {
+      const N = 60, pos = [], idx = [];
+      for (let i = 0; i <= N; i++) { const p = curve.getPoint(i / N), t = curve.getTangent(i / N), nx = -t.z, nz = t.x, width = width0 * widen(i / N);
         pos.push(p.x + nx * width / 2, y, p.z + nz * width / 2, p.x - nx * width / 2, y, p.z - nz * width / 2);
         if (i < N) idx.push(i * 2, i * 2 + 2, i * 2 + 1, i * 2 + 1, i * 2 + 2, i * 2 + 3); }
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
@@ -509,8 +509,8 @@ export function buildTown() {
     };
     ribbon(4.2, P.sandDark, 0.06); ribbon(3.0, P.river, 0.09, waterMaterial({ scale: 1.6, speed: 0.8, flow: [0.25, 0.18] }));
     const end = pts[pts.length - 1], a = Math.atan2(end.z, end.x);
-    const fall = box(3.0, 7, 0.5, P.river, Math.cos(a) * (R + 0.1), -3.4, Math.sin(a) * (R + 0.1)); fall.rotation.y = -a + Math.PI / 2; fall.material = waterMaterial({ fall: true, edge: 0.09 });
-    const top = box(3.0, 0.2, 2.2, P.river, Math.cos(a) * (R - 0.8), 0.0, Math.sin(a) * (R - 0.8)); top.rotation.y = -a + Math.PI / 2; top.material = waterMaterial({ scale: 1.6, speed: 0.8, flow: [0.25, 0.18] });
+    const fw = 3.0 * widen(1) + 0.4, fall = box(fw, 7, 0.5, P.river, Math.cos(a) * (R + 0.1), -3.4, Math.sin(a) * (R + 0.1)); fall.rotation.y = -a + Math.PI / 2; fall.material = waterMaterial({ fall: true, edge: 0.09 });
+    const lip = box(fw, 0.2, 1.0, P.river, Math.cos(a) * (R - 0.3), 0.0, Math.sin(a) * (R - 0.3)); lip.rotation.y = -a + Math.PI / 2; lip.material = waterMaterial({ scale: 1.6, speed: 0.8, flow: [0.25, 0.18] });
     for (let i = 0; i < 7; i++) { const p = curve.getPoint(0.08 + i * 0.13), s = i % 2 ? 1 : -1; rock(p.x + s * 0.2, p.z + s * 2.3, 0.45 + rand() * 0.4); }
     // little bridge
     { const p = curve.getPoint(0.62), t = curve.getTangent(0.62), g = new THREE.Group(); g.position.set(p.x, 0, p.z); g.rotation.y = Math.atan2(t.x, t.z); town.add(g);
@@ -529,6 +529,17 @@ export function buildTown() {
     const sea = mesh(new THREE.CylinderGeometry(R + 9, R + 5, 0.9, 20, 1, false, Math.PI / 2 - BEACH.to - 0.1, len + 0.2), waterMaterial({ scale: 3.6 }), 0, -0.55, 0);
     ground(new THREE.RingGeometry(R + 0.05, R + 0.8, 24, 1, -BEACH.to, len), 0xffffff, 0, 0, -0.08);   // foam line
     town.userData.sea = sea;
+    // one sea running out from the beach to all three islets: a curved lagoon with rounded ends, a slab so it has a side
+    { const a0 = ISLETS[0].a - 0.32, a1 = ISLETS[ISLETS.length - 1].a + 0.32, rin = R - 3, rout = Math.max(...ISLETS.map(i => i.r)) + 11, mid = (rin + rout) / 2, w = (rout - rin) / 2;
+      const sh = new THREE.Shape(), pt = (x, z, first) => first ? sh.moveTo(x, -z) : sh.lineTo(x, -z);
+      for (let i = 0; i <= 40; i++) { const a = a0 + (a1 - a0) * i / 40; pt(Math.cos(a) * rout, Math.sin(a) * rout, i === 0); }
+      const cap = (a, dir) => { const ux = Math.cos(a), uz = Math.sin(a), vx = -uz, vz = ux, cx = ux * mid, cz = uz * mid;
+        for (let i = 1; i < 16; i++) { const t = Math.PI * i / 16, c = Math.cos(t) * dir, s = Math.sin(t) * dir; pt(cx + w * (ux * c + vx * s), cz + w * (uz * c + vz * s)); } };
+      cap(a1, 1);
+      for (let i = 0; i <= 40; i++) { const a = a1 - (a1 - a0) * i / 40; pt(Math.cos(a) * rin, Math.sin(a) * rin); }
+      cap(a0, -1);
+      const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.8, bevelEnabled: false, curveSegments: 4 }); geo.rotateX(-Math.PI / 2);
+      const lagoon = new THREE.Mesh(geo, waterMaterial({ scale: 3.6 })); lagoon.position.y = -0.95; town.add(lagoon); }
     const b = PLACES.beach, g = new THREE.Group(); g.position.set(b.x, 0, b.z); g.rotation.y = Math.atan2(-b.x, -b.z); town.add(g);
     box(0.14, 3.0, 0.14, 0xfffaf0, -4.6, 1.5, -2.4, g); const um = mesh(new THREE.ConeGeometry(2.0, 0.9, 8), flat(0xe8452c), -4.6, 3.2, -2.4, g); um.rotation.z = 0.12;
     box(1.3, 0.06, 2.4, 0x2fc6b3, -4.4, 0.08, -1.4, g); box(1.3, 0.07, 0.4, 0xfffaf0, -4.4, 0.09, -1.4, g);                 // towel
@@ -580,7 +591,7 @@ export function buildTown() {
   }
   // chunky plank fence round the rim; open along the beach and at the waterfall
   { const n = Math.round(R * 4), slots = [], end = RIVER[RIVER.length - 1], fallA = Math.atan2(end[1], end[0]);
-    for (let i = 0; i < n; i++) { const a = -Math.PI + (i / n) * 6.283; if (a > BEACH.from - 0.05 && a < BEACH.to + 0.05) continue; if (Math.abs(a - fallA) < 0.09) continue; slots.push(a); }
+    for (let i = 0; i < n; i++) { const a = -Math.PI + (i / n) * 6.283; if (a > BEACH.from - 0.05 && a < BEACH.to + 0.05) continue; if (Math.abs(a - fallA) < 0.13) continue; slots.push(a); }
     const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(0.75, 1.5, 0.3), flat(P.woodDark), slots.length), m = new THREE.Object3D();
     slots.forEach((a, i) => { m.position.set(Math.cos(a) * (R - 0.9), 0.6 + (i % 2) * 0.12, Math.sin(a) * (R - 0.9)); m.rotation.set(0, -a + Math.PI / 2, (rand() - 0.5) * 0.25); m.updateMatrix(); inst.setMatrixAt(i, m.matrix); });
     town.add(inst); whenKit(() => { const geo = kitGeometry('Fence'); if (geo) inst.geometry = geo; }); }

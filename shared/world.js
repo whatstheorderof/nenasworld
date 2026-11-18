@@ -96,6 +96,7 @@ export const OBSTACLES = [
 
 // The river runs from the pond to a waterfall on the west rim.
 export const RIVER = [[-4.5, 19.2], [-9, 18.6], [-14, 19.6], [-19, 19.0], [-23.4, 18.6]].map(([x, z]) => [x * K, z + DZ]);
+{ const [x, z] = RIVER[RIVER.length - 1], l = Math.hypot(x, z), out = (30 * K - 0.2) / l; RIVER.push([Math.round(x * out * 10) / 10, Math.round(z * out * 10) / 10]); }   // ...and on to the rim, where it falls
 // The beach is the sandy sector of the rim between these angles (atan2(z, x)).
 export const BEACH = { from: 0.55, to: 1.35, inner: 21 * K };
 export const inBeach = (x, z) => { const a = Math.atan2(z, x); return a > BEACH.from && a < BEACH.to && Math.hypot(x, z) > BEACH.inner; };

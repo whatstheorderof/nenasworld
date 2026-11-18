@@ -110,7 +110,7 @@ export function buildSky(scene) {
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(colr, 3));
   const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
   lines.frustumCulled = false; lines.renderOrder = -9; scene.add(lines);
-  const shoot = Array.from({ length: N }, () => ({ t: 9, life: 1 }));
+  const shoot = Array.from({ length: N }, () => ({ t: 9, life: 1, a: 0, e: 0.5, da: 0, de: 0 }));
   let next = 6;
 
   const dirAt = (a, e) => new THREE.Vector3(Math.cos(a) * Math.cos(e), Math.sin(e), Math.sin(a) * Math.cos(e));
