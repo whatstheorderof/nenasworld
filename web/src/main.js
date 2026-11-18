@@ -17,6 +17,7 @@ import { drawStamp } from './stamps.js';
 import { buildFarIslands } from './far.js';
 import { makeFeelings } from './feelings.js';
 import { waterMaterial, tickWater } from './water.js';
+import { buildSky, HORIZON } from './sky.js';
 const feelings = makeFeelings();
 
 const MIND = (import.meta.env.VITE_MIND_URL || 'http://localhost:8787').replace(/\/$/, '');
@@ -130,14 +131,16 @@ function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h
 addEventListener('resize', resize); resize();
 
 // ---- sky by the hour -------------------------------------------------------
-const SKY = { day: new THREE.Color(0x7fe9ff), night: new THREE.Color(0x0b1030), dusk: new THREE.Color(0xff9e7a) };
+const SKY = HORIZON;   // the horizon colour, which the fog matches
+const skyDome = buildSky(scene);
+let skyHour = 12;
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const sky = new THREE.Color();
 const wx = { snow: 0, aurora: 0, mist: 0, meteors: 0, rain: 0, storm: 0, cloudy: 0, wind: 0, heat: 0, rainbow: 0 };
 let nightness = 0;
 function setSky(hour, weather, dt, show) {
-  const d = smooth(5, 7.5, hour) * (1 - smooth(18.5, 21, hour)), n = 1 - d; nightness = n;
-  sky.copy(SKY.night).lerp(SKY.day, d).lerp(SKY.dusk, 4 * d * (1 - d) * 0.55);
+  const d = smooth(5, 7.5, hour) * (1 - smooth(18.5, 21, hour)), n = 1 - d; nightness = n; skyHour = hour;
+  sky.copy(SKY.night).lerp(SKY.day, d).lerp(SKY.dusk, Math.min(1, 4 * d * (1 - d) * 0.85));
   const k = 1 - Math.exp(-dt * 1.5);
   for (const key of Object.keys(wx)) wx[key] += ((weather === key ? 1 : 0) - wx[key]) * k;
   if (wx.mist > 0.01) sky.lerp(new THREE.Color(d > 0.5 ? 0xd8eef5 : 0x232a45), wx.mist * 0.6);
@@ -145,7 +148,7 @@ function setSky(hour, weather, dt, show) {
   scene.fog.near = 130 - wx.mist * 118; scene.fog.far = 320 - wx.mist * 240;
   hemi.intensity = 0.28 + d * 1.25; hemi.color.set(d > 0.5 ? 0xffffff : 0x8fa8ff); hemi.groundColor.set(d > 0.5 ? 0x9fd27a : 0x1d2545);
   sun.intensity = d * 2.0 + n * 0.25; sun.color.set(d > 0.5 ? 0xfff2d8 : 0x9bb4ff);
-  stars.material.opacity = n * (1 - wx.mist) * 0.95;
+  stars.visible = false;   // the sky dome draws the stars now
   aurora.children.forEach((m, i) => { m.material.opacity = n * wx.aurora * (0.55 + 0.2 * Math.sin(performance.now() / 1700 + i * 2)); });
   snow.material.opacity = wx.snow * 0.9;
   cloudMat.color.copy(CLOUD.night).lerp(CLOUD.day, d).lerp(CLOUD.dusk, 4 * d * (1 - d) * 0.6); if (wx.mist > 0.01) cloudMat.color.lerp(sky, wx.mist * 0.5); cloudMat.emissive.copy(cloudMat.color);
@@ -154,7 +157,7 @@ function setSky(hour, weather, dt, show) {
   setWeatherFx(dt, d, n, performance.now() / 1000);
 
   // shooting stars
-  meteors.material.opacity = n * wx.meteors;
+  meteors.material.opacity = 0;   // the sky dome draws shooting stars as streaks
   if (wx.meteors > 0.02) { const p = meteors.geometry.attributes.position;
     meteorState.forEach((m, i) => { m.t += dt; if (m.t > 5) { m.t = Math.random() * -4; m.a = Math.random() * 6.28; m.e = 0.5 + Math.random() * 0.6; }
       for (let j = 0; j < 8; j++) { const tt = Math.max(0, m.t) * 0.35 - j * 0.012, a = (m.a || 0) + tt, e = (m.e || 0.8) - tt * 0.8, r = 250; p.setXYZ(i * 8 + j, Math.cos(a) * Math.cos(e) * r, m.t > 0 && m.t < 1.2 ? Math.sin(e) * r : -500, Math.sin(a) * Math.cos(e) * r); } });
@@ -202,6 +205,7 @@ function setWeatherFx(dt, d, n, t) {
   const fl = settings.flashes ? flash : 0;   // the bolt still shows when flashes are off; the screen does not light up
   if (fl > 0) sky.lerp(WHITE, fl * 0.45);
   scene.background = sky; scene.fog.color.copy(sky); document.body.style.background = `#${sky.getHexString()}`;
+  skyDome.update(skyHour, d, sky, { grey, mist: wx.mist, flash: fl, meteors: wx.meteors }, dt, camera);
   scene.fog.near -= wet * 70; scene.fog.far -= wet * 150;
   hemi.intensity = hemi.intensity * (1 - grey * 0.45) + fl * 2.5 + wx.heat * 0.2 * d;
   sun.intensity = sun.intensity * (1 - grey * 0.75) + wx.heat * 0.6 * d;
