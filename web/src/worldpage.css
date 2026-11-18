@@ -1,0 +1,38 @@
+:root { --ink: #1d2545; --paper: #fffaf0; --pink: #d9a3b4; --mint: #9cc9b8; --lav: #b7aede; --cream: #f4eee2; --rasp: #c45a7a; }
+* { box-sizing: border-box; }
+html { background: #f4eee2; }
+body { margin: 0; min-height: 100vh; background: linear-gradient(#bfeefd, #f4eee2 420px) no-repeat; font-family: Nunito, ui-rounded, system-ui, sans-serif; color: var(--ink); }
+header { max-width: 860px; margin: 0 auto; padding: 28px 18px 8px; }
+h1 { margin: 0; font-size: 34px; font-weight: 900; }
+#source { margin: 6px 0 12px; font-weight: 600; opacity: .8; }
+.tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button, .tools a { font: inherit; font-weight: 800; color: var(--ink); background: var(--paper); border: 3px solid var(--ink); border-radius: 14px; padding: 7px 13px; box-shadow: 0 4px 0 var(--ink); cursor: pointer; text-decoration: none; font-size: 14px; }
+button:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--ink); }
+#keybox { margin-top: 12px; font-weight: 800; font-size: 14px; }
+#keybox input { font: inherit; border: 3px solid var(--ink); border-radius: 10px; padding: 5px 9px; margin-left: 6px; width: min(320px, 70vw); }
+main { max-width: 860px; margin: 0 auto; padding: 10px 18px 60px; display: grid; gap: 18px; }
+.day { background: var(--paper); border: 3px solid var(--ink); border-radius: 18px; box-shadow: 0 5px 0 var(--ink); padding: 16px 18px; }
+.day h2 { margin: 0; font-size: 22px; font-weight: 900; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
+.day h2 small { font-size: 14px; font-weight: 800; opacity: .65; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.chip { background: var(--cream); border-radius: 999px; padding: 3px 10px; font-size: 13px; font-weight: 800; }
+.hours { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; margin: 8px 0 4px; }
+.hours span { height: 22px; border-radius: 4px; background: #e6e2d8; font-size: 11px; display: grid; place-items: center; }
+.legend { font-size: 11px; font-weight: 700; opacity: .7; display: flex; justify-content: space-between; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+@media (max-width: 640px) { .cols { grid-template-columns: 1fr; } }
+.cols h3 { margin: 0 0 4px; font-size: 14px; }
+.cols ul { margin: 0; padding-left: 18px; font-size: 14px; font-weight: 600; }
+.best li::marker { color: #3f9a6a; } .low li::marker { color: var(--rasp); }
+details { margin-top: 10px; font-size: 14px; } summary { font-weight: 800; cursor: pointer; }
+details pre { white-space: pre-wrap; font: inherit; font-weight: 600; background: var(--cream); border-radius: 10px; padding: 10px; }
+.fb { margin-top: 14px; border-top: 2px dashed #d9d3c4; padding-top: 12px; }
+.fb .hearts button { box-shadow: none; border: none; background: none; padding: 0 2px; font-size: 24px; color: #d9d3c4; }
+.fb .hearts button.on { color: var(--rasp); }
+.fb .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.fb .tags button { box-shadow: none; border-width: 2px; padding: 3px 10px; font-size: 12px; border-radius: 999px; }
+.fb .tags button.on { background: var(--lav); }
+.fb textarea { width: 100%; min-height: 64px; font: inherit; font-weight: 600; border: 3px solid var(--ink); border-radius: 12px; padding: 8px 10px; }
+.fb .row { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+.fb .saved { font-size: 13px; font-weight: 800; opacity: .7; }
+.empty { text-align: center; font-weight: 800; padding: 40px; }

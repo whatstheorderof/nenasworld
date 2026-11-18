@@ -5,6 +5,7 @@ import { World } from '../../mind/src/world.js';
 import { Life } from '../../shared/life.js';
 import { chooseFallback } from '../../shared/choose.js';
 import { scriptedReply } from '../../shared/chat.js';
+import { WorldLog } from '../../shared/worldlog.js';
 
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
@@ -12,13 +13,15 @@ const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } cat
 export function startLocalMind(onFeed, onChat = () => {}) {
   const life = new Life({ load: () => load('nena-life', null), save: v => save('nena-life', v) });
   const world = new World(load('nena-world', null), 3600, life);
+  const log = new WorldLog({ load: () => load('nena-worldlog', null), save: v => save('nena-worldlog', v) });   // the world diary
   const recent = [], feed = load('nena-feed', []), chat = load('nena-chat', []);
-  const addChat = item => { item = { id: Math.random().toString(36).slice(2, 9), at: Date.now(), day: world.day, hour: world.hour, ...item }; chat.push(item); if (chat.length > 120) chat.shift(); save('nena-chat', chat); onChat(item); };
+  const addChat = item => { item = { id: Math.random().toString(36).slice(2, 9), at: Date.now(), day: world.day, hour: world.hour, ...item }; chat.push(item); if (chat.length > 120) chat.shift(); save('nena-chat', chat); log.chat(item, world.view()); onChat(item); };
   let thought = 'just woke up.', say = null, sayUntil = 0, nextThink = 0, last = Date.now();
-  const push = item => { feed.push(item); if (feed.length > 80) feed.shift(); onFeed(item); };
+  const push = item => { feed.push(item); if (feed.length > 80) feed.shift(); log.feed(item, world.view()); onFeed(item); };
 
   const tick = setInterval(() => { const t = Date.now(); world.tick(Math.min(0.25, (t - last) / 1000)); last = t; }, 50);
   const beat = setInterval(() => {
+    log.sample(world.view(), world.activity?.place);
     while (world.finished.length) {
       const a = world.finished.shift(), r = life.finish(a.action, a, world);
       if (!r) continue;
@@ -33,7 +36,7 @@ export function startLocalMind(onFeed, onChat = () => {}) {
     push({ at: Date.now(), day: world.day, hour: world.hour, action: c.action, label: world.activity.label, detail: c.detail || null, reason: c.reason, source: 'stand-in' });
     nextThink = Date.now() + world.mood().heartbeat * 1000;
   }, 1000);
-  const keep = setInterval(() => { save('nena-world', world.snapshot()); save('nena-feed', feed); }, 10000);
+  const keep = setInterval(() => { save('nena-world', world.snapshot()); save('nena-feed', feed); log.flush(); }, 10000);
 
   function talk(name, text) {
     addChat({ kind: 'visitor', name, text });

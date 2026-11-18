@@ -379,7 +379,8 @@ async function show(name) {
         ${row('clock24', '24-hour clock', 'Off: 9:30 pm instead of 21:30')}
         <h3>You</h3>
         <label class="set"><span><b>Your name</b><small>Shown on your gull, in chat and on notes</small></span><input type="text" id="set-name" maxlength="16" value="${esc(myName())}" /></label>
-        <p class="row"><button class="inline" id="set-reset" type="button">Reset to defaults</button></p>`;
+        <p class="row"><button class="inline" id="set-reset" type="button">Reset to defaults</button></p>
+        <p class="dim">Looking after Nena? <a href="/world.html">Read the world diary</a>, a day-by-day record of the island, and leave feedback.</p>`;
       body.querySelectorAll('[data-set]').forEach(el => el.onchange = el.oninput = () => {
         const k = el.dataset.set; settings[k] = el.type === 'checkbox' ? el.checked : el.type === 'range' ? Number(el.value) : el.value; saveSettings(); applySettings(k);
         if (k === 'sound') body.querySelector('[data-set=volume]').disabled = !settings.sound;

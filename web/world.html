@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Nena's world diary</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/worldpage.css" />
+</head>
+<body>
+  <header>
+    <h1>Nena's world diary</h1>
+    <p id="source">Reading the island…</p>
+    <div class="tools">
+      <button id="copy">Copy all as text</button>
+      <button id="download">Download (.md)</button>
+      <a href="/">Back to the island</a>
+    </div>
+    <div id="keybox" hidden>
+      <label>Creator key <input id="key" type="password" autocomplete="off" placeholder="the CREATOR_KEY set on her mind server" /></label>
+    </div>
+  </header>
+  <main id="days"></main>
+  <script type="module" src="/src/worldpage.js"></script>
+</body>
+</html>

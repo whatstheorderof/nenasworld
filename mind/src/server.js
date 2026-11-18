@@ -18,6 +18,7 @@ try {
 const { PLACES } = await import('../../shared/world.js');
 const { World } = await import('./world.js');
 const { Life } = await import('../../shared/life.js');
+const { WorldLog, FEEDBACK_TAGS } = await import('../../shared/worldlog.js');
 const { Memory } = await import('./memory.js');
 const { Brain } = await import('./brain.js');
 const { provider, usage } = await import('./models.js');
@@ -38,8 +39,9 @@ const sockets = new Set();
 const broadcast = msg => { const s = JSON.stringify(msg); for (const ws of sockets) if (ws.readyState === 1) ws.send(s); };
 
 const chat = memory.readJson('chat.json', []);
+const log = new WorldLog({ load: () => memory.readJson('world-log.json', null), save: v => memory.writeJson('world-log.json', v) });   // the world diary
 const brain = new Brain(world, memory, life, item => {
-  feed.push(item); if (feed.length > 200) feed.shift();
+  feed.push(item); if (feed.length > 200) feed.shift(); log.feed(item, world.view());
   broadcast({ type: 'feed', item });
 });
 
@@ -51,7 +53,7 @@ function now() {
 
 function addChat(item) {
   item = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), at: Date.now(), day: world.day, hour: world.hour, ...item };
-  chat.push(item); if (chat.length > 300) chat.shift();
+  chat.push(item); if (chat.length > 300) chat.shift(); log.chat(item, world.view());
   broadcast({ type: 'chat', item });
 }
 brain.onChat = addChat;
@@ -61,14 +63,15 @@ let last = Date.now();
 setInterval(() => { const t = Date.now(); world.tick(Math.min(0.25, (t - last) / 1000)); last = t; }, 50);
 setInterval(() => brain.beat().catch(e => console.error('[brain]', e)), 1000);
 setInterval(() => broadcast({ type: 'now', now: now() }), 200);
-const save = () => { memory.writeJson('state.json', world.snapshot()); memory.writeJson('feed.json', feed); memory.writeJson('chat.json', chat); life.store.save(life.s); };
+setInterval(() => log.sample(world.view(), world.activity?.place), 2000);   // the world diary notes each hour
+const save = () => { memory.writeJson('state.json', world.snapshot()); memory.writeJson('feed.json', feed); memory.writeJson('chat.json', chat); life.store.save(life.s); log.flush(); };
 setInterval(save, 30000);
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { save(); process.exit(0); });
 
 // ---- http ----------------------------------------------------------------
 const lastPost = new Map();
 const json = (res, code, body) => {
-  res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST,OPTIONS' });
+  res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type, x-creator-key', 'access-control-allow-methods': 'GET,POST,OPTIONS' });
   res.end(JSON.stringify(body));
 };
 const tidy = (s, n) => String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
@@ -87,10 +90,26 @@ const server = http.createServer(async (req, res) => {
     }
     // the noticeboard: every note left for her, and what she said back. Public, newest first.
     if (url.pathname === '/api/chat') return json(res, 200, chat.slice(-120));
+    if (url.pathname === '/api/world') {   // the world diary, newest day first, with her own diary and any feedback
+      const fb = memory.readJson('world-feedback.json', {});
+      return json(res, 200, { days: log.list(Math.min(120, Number(url.searchParams.get('limit')) || 30)).map(d => ({ ...d, diary: memory.today(d.day).slice(0, 2400), feedback: fb[d.day] || null })), tags: FEEDBACK_TAGS, canWrite: !!process.env.CREATOR_KEY });
+    }
     if (url.pathname === '/api/board') return json(res, 200, memory.notes.slice(-60).reverse().map(({ name, text, at, read, reply }) => ({ name, text, at, read, reply })));
     if (url.pathname === '/api/life') return json(res, 200, { ...life.summary(), decorList: life.s.decor });
     if (url.pathname === '/api/facts') return json(res, 200, { model: provider(), usage, daySeconds: DAY_SECONDS, bornAt: world.bornAt, visitors: Object.keys(memory.visitors).length });
-    if (url.pathname === '/') return json(res, 200, { ok: true, who: 'Nena', see: ['/api/now', '/api/feed', '/api/chat', '/api/board', '/api/diary', '/api/memory', '/api/life', '/api/facts'] });
+    if (url.pathname === '/') return json(res, 200, { ok: true, who: 'Nena', see: ['/api/now', '/api/feed', '/api/chat', '/api/board', '/api/diary', '/api/memory', '/api/life', '/api/facts', '/api/world'] });
+  }
+  // feedback on a day of the world diary: only Nena's creator, with CREATOR_KEY
+  if (req.method === 'POST' && url.pathname === '/api/world/feedback') {
+    const key = process.env.CREATOR_KEY;
+    if (!key || req.headers['x-creator-key'] !== key) return json(res, 403, { error: 'Only her creator can leave feedback here.' });
+    let body = ''; for await (const chunk of req) { body += chunk; if (body.length > 6000) return json(res, 413, { error: 'Too long.' }); }
+    let d; try { d = JSON.parse(body); } catch { return json(res, 400, { error: 'Bad JSON.' }); }
+    const day = Math.floor(Number(d.day)); if (!day) return json(res, 400, { error: 'Which day?' });
+    const fb = memory.readJson('world-feedback.json', {});
+    fb[day] = { rating: Math.max(0, Math.min(5, Math.floor(Number(d.rating) || 0))), tags: (Array.isArray(d.tags) ? d.tags : []).filter(t => FEEDBACK_TAGS.includes(t)), note: tidy(d.note, 2000), at: Date.now() };
+    memory.writeJson('world-feedback.json', fb);
+    return json(res, 200, { ok: true, feedback: fb[day] });
   }
   if (req.method === 'POST' && url.pathname === '/api/notes') {
     const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;

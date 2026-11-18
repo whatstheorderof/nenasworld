@@ -6,5 +6,6 @@ const site = () => (process.env.SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTI
 
 export default defineConfig({
   server: { fs: { allow: ['..'] } },
+  build: { rollupOptions: { input: { main: 'index.html', world: 'world.html' } } },   // world.html: the world diary for her creator
   plugins: [{ name: 'site-url', transformIndexHtml: html => html.replaceAll('%SITE_URL%', site()) }],
 });
