@@ -7,6 +7,7 @@ import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROC
 import { drawPicture } from './art.js';
 import { pastel } from './palette.js';
 import { waterMaterial } from './water.js';
+import { buildRim, buildPromenade } from './rim.js';
 import { makeTree, makeBush, setTreeSeason, tickTrees } from './trees.js';
 import { whenKit, kitModel, kitParts, kitGeometry, kitBuilding } from './kit.js';
 import { HOUSE_LOOKS, FLAGS } from '../../shared/data.js';
@@ -40,7 +41,7 @@ export function buildTown() {
   // ---- island ----------------------------------------------------------
   const grassMat = flat(P.grass), grassDarkMat = flat(P.grassDark), leafMat = flat(0x5fbf5a), fruitMat = flat(0xff5a4d);
   mesh(new THREE.CylinderGeometry(R, R - 1.5, 0.6, 48), grassMat, 0, -0.3, 0);
-  mesh(new THREE.CylinderGeometry(R - 1.2, R - 6, 3.2, 14), flat(P.cliff), 0, -2.2, 0);
+  mesh(new THREE.CylinderGeometry(R - 1.2, R - 6, 3.2, 28), flat(0x9a6e52), 0, -2.2, 0);   // brown earth under the grass, like the reference rim
   mesh(new THREE.CylinderGeometry(R - 6.5, R - 16, 5, 9), flat(P.rockDark), 0, -6.2, 0);
   const inBeach = (x, z) => { const a = Math.atan2(z, x); return a > BEACH.from - 0.08 && a < BEACH.to + 0.08 && Math.hypot(x, z) > BEACH.inner - 1; };
   const nearRiver = (x, z, pad) => riverBand(x, z, pad) || RIVER.some(([rx, rz]) => Math.hypot(rx - x, rz - z) < pad);
@@ -546,14 +547,12 @@ export function buildTown() {
       slab(3.2, flat(P.rockDark), -4.4, 0.995);
       slab(4.5, flat(P.rock), -8.9, 0.94);
       slab(5, flat(P.rockDark), -13.9, 0.86);
-      // a plank fence round its outer edge, like the one round the island
-      const posts = []; let since = 0;
-      for (let i = 1; i < edge.length; i++) { const [x0, z0] = edge[i - 1], [x1, z1] = edge[i], len = Math.hypot(x1 - x0, z1 - z0);
-        for (let u = 0; u < len; u += 0.25) { since += 0.25; if (since < 1.7) continue; const x = x0 + (x1 - x0) * u / len, z = z0 + (z1 - z0) * u / len;
-          if (Math.hypot(x, z) < R + 4) continue; since = 0; posts.push([x, z, Math.atan2(z1 - z0, x1 - x0)]); } }
-      const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(0.75, 1.5, 0.3), flat(P.woodDark), posts.length), o = new THREE.Object3D();
-      posts.forEach(([x, z, a], i) => { const k = 0.985; o.position.set(x * k, 0.35 + (i % 2) * 0.12, z * k); o.rotation.set(0, -a, (rand() - 0.5) * 0.25); o.updateMatrix(); inst.setMatrixAt(i, o.matrix); });
-      town.add(inst); }
+      // the same rim as the island's along its outer edge
+      const runs = []; let cur = null;
+      for (const [x, z] of edge) { if (Math.hypot(x, z) < R + 4) { if (cur && cur.length > 1) runs.push(cur); cur = null; continue; } const k = 0.988; (cur ||= []).push([x * k, z * k]); }
+      if (cur && cur.length > 1) runs.push(cur);
+      if (runs.length > 1) { const last = runs.pop(); runs[0] = [...last, ...runs[0]]; }
+      buildRim(town, runs, { y: -0.3, glow: () => glow(0xffc870, 0xffe2a0), rand, outward: (x, z) => { const ang = Math.min(a1, Math.max(a0, Math.atan2(z, x))), cx = Math.cos(ang) * mid, cz = Math.sin(ang) * mid, l = Math.hypot(x - cx, z - cz) || 1; return [(x - cx) / l, (z - cz) / l]; } }); }
     const b = PLACES.beach, g = new THREE.Group(); g.position.set(b.x, 0, b.z); g.rotation.y = Math.atan2(-b.x, -b.z); town.add(g);
     box(0.14, 3.0, 0.14, 0xfffaf0, -4.6, 1.5, -2.4, g); const um = mesh(new THREE.ConeGeometry(2.0, 0.9, 8), flat(0xe8452c), -4.6, 3.2, -2.4, g); um.rotation.z = 0.12;
     box(1.3, 0.06, 2.4, 0x2fc6b3, -4.4, 0.08, -1.4, g); box(1.3, 0.07, 0.4, 0xfffaf0, -4.4, 0.09, -1.4, g);                 // towel
@@ -592,7 +591,7 @@ export function buildTown() {
   let placed = 0;
   const trees = [];
   for (let i = 0; i < 4000 && placed < 175; i++) {
-    const a = rand() * 6.28, r = R * 0.5 + rand() * (R * 0.45), x = Math.cos(a) * r, z = Math.sin(a) * r;
+    const a = rand() * 6.28, r = R * 0.5 + rand() * (R * 0.39), x = Math.cos(a) * r, z = Math.sin(a) * r;
     const kind = placed % 5, roll = rand(), stage = roll < 0.2 ? 0 : roll < 0.5 ? 1 : roll < 0.85 ? 2 : 3;
     if (!clear(x, z, kind === 4 ? 2.4 + stage * 0.8 : 2.8)) continue;
     if (kind === 4 && trees.some(t => Math.hypot(t.x - x, t.z - z) < 3 + stage * 1.2)) continue;
@@ -603,12 +602,16 @@ export function buildTown() {
     else { const t = makeTree(stage, rand() < 0.35 ? 'cherry' : 'oak'), wrap = new THREE.Group(); wrap.position.set(x, 0, z); wrap.rotation.y = rand() * 6.28; t.scale.setScalar(0.8 + rand() * 0.3); wrap.add(t); town.add(wrap); trees.push({ x, z }); }
     placed++;
   }
-  // chunky plank fence round the rim; open along the beach and at the waterfall
-  { const n = Math.round(R * 4), slots = [], end = RIVER[RIVER.length - 1], fallA = Math.atan2(end[1], end[0]);
-    for (let i = 0; i < n; i++) { const a = -Math.PI + (i / n) * 6.283; if (a > BEACH.from - 0.05 && a < BEACH.to + 0.05) continue; if (Math.abs(a - fallA) < 0.13) continue; slots.push(a); }
-    const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(0.75, 1.5, 0.3), flat(P.woodDark), slots.length), m = new THREE.Object3D();
-    slots.forEach((a, i) => { m.position.set(Math.cos(a) * (R - 0.9), 0.6 + (i % 2) * 0.12, Math.sin(a) * (R - 0.9)); m.rotation.set(0, -a + Math.PI / 2, (rand() - 0.5) * 0.25); m.updateMatrix(); inst.setMatrixAt(i, m.matrix); });
-    town.add(inst); whenKit(() => { const geo = kitGeometry('Fence'); if (geo) inst.geometry = geo; }); }
+  // the rim: stone coping with a wooden fence on top, lanterns, a promenade inside it and vines trailing over the edge;
+  // open along the beach and at the waterfall
+  { const end = RIVER[RIVER.length - 1], fallA = Math.atan2(end[1], end[0]);
+    const gap = a => (a > BEACH.from - 0.05 && a < BEACH.to + 0.05) || Math.abs(Math.atan2(Math.sin(a - fallA), Math.cos(a - fallA))) < 0.15;
+    const runs = [], rr = R - 0.75, N = 900; let cur = null;
+    for (let i = 0; i <= N; i++) { const a = -Math.PI + i / N * Math.PI * 2; if (gap(a)) { if (cur && cur.length > 1) runs.push(cur); cur = null; continue; } (cur ||= []).push([Math.cos(a) * rr, Math.sin(a) * rr]); }
+    if (cur && cur.length > 1) runs.push(cur);
+    if (runs.length > 1 && !gap(-Math.PI)) { const last = runs.pop(); runs[0] = [...last, ...runs[0].slice(1)]; }   // join up across ±180°
+    buildRim(town, runs, { glow: () => glow(0xffc870, 0xffe2a0), rand, outward: (x, z) => { const l = Math.hypot(x, z); return [x / l, z / l]; } });
+    buildPromenade(town, R, { skip: gap, rand }); }
 
   // where the fairy lights go
   { const home = front('home'); if (home) fairy(home, [[-2.7, 3.15, 2.3], [-0.9, 3.15, 2.3], [0.9, 3.15, 2.3], [2.7, 3.15, 2.3]]);

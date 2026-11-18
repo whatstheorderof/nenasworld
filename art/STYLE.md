@@ -187,3 +187,6 @@ Seen in the distance; the campers come from them (TOWN_ISLANDS in shared/world.j
 - Snowcap (IslandRock): "A big tapering stone house with an arched door under a soft cap of snow, a round tower with a scalloped orange dome, a red-roofed cottage with a turret."
 - Fountain Round (IslandPlaza): "A round sandy plaza with a pool in the middle and benches round it, seven cottages facing in, a fence, and a ring of round topiary outside it."
 - Hoopstead (IslandRing): "A town on a ring of land round a hole in the sky: a stone inner wall, houses facing in and out, a tall slate spire, a fence round the rim."
+
+## The rim (RimFence, RimLantern) — used round every island edge (web/src/rim.js)
+Prompt: "A cosy storybook island edge: a low wall of chunky grey stone coping blocks with a pale flagstone promenade inside it; on top, a warm brown wooden fence with square posts wrapped in brass bands with rivets, a top and bottom rail, two arches between the posts and a ring in the middle holding a gold four-pointed star; a little brass lantern on every few posts, glowing at night; green vines with small white flowers trailing over the wall and down the brown earth below."
