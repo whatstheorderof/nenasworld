@@ -3,11 +3,11 @@
 // the thing itself (building, pond...) sits `d` metres further out from the island centre
 // and blocks a circle of radius `r`, which she walks around.
 // K stretches the whole layout: buildings stay the same size, the island and the gaps between things grow.
-export const K = 1.65;
+export const K = 2.0;
 // The scale each saved layout was drawn at, so her things can be moved out when the island grows.
-export const LAYOUT_K = { 1: 1, 2: 1.35, 3: 1.35, 4: 1.35, 5: 1.65, 6: 1.65, 7: 1.65 };
+export const LAYOUT_K = { 1: 1, 2: 1.35, 3: 1.35, 4: 1.35, 5: 1.65, 6: 1.65, 7: 1.65, 8: 2.0 };
 export const SQUARE = 7.5;   // radius of the round pebble town square
-export const WORLD = { size: 88, radius: 30 * K, name: "Nena's World", layout: 7 };
+export const WORLD = { size: 88, radius: 30 * K, name: "Nena's World", layout: 8 };
 const POND_Z = 9.7 * K + 10.3;     // centre of the pond
 const DZ = POND_Z - 19.2;           // the river runs out of the pond, so it moves with it
 

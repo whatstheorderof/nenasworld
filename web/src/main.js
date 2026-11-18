@@ -39,7 +39,7 @@ camera.position.set(PLACES.home.x + 10, 9, PLACES.home.z + 15);
 const controls = new OrbitControls(camera, canvas);
 controls.target.set(PLACES.home.x, 1, PLACES.home.z);
 controls.enableDamping = true; controls.enablePan = false;
-controls.minDistance = 8; controls.maxDistance = 140; controls.maxPolarAngle = 1.45;
+controls.minDistance = 8; controls.maxDistance = 165; controls.maxPolarAngle = 1.45;
 
 const hemi = new THREE.HemisphereLight(0xffffff, 0x9fd27a, 1.5); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2d8, 2.0); sun.position.set(20, 30, 12); scene.add(sun);

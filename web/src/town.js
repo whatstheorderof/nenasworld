@@ -566,10 +566,10 @@ export function buildTown() {
   const clear = (x, z, pad) => !onPath(x, z, 1.8) && !inBeach(x, z) && !nearRiver(x, z, 3.2) && extraObs.every(o => Math.hypot(o.x - x, o.z - z) > 3.6) && Object.keys(PLACES).every(k => { const s = site(k); return Math.hypot(s.x - x, s.z - z) > (s.r || 2.5) + pad && Math.hypot(PLACES[k].x - x, PLACES[k].z - z) > 3; });
   let placed = 0;
   const trees = [];
-  for (let i = 0; i < 2400 && placed < 120; i++) {
+  for (let i = 0; i < 4000 && placed < 175; i++) {
     const a = rand() * 6.28, r = R * 0.5 + rand() * (R * 0.45), x = Math.cos(a) * r, z = Math.sin(a) * r;
     const kind = placed % 5, roll = rand(), stage = roll < 0.2 ? 0 : roll < 0.5 ? 1 : roll < 0.85 ? 2 : 3;
-    if (!clear(x, z, kind === 4 ? 1.2 + stage * 0.7 : 1.6)) continue;
+    if (!clear(x, z, kind === 4 ? 2.4 + stage * 0.8 : 2.8)) continue;
     if (kind === 4 && trees.some(t => Math.hypot(t.x - x, t.z - z) < 3 + stage * 1.2)) continue;
     if (kind === 0) flower(x, z, 1.4 + rand() * 1.5, P.petals[Math.floor(rand() * 4)]);
     else if (kind === 1) rock(x, z, 0.7 + rand() * 1.1);
@@ -655,7 +655,7 @@ export function buildTown() {
           #include <colorspace_fragment>
           #include <fog_fragment>
         }` });
-    const N = 5200, inst = new THREE.InstancedMesh(tuft, mat, N), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3();
+    const N = 7600, inst = new THREE.InstancedMesh(tuft, mat, N), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3();
     const pondS = site('pond');
     let n = 0;
     for (let tries = 0; tries < N * 6 && n < N; tries++) {
