@@ -138,6 +138,8 @@ export function buildTown() {
     }
     mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.16, 6), flat(P.centre), 0, 0.05, 0, head);
     whenKit(() => { const m = kitModel('Flower', { isl_petal: petalMat(color) }); if (m) { g.clear(); g.add(m); } });
+
+    return g;
   }
   let rocks = 0; const rockMats = {}, rockMat = c => rockMats[c] ||= new THREE.MeshLambertMaterial({ color: pastel(c), flatShading: true });
   function rock(x, z, s, parent = town) {
@@ -160,10 +162,10 @@ export function buildTown() {
     for (const s of [-1, 1]) box(0.3, h, 0.3, trim, s * (w / 2), h / 2, depth / 2, hp);
     gable(w, depth, 1.7, 0, h, hp).material = house.roof;
     box(1.0, 1.7, 0.14, trim, -w / 4, 0.85, depth / 2 + 0.03, hp); box(1.1, 0.9, 0.14, win, w / 4, 1.35, depth / 2 + 0.03, hp);
-    sign('NENA', 3, g, 0, h - 0.62, depth / 2 + 0.12);
+    sign('NENA', 1.7, g, 0, h - 0.62, depth / 2 + 0.125, { bg: '#f4eee2', fg: '#c45a7a', board: false, h: 0.42 });
     box(0.8, 1.6, 0.8, 0xb86b4b, 1.4, 4.4, -0.8, hp); box(1.0, 0.25, 1.0, 0x8a4a34, 1.4, 5.25, -0.8, hp);   // chimney
     box(1.6, 0.12, 0.9, trim, -1.3, 0.06, 2.75, hp);                                                        // doormat
-    box(1.5, 0.5, 0.45, P.woodDark, 2.1, 0.25, 3.1, hp); for (let i = 0; i < 3; i++) flower(1.6 + i * 0.5, 3.1, 0.5, P.petals[i], g);
+    box(1.5, 0.5, 0.45, P.woodDark, 2.1, 0.25, 3.1, hp); for (let i = 0; i < 3; i++) flower(1.6 + i * 0.5, 3.1, 0.5, P.petals[i], g).position.y = 0.55;   // growing in the planter
     // level 2: a side room. level 3: an upstairs.
     const l2 = new THREE.Group(), l3 = new THREE.Group(); g.add(l2, l3); house.extras = [l2, l3];
     mesh(new THREE.BoxGeometry(2.6, 2.4, 3.2), house.wall, -3.8, 1.2, -0.2, l2); const r2 = gable(2.6, 3.2, 1.1, 0, 2.4, l2); r2.material = house.roof; r2.position.x = -3.8; r2.position.z = -0.2; box(0.9, 0.8, 0.14, win, -3.8, 1.3, 1.43, l2);

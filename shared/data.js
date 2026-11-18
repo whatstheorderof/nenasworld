@@ -121,7 +121,7 @@ export const CLOTHES_PRICE = { scarf: 150, hat: 180, glasses: 160 };
 export const SKY = ['the Sleeping Fish', 'the Kettle', 'the Long Scarf', 'Two Lamps', 'the Penguin Who Waits', 'the Ladder', 'the Broken Oar', 'the Snail', 'the Open Door', 'the Little Boat'];
 export const SKY_RARE = ['a comet with a green tail', 'a ringed planet', 'a red planet', 'a star that blinked twice'];
 export const SCARVES = [0x2fc6b3, 0xe8452c, 0xffd93b, 0x6a2fc4, 0xff7fa3, 0xfffaf0, 0x2f7f9a];
-export const HOUSE_LOOKS = [{ wall: 0xfff1d6, roof: 0xe8452c }, { wall: 0xcfe6f7, roof: 0x2f7f9a }, { wall: 0xffd9de, roof: 0x6a2fc4 }, { wall: 0xfff3c4, roof: 0x2f8f7a }, { wall: 0xf7b34a, roof: 0x1d2545 }];
+export const HOUSE_LOOKS = [{ wall: 0xfff1d6, roof: 0xe58fa8 }, { wall: 0xcfe6f7, roof: 0x2f7f9a }, { wall: 0xffd9de, roof: 0x6a2fc4 }, { wall: 0xfff3c4, roof: 0x2f8f7a }, { wall: 0xf7b34a, roof: 0x1d2545 }];
 export const HOUSE_LOAN = [0, 1200, 3500];   // coins to reach level 2, then level 3
 
 // ---- everything she can do --------------------------------------------------------------
