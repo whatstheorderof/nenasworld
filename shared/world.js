@@ -5,9 +5,9 @@
 // K stretches the whole layout: buildings stay the same size, the island and the gaps between things grow.
 export const K = 2.0;
 // The scale each saved layout was drawn at, so her things can be moved out when the island grows.
-export const LAYOUT_K = { 1: 1, 2: 1.35, 3: 1.35, 4: 1.35, 5: 1.65, 6: 1.65, 7: 1.65, 8: 2.0 };
-export const SQUARE = 7.5;   // radius of the round pebble town square
-export const WORLD = { size: 88, radius: 30 * K, name: "Nena's World", layout: 8 };
+export const LAYOUT_K = { 1: 1, 2: 1.35, 3: 1.35, 4: 1.35, 5: 1.65, 6: 1.65, 7: 1.65, 8: 2.0, 9: 2.0 };
+export const SQUARE = 12;   // radius of the round pebble town square
+export const WORLD = { size: 88, radius: 30 * K, name: "Nena's World", layout: 9 };
 const POND_Z = 9.7 * K + 10.3;     // centre of the pond
 const DZ = POND_Z - 19.2;           // the river runs out of the pond, so it moves with it
 
@@ -90,7 +90,18 @@ export const isletPos = i => ({ x: Math.cos(ISLETS[i].a) * ISLETS[i].r, z: Math.
 export const ORCHARD_TREES = [[-0.6, 2.4], [2.2, -1.4], [-2.2, -2.4]].map(([x, z]) => [PLACES.orchard.x + x, PLACES.orchard.z + z]);
 export const BIG_ROCK = { x: PLACES.rock.x - 2, z: PLACES.rock.z };
 export const CLOCK = { x: 3.4, z: SQUARE + 2.6 };   // the clocktower, just off the square
-export const BOARD = { x: 5.6, z: 1.4 };            // the noticeboard, on the square
+export const BOARD = { x: 9.2, z: 2.3 };            // the noticeboard, on the square
+
+// Benches and flower planters round the edge of the square, kept clear of every path that comes in.
+export const SQUARE_SEATS = (() => {
+  const spokes = [45, 135, 225, 315].map(d => d * Math.PI / 180).concat(Object.entries(PLACES).filter(([k, p]) => k !== 'plaza' && Math.hypot(p.x, p.z) < 12 * K - 3).map(([, p]) => Math.atan2(p.z, p.x)));
+  const out = [];
+  for (let i = 0; i < 18; i++) { const a = i / 18 * Math.PI * 2 + 0.17, x = Math.cos(a) * (SQUARE - 1.6), z = Math.sin(a) * (SQUARE - 1.6);
+    if (spokes.some(b => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))) < 0.3)) continue;
+    if ([CLOCK, BOARD, { x: 1.5, z: -0.6 }].some(o => Math.hypot(o.x - x, o.z - z) < 3.4)) continue;
+    out.push({ x: Math.round(x * 10) / 10, z: Math.round(z * 10) / 10, a, kind: out.length % 2 ? 'bench' : 'planter' }); }
+  return out;
+})();
 
 // Things she cannot walk through.
 export const OBSTACLES = [
@@ -99,6 +110,7 @@ export const OBSTACLES = [
   { key: 'bigrock', ...BIG_ROCK, r: 1.3 },
   { key: 'clock', ...CLOCK, r: 1.5 },
   { key: 'board', ...BOARD, r: 0.9 },
+  ...SQUARE_SEATS.map(q => ({ key: q.kind, x: q.x, z: q.z, r: 0.8 })),
   ...ORCHARD_TREES.map(([x, z]) => ({ key: 'tree', x, z, r: 0.9 })),
   ...NEIGHBOURS.map(n => ({ key: 'tent', x: n.home.x, z: n.home.z, r: 1.9 })),
 ];

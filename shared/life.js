@@ -2,7 +2,7 @@
 // what she has built and where she put it, her house, her scarves, her friendships.
 // Pure logic with an injected store, so the same code runs on the server and in the browser.
 import { SPECIES, MATERIAL_VALUE, RECIPES, SHOP, SCARVES, HOUSE_LOOKS, HOUSE_LOAN, SEASON_FIND, SONGS, STAMPS, FLAGS, BLOOMS, HATS, CLOTHES_PRICE, SKY, SKY_RARE, GLASSES, crossBloom, catchOne, calendar } from './data.js';
-import { NEIGHBOURS, CAMPERS, ISLETS, SKY_ISLANDS, WORLD, K, LAYOUT_K, freeSpot, freeNear, blocked } from './world.js';
+import { NEIGHBOURS, CAMPERS, ISLETS, SKY_ISLANDS, WORLD, K, LAYOUT_K, SQUARE, freeSpot, freeNear, blocked } from './world.js';
 
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
@@ -19,7 +19,7 @@ export class Life {
     const was = this.s.layout || 1;
     const grow = K / (LAYOUT_K[was] || 1);
     if (grow !== 1) for (const x of [...this.s.decor, ...(this.s.photoLog || [])]) { x.x = Math.round(x.x * grow * 10) / 10; x.z = Math.round(x.z * grow * 10) / 10; }   // the island grew: move her things out with it
-    if (was < WORLD.layout) for (const x of this.s.decor) if (blocked(x.x, x.z, 0.6)) { const at = freeSpot(this.s.decor); if (at) { x.x = at.x; x.z = at.z; } }   // something new was built where it stood
+    if (was < WORLD.layout) for (const x of this.s.decor) if (blocked(x.x, x.z, 0.6) || Math.hypot(x.x, x.z) < SQUARE + 0.8) { const at = freeSpot(this.s.decor); if (at) { x.x = at.x; x.z = at.z; } }   // something new was built where it stood
     this.s.layout = WORLD.layout;
   }
   save() { this.s.version++; this.store.save(this.s); }

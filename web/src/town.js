@@ -3,7 +3,7 @@
 // Blender (kit.js) replace them as soon as they load. Positions come from shared/world.js
 // so the mind and the picture agree.
 import * as THREE from 'three';
-import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, BOARD, RING, OBSTACLES, onPath, nearRiver as riverBand } from '../../shared/world.js';
+import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, SQUARE_SEATS, BOARD, RING, OBSTACLES, onPath, nearRiver as riverBand } from '../../shared/world.js';
 import { drawPicture } from './art.js';
 import { pastel } from './palette.js';
 import { waterMaterial } from './water.js';
@@ -572,6 +572,12 @@ export function buildTown() {
     whenKit(() => { const m = kitModel('Mailbox'); if (!m) return; m.position.set(1.5, 0, -0.6); town.add(m); for (const o of mb) town.remove(o); });
     town.userData.flag = box(0.08, 0.5, 0.3, 0xffd93b, 1.9, 1.5, -0.6); }
   // the square: four double-globe posts round the edge
+  // benches and round flower planters round the edge of the square, between the paths (SQUARE_SEATS)
+  for (const { x, z, a, kind } of SQUARE_SEATS) {
+    if (kind === 'bench') { const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = -a - Math.PI / 2; town.add(g); whenKit(() => { const k = kitModel('D_bench'); if (k) g.add(k); }); continue; }
+    mesh(new THREE.CylinderGeometry(0.85, 0.95, 0.5, 10), flat(0xc9c3b6), x, 0.25, z); mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.1, 10), flat(0x6b4a3a), x, 0.5, z);
+    for (let k = 0; k < 6; k++) { const b = k / 6 * 6.28 + a; mesh(new THREE.DodecahedronGeometry(0.18, 0), flat(P.petals[k % 4]), x + Math.cos(b) * 0.42, 0.66, z + Math.sin(b) * 0.42); }
+    mesh(new THREE.DodecahedronGeometry(0.3, 0), flat(P.grassDark), x, 0.7, z); }
   for (const deg of [20, 110, 200, 290]) { const a = deg * Math.PI / 180; lamp(Math.cos(a) * (SQUARE - 0.9), Math.sin(a) * (SQUARE - 0.9), 'globes', -a); }
   // along the paths: tall lamps on the ring, hanging lanterns and bollards on the spurs
   { const placed = [];
