@@ -599,4 +599,4 @@ function frame() {
   requestAnimationFrame(frame);
 }
 frame();
-window.__world = { scene, camera, controls, nena, sound, site, town, npcs: () => now?.npcs || [], camper: () => now?.camper, pos: () => now?.pos };   // handy in the console
+window.__world = { dyn, scene, camera, controls, nena, sound, site, town, npcs: () => now?.npcs || [], camper: () => now?.camper, pos: () => now?.pos };   // handy in the console

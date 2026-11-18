@@ -246,7 +246,8 @@ export function buildTown() {
   { const poles = [[-5, -5], [5, -5], [5, 5], [-5, 5]];
     poles.forEach(([x, z]) => box(0.16, 4, 0.16, P.woodDark, x, 2, z, festival));
     poles.forEach(([x, z], i) => { const [nx, nz] = poles[(i + 1) % 4]; for (let k = 1; k < 8; k++) { const f = mesh(new THREE.ConeGeometry(0.22, 0.5, 3), flat([0xe8452c, 0xffd93b, 0x2fc6b3, 0x6a2fc4][k % 4]), x + (nx - x) * k / 8, 3.7 - Math.sin(k / 8 * Math.PI) * 0.5, z + (nz - z) * k / 8, festival); f.rotation.x = Math.PI; } });
-    box(3, 0.4, 2, P.wood, -3, 0.2, 3, festival); box(1.6, 0.8, 0.8, 0xfffaf0, 3, 0.4, 3, festival);
+    const stalls = [box(3, 0.4, 2, P.wood, -3, 0.2, 3, festival), box(1.6, 0.8, 0.8, 0xfffaf0, 3, 0.4, 3, festival)];
+    whenKit(() => { for (const [i, x] of [-3.2, 3.2].entries()) { const b = kitBuilding('FestivalStall'); if (!b) return; b.group.position.set(x, 0, 3.4); b.group.rotation.y = Math.atan2(-x, -3.4); festival.add(b.group); festival.remove(stalls[i]); } });   // cake stalls
     for (let i = 0; i < 16; i++) { const a = i / 16 * 6.283, r = 6 + (i % 2) * 5; const m = new THREE.MeshLambertMaterial({ color: 0xff8a1f, emissive: 0xff8a1f, emissiveIntensity: 1.6, flatShading: true }); box(0.5, 0.6, 0.5, m, Math.cos(a) * r, 0.5, Math.sin(a) * r, lanternsG); box(0.08, 0.5, 0.08, P.woodDark, Math.cos(a) * r, 0.1, Math.sin(a) * r, lanternsG); } }
 
   // ---- cocoa cart ----------------------------------------------------------
@@ -280,12 +281,14 @@ export function buildTown() {
   { const a = 0.75, r = R + 3.2; painter.position.set(Math.cos(a) * r, -0.15, Math.sin(a) * r); painter.rotation.y = -a;
     box(2.2, 0.9, 5.0, 0x3c2a86, 0, 0.3, 0, painter); box(2.5, 0.16, 5.3, 0xffd93b, 0, 0.8, 0, painter); box(1.5, 1.3, 1.8, 0xfff1d6, 0, 1.5, -1.2, painter); box(1.8, 0.16, 2.1, 0xe8452c, 0, 2.2, -1.2, painter);
     box(0.12, 3.4, 0.12, P.woodDark, 0, 2.5, 0.9, painter); box(1.3, 1.0, 0.06, 0xff9aa8, 0.72, 3.5, 0.9, painter);
-    for (let i = 0; i < 3; i++) box(0.7, 0.9, 0.08, [0x58b7e8, 0xf59b2f, 0x2f8f7a][i], -0.8 + i * 0.8, 1.35, 1.9, painter).rotation.x = -0.25; }
+    for (let i = 0; i < 3; i++) box(0.7, 0.9, 0.08, [0x58b7e8, 0xf59b2f, 0x2f8f7a][i], -0.8 + i * 0.8, 1.35, 1.9, painter).rotation.x = -0.25;
+    building(painter, 'PainterBoat', {}, null, [0, 0], {}, 'none'); }
 
   // ---- vegetable patch beside the garden: sown, sprouting, ready ---------------------------
   const cropStages = [new THREE.Group(), new THREE.Group(), new THREE.Group()];
   { const p = PLACES.garden, g = new THREE.Group(); g.position.set(p.x + 0.4, 0, p.z + 3.4); g.rotation.y = 0.4; town.add(g);
-    box(3.2, 0.16, 1.8, 0x6e4a30, 0, 0.07, 0, g); cropStages.forEach(c => { c.visible = false; g.add(c); });
+    const bed = box(3.2, 0.16, 1.8, 0x6e4a30, 0, 0.07, 0, g); cropStages.forEach(c => { c.visible = false; c.position.y = 0.06; g.add(c); });
+    whenKit(() => { const m = kitModel('VegBed'); if (m) { g.add(m); g.remove(bed); } });   // a raised wooden bed
     for (let i = 0; i < 8; i++) { const x = -1.2 + (i % 4) * 0.8, z = -0.4 + Math.floor(i / 4) * 0.8;
       box(0.12, 0.06, 0.12, 0x3f9a4a, x, 0.18, z, cropStages[0]);
       mesh(new THREE.ConeGeometry(0.14, 0.4, 4), flat(0x3f9a4a), x, 0.35, z, cropStages[1]);

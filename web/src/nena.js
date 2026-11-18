@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // models are meshopt-compressed
+import { whenKit, kitParts } from './kit.js';
 
 const mat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
 const C = { coat: 0x232a4d, belly: 0xfdfaf2, beak: 0xffa62b, feet: 0xff8a1f, scarf: 0x2fc6b3, eye: 0xffffff, pupil: 0x141833, cheek: 0xff9aa8 };
@@ -17,6 +18,8 @@ export function buildRobot() {
   const eye = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.1), new THREE.MeshBasicMaterial({ color: 0x9cf6ff })); eye.position.set(0, 0.27, 0.48); g.add(eye);
   const brush = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.03, 0.06), mat(0xffd93b)); brush.position.set(0.55, 0.04, 0.5); g.add(brush);
   g.userData.brush = brush;
+  // the pastel Blender robot replaces this one; its brush stays its own part so it still spins
+  whenKit(() => { const m = kitParts('Robot', { glow_robot: new THREE.MeshBasicMaterial({ color: 0x9cf6ff }) }); if (!m) return; g.clear(); g.add(m); g.userData.brush = m.getObjectByName('LiveBrush') || brush; });
   return g;
 }
 
@@ -108,7 +111,8 @@ export function buildNena() {
   const boat = new THREE.Group(); boat.visible = false; root.add(boat);
   { const hull = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 2.6), mat(0x2f7f9a)); hull.position.y = 0.2; boat.add(hull);
     const rim = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.12, 2.8), mat(0xfffaf0)); rim.position.y = 0.48; boat.add(rim);
-    for (const sd of [-1, 1]) { const oar = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.14), mat(0xc9531c)); oar.position.set(sd * 1.2, 0.5, 0); oar.rotation.z = sd * -0.3; boat.add(oar); } }
+    for (const sd of [-1, 1]) { const oar = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.14), mat(0xc9531c)); oar.position.set(sd * 1.2, 0.5, 0); oar.rotation.z = sd * -0.3; boat.add(oar); }
+    whenKit(() => { const m = kitParts('RowBoat'); if (m) { boat.clear(); boat.add(m); } }); }
 
   let t = Math.random() * 10, windAmt = 0, wellies = false;
   let footMat = feet[0].material; feet.forEach(f => { f.material = footMat; });

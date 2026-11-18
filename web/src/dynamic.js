@@ -2,7 +2,8 @@
 // weeds, bottles and balloons that turn up, and her neighbours.
 import * as THREE from 'three';
 import { pastel } from './palette.js';
-import { whenKit, kitParts } from './kit.js';
+import { whenKit, kitParts, kitModel } from './kit.js';
+const KIT_DECOR = new Set(['bench', 'lantern', 'cairn', 'shell arch', 'birdbath', 'scarecrow', 'signpost', 'campfire', 'wind chime', 'log stool', 'stepping stones', 'clay pot', 'stick fence', 'blossom wreath', 'mushroom stool', 'snow globe', 'pearl lamp', 'gold trophy']);
 import { BLOOMS } from '../../shared/data.js';
 import { PLACES, site } from '../../shared/world.js';
 
@@ -42,6 +43,11 @@ function decorModel(kind, day, today, glows, color) {
     case 'tree': { const age = Math.min(1, (today - day) / 3), k = 0.3 + age * 0.7; add(g, new THREE.CylinderGeometry(0.16, 0.22, 1.4, 5), WOOD, 0, 0.7, 0); add(g, new THREE.DodecahedronGeometry(1.0, 0), 0x4fae52, 0, 2.0, 0); g.scale.setScalar(k); break; }
     default: box(g, 0.6, 0.6, 0.6, LIGHT, 0, 0.3, 0);
   }
+  // most things she makes have a Blender model; ones that grow or change keep the code version
+  if (KIT_DECOR.has(kind)) whenKit(() => {
+    const m = kitModel('D_' + kind.replace(/ /g, '_'), { glow_decor: lit(0xffc870), glow_pearl: lit(0xdfe9ff), glow_fire: lit(0xff8a1f), glass_globe: flat(0xdff3ff, { transparent: true, opacity: 0.55 }) });
+    if (m) { g.clear(); g.add(m); }
+  });
   return g;
 }
 
