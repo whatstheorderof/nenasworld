@@ -192,6 +192,13 @@ export class Life {
       case 'watch_storm': return { text: pick(['counted the seconds between the flash and the thunder', 'watched lightning over the far islands', 'sat out the storm with the lamp on']), remember: Math.random() < 0.3 ? 'there was a big storm. the lighthouse kept going the whole time.' : null };
       case 'fly_kite': return { text: pick(['flew a kite from the lookout until the string ran out', 'flew a kite. it nearly took her with it', 'got the kite higher than the lighthouse']), lift: 0.25 };
       case 'chase_rainbow': { const c = Math.random() < 0.4 ? rint(50, 250) : 0; s.coins += c; return { text: `walked to where the rainbow came down${c ? ` and found ${c} coins in the grass` : '. it had moved'}`, say: c ? 'the stories are true!' : 'it moved. typical.', remember: c ? 'i found coins at the end of a rainbow. really.' : null, lift: c ? 0.4 : 0.15 }; }
+      case 'sit_under_tree': { const season = w?.cal?.seasonName || w?.view?.().season || '';
+        if (season === 'winter') return { text: pick(['sat under the bare big tree and watched her breath go up', 'leaned on the big tree. there was snow on every branch']), lift: 0.1 };
+        if (season === 'autumn') return { text: `sat under the big tree while the ${pick(['orange', 'copper', 'red'])} leaves came down around her`, say: Math.random() < 0.3 ? 'crunchy.' : null, lift: 0.15 };
+        const n = rint(3, 40), r = Math.random();
+        if (r < 0.2) return { text: 'a petal landed right on her beak. she kept very still so it would stay', say: 'do not move. it likes me.', remember: Math.random() < 0.4 ? 'a petal from the big tree landed on my beak' : null, lift: 0.25 };
+        if (r < 0.35) return { text: 'leaned on the big tree and looked out past the edge of the island at the clouds below', lift: 0.2 };
+        return { text: `sat under the big tree and counted ${n} falling petals before she lost count`, lift: 0.15 }; }
       case 'buy_cookie': { s.coins = Math.max(0, s.coins - 10); s.cookieDay = day; const k = pick(['chocolate chip', 'oat and raisin', 'double chocolate', 'lemon', 'pink sprinkle', 'fish-shaped']);
         return Math.random() < 0.25 ? { text: `bought ${an(k)} cookie and gave half to ${pick(NEIGHBOURS).name}`, lift: 0.2 } : { text: `bought ${an(k)} cookie, still warm`, say: Math.random() < 0.4 ? 'still warm.' : null, lift: 0.12 }; }
       case 'bake_cookies': { s.bakedDay = day; const n = rint(4, 9), k = pick(['chocolate chip', 'snowflake', 'star', 'penguin-shaped', 'jam']);

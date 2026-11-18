@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, BOARD, RING, OBSTACLES, onPath, nearRiver as riverBand } from '../../shared/world.js';
 import { drawPicture } from './art.js';
 import { pastel } from './palette.js';
+import { waterMaterial } from './water.js';
 import { whenKit, kitModel, kitParts, kitGeometry, kitBuilding } from './kit.js';
 import { HOUSE_LOOKS, FLAGS } from '../../shared/data.js';
 
@@ -111,7 +112,7 @@ export function buildTown() {
       mesh(new THREE.CylinderGeometry(0.09, 0.14, 3.0, 6), flat(0x1d2545), 0, 1.5, 0, g); mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.3, 8), flat(0x1d2545), 0, 0.15, 0, g);
       box(1.5, 0.08, 0.08, 0x1d2545, 0, 2.9, 0, g);
       for (const sd of [-1, 1]) { mesh(new THREE.SphereGeometry(0.3, 10, 8), warm(), sd * 0.75, 2.62, 0, g); box(0.06, 0.18, 0.06, 0x1d2545, sd * 0.75, 2.84, 0, g); }
-      mesh(new THREE.SphereGeometry(0.12, 6, 5), flat(0xffd93b), 0, 3.1, 0, g); top = 2.62; }
+      mesh(new THREE.SphereGeometry(0.12, 6, 5), flat(0xffd93b), 0, 3.1, 0, g); top = 3.6; }   // the square's lamps: three lanterns on scroll brackets
     else if (kind === 'hanging') {  // a crook-necked post with a lantern hanging from it
       box(0.16, 3.2, 0.16, 0x2f7f9a, 0, 1.6, 0, g); box(0.95, 0.12, 0.12, 0x2f7f9a, 0.42, 3.2, 0, g); box(0.12, 0.3, 0.12, 0x2f7f9a, 0.85, 3.05, 0, g);
       box(0.05, 0.25, 0.05, 0x1d2545, 0.85, 2.82, 0, g); mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.5, 6), warm(), 0.85, 2.5, 0, g); mesh(new THREE.ConeGeometry(0.3, 0.22, 6), flat(0x2f7f9a), 0.85, 2.85, 0, g); top = 2.5; }
@@ -121,7 +122,7 @@ export function buildTown() {
       box(0.12, 2.0, 0.12, 0xc9744a, 0, 1.0, 0, g); mesh(new THREE.CylinderGeometry(0.2, 0.12, 0.3, 6), flat(0x8a5a3a), 0, 2.1, 0, g);
       const f = mesh(new THREE.ConeGeometry(0.17, 0.5, 5), glow(0xff8a1f, 0xffb45a), 0, 2.45, 0, g); f.userData.flicker = true; f.userData.keep = true; torches.push(f); top = 2.4; }
     // the Blender lamp replaces the simple one (the torch keeps its live flame)
-    const model = { classic: 'LampClassic', globes: 'LampGlobes', hanging: 'LampHanging', bollard: 'LampBollard', torch: 'LampTorch' }[kind], light = warm();
+    const model = { classic: 'LampClassic', globes: 'LampTriple', hanging: 'LampHanging', bollard: 'LampBollard', torch: 'LampTorch' }[kind], light = warm();
     whenKit(() => { const m = kitModel(model, { glow_lampwarm: light }); if (!m) return; for (const c of [...g.children]) if (!c.userData.keep) g.remove(c); g.add(m); });
     if (lamps.length < 14 && kind !== 'bollard') { const l = new THREE.PointLight(kind === 'torch' ? 0xff9a4a : 0xffc870, 0, 12, 1.8); l.position.set(x, top, z); town.add(l); lamps.push(l); }
     return g;
@@ -309,7 +310,7 @@ export function buildTown() {
   // ---- islets out at sea that she rows to ------------------------------------------------
   const isletBoats = ISLETS.map((isl, i) => {
     const p = isletPos(i), g = new THREE.Group(); g.position.set(p.x, -0.3, p.z); town.add(g);
-    mesh(new THREE.CylinderGeometry(9, 12, 0.9, 12), new THREE.MeshLambertMaterial({ color: pastel(P.sea), flatShading: true, transparent: true, opacity: 0.9 }), 0, -0.3, 0, g);
+    mesh(new THREE.CylinderGeometry(9, 12, 0.9, 12), waterMaterial({ scale: 3.4 }), 0, -0.3, 0, g);
     mesh(new THREE.CylinderGeometry(5.2, 5.8, 0.5, 9), flat(P.sand), 0, 0.1, 0, g); mesh(new THREE.CylinderGeometry(3.6, 4.2, 0.4, 8), flat(i === 1 ? P.rock : P.grass), 0, 0.42, 0, g);
     mesh(new THREE.CylinderGeometry(4.6, 2.5, 3.5, 7), flat(P.rockDark), 0, -2.0, 0, g);
     if (i === 0) for (const [x, z] of [[-1.4, 0.6], [1.2, -1]]) { mesh(new THREE.CylinderGeometry(0.2, 0.26, 1.5, 5), flat(P.woodDark), x, 1.3, z, g); mesh(new THREE.DodecahedronGeometry(1.2, 0), flat(0xffb7d0), x, 2.9, z, g); }
@@ -351,6 +352,7 @@ export function buildTown() {
   // wind: trees lean and sway, the flag streams out
   function setWind(w, t) {
     blades.material.uniforms.uWind.value += (w - blades.material.uniforms.uWind.value) * 0.05;   // grass leans more in a breeze
+    tickPetals(t, Math.min(0.1, t - (bigTree.lastT ?? t)), w); bigTree.lastT = t;
     for (const g of swayers) { g.rotation.z = Math.sin(t * 1.6 + g.id) * 0.04 * w + 0.05 * w; g.rotation.x = Math.cos(t * 1.3 + g.id) * 0.03 * w; }
     const f = town.userData.flagCloth; if (f) { f.rotation.y = Math.sin(t * (2 + w * 6)) * (0.25 + w * 0.35); f.rotation.z = -0.15 * (1 - w); }
   }
@@ -487,25 +489,25 @@ export function buildTown() {
   const pond = site('pond');
   { const R0 = PLACES.pond.r;
     mesh(new THREE.CylinderGeometry(R0, R0, 0.24, 9), flat(P.snowShade), pond.x, 0.0, pond.z);
-    mesh(new THREE.CylinderGeometry(R0 - 0.8, R0 - 0.8, 0.26, 9), flat(P.water), pond.x, 0.0, pond.z);
+    mesh(new THREE.CylinderGeometry(R0 - 0.8, R0 - 0.8, 0.26, 24), waterMaterial({ scale: 2.2 }), pond.x, 0.0, pond.z);   // cartoon water
     for (let i = 0; i < 12; i++) { const a = rand() * 6.28, r = 1.5 + rand() * (R0 - 3.2); const f = mesh(new THREE.CylinderGeometry(0.5 + rand() * 0.6, 0.55, 0.1, 5), flat(P.ice), pond.x + Math.cos(a) * r, 0.16, pond.z + Math.sin(a) * r); f.rotation.y = rand() * 6; }
     for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283 + 0.3; if (Math.cos(a) < -0.6) continue; rock(pond.x + Math.cos(a) * (R0 + 0.4), pond.z + Math.sin(a) * (R0 + 0.4), 0.35 + rand() * 0.35); } }
 
   // ---- river: pond -> waterfall on the west rim ------------------------------------
   { const pts = [[pond.x - PLACES.pond.r + 1.5, pond.z], ...RIVER].map(([x, z]) => new THREE.Vector3(x, 0, z));
     const curve = new THREE.CatmullRomCurve3(pts);
-    const ribbon = (width, color, y) => {
+    const ribbon = (width, color, y, material) => {
       const N = 40, pos = [], idx = [];
       for (let i = 0; i <= N; i++) { const p = curve.getPoint(i / N), t = curve.getTangent(i / N), nx = -t.z, nz = t.x;
         pos.push(p.x + nx * width / 2, y, p.z + nz * width / 2, p.x - nx * width / 2, y, p.z - nz * width / 2);
         if (i < N) idx.push(i * 2, i * 2 + 2, i * 2 + 1, i * 2 + 1, i * 2 + 2, i * 2 + 3); }
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
-      const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: pastel(color), side: THREE.DoubleSide })); town.add(m); return m;
+      const m = new THREE.Mesh(geo, material || new THREE.MeshLambertMaterial({ color: pastel(color), side: THREE.DoubleSide })); town.add(m); return m;
     };
-    ribbon(4.2, P.sandDark, 0.06); ribbon(3.0, P.river, 0.09);
+    ribbon(4.2, P.sandDark, 0.06); ribbon(3.0, P.river, 0.09, waterMaterial({ scale: 1.6, speed: 0.8, flow: [0.25, 0.18] }));
     const end = pts[pts.length - 1], a = Math.atan2(end.z, end.x);
-    const fall = box(3.0, 7, 0.5, P.river, Math.cos(a) * (R + 0.1), -3.4, Math.sin(a) * (R + 0.1)); fall.rotation.y = -a + Math.PI / 2;
-    const top = box(3.0, 0.2, 2.2, P.river, Math.cos(a) * (R - 0.8), 0.0, Math.sin(a) * (R - 0.8)); top.rotation.y = -a + Math.PI / 2;
+    const fall = box(3.0, 7, 0.5, P.river, Math.cos(a) * (R + 0.1), -3.4, Math.sin(a) * (R + 0.1)); fall.rotation.y = -a + Math.PI / 2; fall.material = waterMaterial({ fall: true, edge: 0.09 });
+    const top = box(3.0, 0.2, 2.2, P.river, Math.cos(a) * (R - 0.8), 0.0, Math.sin(a) * (R - 0.8)); top.rotation.y = -a + Math.PI / 2; top.material = waterMaterial({ scale: 1.6, speed: 0.8, flow: [0.25, 0.18] });
     for (let i = 0; i < 7; i++) { const p = curve.getPoint(0.08 + i * 0.13), s = i % 2 ? 1 : -1; rock(p.x + s * 0.2, p.z + s * 2.3, 0.45 + rand() * 0.4); }
     // little bridge
     { const p = curve.getPoint(0.62), t = curve.getTangent(0.62), g = new THREE.Group(); g.position.set(p.x, 0, p.z); g.rotation.y = Math.atan2(t.x, t.z); town.add(g);
@@ -521,7 +523,7 @@ export function buildTown() {
     ground(new THREE.RingGeometry(BEACH.inner, R + 0.05, 24, 1, -BEACH.to, len), P.sand, 0, 0, 0.04);
     ground(new THREE.RingGeometry(BEACH.inner - 1.2, BEACH.inner, 24, 1, -BEACH.to - 0.03, len + 0.06), P.sandDark, 0, 0, 0.035);
     mesh(new THREE.CylinderGeometry(R + 0.3, R - 1, 0.7, 24, 1, false, Math.PI / 2 - BEACH.to, len), flat(P.sandDark), 0, -0.36, 0);
-    const sea = mesh(new THREE.CylinderGeometry(R + 9, R + 5, 0.9, 20, 1, false, Math.PI / 2 - BEACH.to - 0.1, len + 0.2), new THREE.MeshLambertMaterial({ color: pastel(P.sea), flatShading: true, transparent: true, opacity: 0.92 }), 0, -0.55, 0);
+    const sea = mesh(new THREE.CylinderGeometry(R + 9, R + 5, 0.9, 20, 1, false, Math.PI / 2 - BEACH.to - 0.1, len + 0.2), waterMaterial({ scale: 3.6 }), 0, -0.55, 0);
     ground(new THREE.RingGeometry(R + 0.05, R + 0.8, 24, 1, -BEACH.to, len), 0xffffff, 0, 0, -0.08);   // foam line
     town.userData.sea = sea;
     const b = PLACES.beach, g = new THREE.Group(); g.position.set(b.x, 0, b.z); g.rotation.y = Math.atan2(-b.x, -b.z); town.add(g);
@@ -602,6 +604,27 @@ export function buildTown() {
     for (const h of heroes) { if (h.motion === 'spin') h.o.rotation.z = -t * (film ? 1.6 : 0.35); else { h.o.position.y = h.y + (1 + Math.sin(t * 1.3)) * 0.035; h.o.rotation.z = Math.sin(t * 0.7) * 0.04; } }   // rooftop things lift gently off their perch and settle back; the film reel turns
   }
   // grass, darker grass, leaves, then the grass blades' base and tip (already pastel: used as they are)
+  // ---- the big tree at the island's edge: blossom that changes with the seasons, petals drifting down -----
+  const bigTree = { leaves: null, mats: [0xf2a0b4, 0xf7c2cf, 0xe58aa2].map(c => new THREE.MeshLambertMaterial({ color: c, flatShading: true })), petals: null };
+  { const g = at('bigtree'); g.scale.setScalar(1.5);   // a landmark: towers over the pines
+    mesh(new THREE.CylinderGeometry(0.5, 0.9, 6.5, 7), flat(0x9c6b5a), 0, 3.2, -1, g); mesh(new THREE.DodecahedronGeometry(4.2, 0), bigTree.mats[0], 0, 8.5, -1.5, g);
+    building(g, 'BigTree', { bigtree_leaf: bigTree.mats[0], bigtree_leaf2: bigTree.mats[1], bigtree_leaf3: bigTree.mats[2] }, null, [0, 0], {}, 'none', b => { bigTree.leaves = b.parts.LiveLeaves || null; if (bigTree.leaves) bigTree.leaves.visible = bigTree.petals.visible; });
+    // petals: little flat pieces that fall from the canopy, drift on the wind and start again at the top
+    const N = 160, geo = new THREE.BufferGeometry(), pos = new Float32Array(N * 3), seeds = [];
+    for (let i = 0; i < N; i++) { const p = [(rand() - 0.5) * 9, 2 + rand() * 8, -1 - rand() * 4 + (rand() - 0.5) * 3]; pos.set(p, i * 3); seeds.push({ x: p[0], z: p[2], sp: 0.45 + rand() * 0.6, ph: rand() * 6.28, top: 7 + rand() * 3.5 }); }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const pm = new THREE.PointsMaterial({ color: 0xf7b8c8, size: 0.16, transparent: true, opacity: 0.95, depthWrite: false });
+    bigTree.petals = new THREE.Points(geo, pm); bigTree.petals.frustumCulled = false; g.add(bigTree.petals); bigTree.seeds = seeds;
+    town.userData.bigTree = g; }
+  function tickPetals(t, dt, wind) {
+    const p = bigTree.petals; if (!p || !p.visible) return;
+    const a = p.geometry.attributes.position, arr = a.array;
+    for (let i = 0; i < bigTree.seeds.length; i++) { const sd = bigTree.seeds[i]; let y = arr[i * 3 + 1] - sd.sp * dt;
+      if (y < 0.05) { y = sd.top; arr[i * 3] = sd.x; arr[i * 3 + 2] = sd.z; }
+      arr[i * 3] += (Math.sin(t * 1.3 + sd.ph) * 0.4 + wind * 1.4) * dt; arr[i * 3 + 2] += Math.cos(t * 0.9 + sd.ph) * 0.3 * dt; arr[i * 3 + 1] = y; }
+    a.needsUpdate = true;
+  }
+
   // ---- grass blades: thousands of little tufts, kept off paths, water, sand and buildings ------
   const blades = (() => {
     const tuft = new THREE.BufferGeometry(), pos = [], hgt = [];
@@ -644,6 +667,10 @@ export function buildTown() {
   function setSeason(name, fruitReady) {
     const c = SEASON[name] || SEASON.summer; grassMat.color.set(c[0]); grassDarkMat.color.set(c[1]); leafMat.color.set(c[2]);
     blades.material.uniforms.uBase.value.set(c[3]); blades.material.uniforms.uTip.value.set(c[4]); blades.visible = name !== 'winter';
+    const tree = { spring: [0xf2a0b4, 0xf7c2cf, 0xe58aa2, 0xf7b8c8], summer: [0xe98fa6, 0xf3b1c1, 0xd97a95, 0xf3b1c1], autumn: [0xeb9a72, 0xf2bf8a, 0xd9765e, 0xeb9a72] }[name];
+    if (tree) bigTree.mats.forEach((m, i) => m.color.set(tree[i]));
+    if (bigTree.petals) { bigTree.petals.visible = !!tree; if (tree) bigTree.petals.material.color.set(tree[3]); }
+    if (bigTree.leaves) bigTree.leaves.visible = !!tree;   // bare branches in winter
     fruit.forEach(f => { f.visible = fruitReady && name !== 'winter'; });
   }
   function setHouse(look, level) { const l = HOUSE_LOOKS[look] || HOUSE_LOOKS[0]; house.wall.color.set(pastel(l.wall)); house.roof.color.set(pastel(l.roof)); house.extras[0].visible = level >= 2; house.extras[1].visible = level >= 3; }
