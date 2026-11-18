@@ -599,4 +599,4 @@ function frame() {
   requestAnimationFrame(frame);
 }
 frame();
-window.__world = { camera, controls, nena, sound };   // handy in the console
+window.__world = { camera, controls, nena, sound, site };   // handy in the console

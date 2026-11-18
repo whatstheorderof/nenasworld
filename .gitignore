@@ -4,3 +4,4 @@ dist
 mind/data/*
 !mind/data/character.md
 _to_delete
+*.blend1

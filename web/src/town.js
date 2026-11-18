@@ -1,9 +1,11 @@
 // Nena's island: bright, flat-shaded and chunky by day; dark with glowing
-// windows and signs at night. Everything is built from primitives here, and
-// positions come from shared/world.js so the mind and the picture agree.
+// windows and signs at night. Everything is first built from primitives; models made in
+// Blender (kit.js) replace them as soon as they load. Positions come from shared/world.js
+// so the mind and the picture agree.
 import * as THREE from 'three';
 import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, BOARD, RING, OBSTACLES, onPath, nearRiver as riverBand } from '../../shared/world.js';
 import { drawPicture } from './art.js';
+import { whenKit, kitModel, kitParts, kitGeometry } from './kit.js';
 import { HOUSE_LOOKS, FLAGS } from '../../shared/data.js';
 
 const P = {
@@ -121,6 +123,7 @@ export function buildTown() {
     if (lamps.length < 14 && kind !== 'bollard') { const l = new THREE.PointLight(kind === 'torch' ? 0xff9a4a : 0xffc870, 0, 12, 1.8); l.position.set(x, top, z); town.add(l); lamps.push(l); }
     return g;
   }
+  const petalMats = {}, petalMat = c => petalMats[c] ||= new THREE.MeshLambertMaterial({ color: c });
   function flower(x, z, s, color, parent = town) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rand() * 6.28; g.scale.setScalar(s); parent.add(g);
     mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.9, 5), flat(P.grassDark), 0, 0.45, 0, g);
@@ -131,30 +134,47 @@ export function buildTown() {
       petal.rotation.z = -Math.PI / 2; petal.rotation.y = -a; petal.scale.set(1, 1, 0.45);
     }
     mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.16, 6), flat(P.centre), 0, 0.05, 0, head);
+    whenKit(() => { const m = kitModel('Flower', { isl_petal: petalMat(color) }); if (m) { g.clear(); g.add(m); } });
   }
-  function rock(x, z, s, parent = town) { const m = mesh(new THREE.DodecahedronGeometry(s, 0), flat(rand() > 0.5 ? P.rock : P.rockDark), x, s * 0.45, z, parent); m.rotation.set(rand(), rand() * 6, rand()); m.scale.y = 0.75; }
+  let rocks = 0; const rockMats = {}, rockMat = c => rockMats[c] ||= new THREE.MeshLambertMaterial({ color: c });
+  function rock(x, z, s, parent = town) {
+    const c = rand() > 0.5 ? P.rock : P.rockDark, m = mesh(new THREE.DodecahedronGeometry(s, 0), flat(c), x, s * 0.45, z, parent); m.rotation.set(rand(), rand() * 6, rand()); m.scale.y = 0.75;
+    const kind = rocks++ % 3, turn = m.rotation.y;
+    whenKit(() => { const k = kitModel('Rock' + kind, { isl_rock: rockMat(c), isl_rock_dark: rockMat(c) }); if (!k) return; k.position.set(x, 0, z); k.rotation.y = turn; k.scale.setScalar(s * 0.85); parent.add(k); parent.remove(m); });
+  }
   function pine(x, z, s) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.setScalar(s); town.add(g); swayers.push(g);
     mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.8, 5), flat(P.woodDark), 0, 0.4, 0, g);
     [[1.25, 1.5, 1.3], [0.95, 1.3, 2.2], [0.62, 1.1, 3.0]].forEach(([r, h, y], i) => mesh(new THREE.ConeGeometry(r, h, 6), flat(i % 2 ? P.pineDark : P.pine), 0, y, 0, g));
     mesh(new THREE.ConeGeometry(0.3, 0.45, 6), flat(P.snow), 0, 3.5, 0, g);
+    whenKit(() => { const m = kitModel('Pine'); if (m) { g.clear(); m.rotation.y = x * 7.1; g.add(m); } });
   }
 
   // ---- her house ---------------------------------------------------------
-  const house = { wall: flat(0xfff1d6), roof: flat(0xe8452c), extras: [] };
-  { const g = at('home'), w = 5.2, h = 3.2, depth = 4.4, trim = 0x2f7f9a;
-    mesh(new THREE.BoxGeometry(w, h, depth), house.wall, 0, h / 2, 0, g);
-    for (const s of [-1, 1]) box(0.3, h, 0.3, trim, s * (w / 2), h / 2, depth / 2, g);
-    gable(w, depth, 1.7, 0, h, g).material = house.roof;
-    box(1.0, 1.7, 0.14, trim, -w / 4, 0.85, depth / 2 + 0.03, g); box(1.1, 0.9, 0.14, glow(), w / 4, 1.35, depth / 2 + 0.03, g);
+  const house = { wall: new THREE.MeshLambertMaterial({ color: 0xfff1d6 }), roof: new THREE.MeshLambertMaterial({ color: 0xe8452c }), extras: [] };
+  { const g = at('home'), w = 5.2, h = 3.2, depth = 4.4, trim = 0x2f7f9a, hp = new THREE.Group(), win = glow(); g.add(hp);
+    mesh(new THREE.BoxGeometry(w, h, depth), house.wall, 0, h / 2, 0, hp);
+    for (const s of [-1, 1]) box(0.3, h, 0.3, trim, s * (w / 2), h / 2, depth / 2, hp);
+    gable(w, depth, 1.7, 0, h, hp).material = house.roof;
+    box(1.0, 1.7, 0.14, trim, -w / 4, 0.85, depth / 2 + 0.03, hp); box(1.1, 0.9, 0.14, win, w / 4, 1.35, depth / 2 + 0.03, hp);
     sign('NENA', 3, g, 0, h - 0.62, depth / 2 + 0.12);
-    box(0.8, 1.6, 0.8, 0xb86b4b, 1.4, 4.4, -0.8, g); box(1.0, 0.25, 1.0, 0x8a4a34, 1.4, 5.25, -0.8, g);   // chimney
-    box(1.6, 0.12, 0.9, trim, -1.3, 0.06, 2.75, g);                                                        // doormat
-    box(1.5, 0.5, 0.45, P.woodDark, 2.1, 0.25, 3.1, g); for (let i = 0; i < 3; i++) flower(1.6 + i * 0.5, 3.1, 0.5, P.petals[i], g);
+    box(0.8, 1.6, 0.8, 0xb86b4b, 1.4, 4.4, -0.8, hp); box(1.0, 0.25, 1.0, 0x8a4a34, 1.4, 5.25, -0.8, hp);   // chimney
+    box(1.6, 0.12, 0.9, trim, -1.3, 0.06, 2.75, hp);                                                        // doormat
+    box(1.5, 0.5, 0.45, P.woodDark, 2.1, 0.25, 3.1, hp); for (let i = 0; i < 3; i++) flower(1.6 + i * 0.5, 3.1, 0.5, P.petals[i], g);
     // level 2: a side room. level 3: an upstairs.
     const l2 = new THREE.Group(), l3 = new THREE.Group(); g.add(l2, l3); house.extras = [l2, l3];
-    mesh(new THREE.BoxGeometry(2.6, 2.4, 3.2), house.wall, -3.8, 1.2, -0.2, l2); const r2 = gable(2.6, 3.2, 1.1, 0, 2.4, l2); r2.material = house.roof; r2.position.x = -3.8; r2.position.z = -0.2; box(0.9, 0.8, 0.14, glow(), -3.8, 1.3, 1.43, l2);
-    mesh(new THREE.BoxGeometry(3.4, 2.2, 3.0), house.wall, 0.3, 5.0, -0.3, l3); const r3 = gable(3.4, 3.0, 1.3, 0, 6.1, l3); r3.material = house.roof; r3.position.x = 0.3; r3.position.z = -0.3; box(1.0, 0.8, 0.14, glow(), 0.3, 5.0, 1.23, l3); }
+    mesh(new THREE.BoxGeometry(2.6, 2.4, 3.2), house.wall, -3.8, 1.2, -0.2, l2); const r2 = gable(2.6, 3.2, 1.1, 0, 2.4, l2); r2.material = house.roof; r2.position.x = -3.8; r2.position.z = -0.2; box(0.9, 0.8, 0.14, win, -3.8, 1.3, 1.43, l2);
+    mesh(new THREE.BoxGeometry(3.4, 2.2, 3.0), house.wall, 0.3, 5.0, -0.3, l3); const r3 = gable(3.4, 3.0, 1.3, 0, 6.1, l3); r3.material = house.roof; r3.position.x = 0.3; r3.position.z = -0.3; box(1.0, 0.8, 0.14, win, 0.3, 5.0, 1.23, l3);
+    // the Blender house: same rooms, so buying an extension still shows the same part
+    whenKit(() => {
+      const m = kitParts('House', { house_wall: house.wall, house_roof: house.roof, glow_window: win }); if (!m) return;
+      const part = n => m.getObjectByName(n);
+      const L2 = part('HouseL2'), L3 = part('HouseL3');
+      hp.clear(); l2.clear(); l3.clear();
+      for (const c of [...L2.children]) l2.add(c);
+      for (const c of [...L3.children]) l3.add(c);
+      m.remove(L2, L3); for (const c of [...m.children]) if (c.name !== 'SignAnchor') hp.add(c);
+    }); }
 
   // ---- fish stall --------------------------------------------------------
   { const g = at('fish');
@@ -192,14 +212,16 @@ export function buildTown() {
 
   // ---- orchard: leaves change with the season, fruit shows when it is ready -----------
   const fruit = [];
+  const seasonLeaves = new THREE.MeshLambertMaterial(); seasonLeaves.color = leafMat.color;   // the same Color, so seasons still tint it
   for (const [x, z] of ORCHARD_TREES) {
-    mesh(new THREE.CylinderGeometry(0.28, 0.36, 1.8, 6), flat(P.woodDark), x, 0.9, z);
-    mesh(new THREE.DodecahedronGeometry(1.5, 0), leafMat, x, 2.9, z).rotation.y = rand() * 3;
-    mesh(new THREE.DodecahedronGeometry(1.0, 0), leafMat, x + 0.5, 3.8, z - 0.3);
+    const old = [mesh(new THREE.CylinderGeometry(0.28, 0.36, 1.8, 6), flat(P.woodDark), x, 0.9, z), mesh(new THREE.DodecahedronGeometry(1.5, 0), leafMat, x, 2.9, z), mesh(new THREE.DodecahedronGeometry(1.0, 0), leafMat, x + 0.5, 3.8, z - 0.3)];
+    old[1].rotation.y = rand() * 3; const turn = old[1].rotation.y;
+    whenKit(() => { const m = kitModel('FruitTree', { isl_leaf: seasonLeaves }); if (!m) return; m.position.set(x, 0, z); m.rotation.y = turn; town.add(m); for (const o of old) town.remove(o); });
     for (let i = 0; i < 4; i++) { const a = i * 1.6 + rand(); fruit.push(mesh(new THREE.SphereGeometry(0.2, 6, 5), fruitMat, x + Math.cos(a) * 1.25, 2.3 + rand() * 0.8, z + Math.sin(a) * 1.25)); }
   }
   // the big rock she chips at
-  { const m = mesh(new THREE.DodecahedronGeometry(1.5, 0), flat(P.rockDark), BIG_ROCK.x, 0.9, BIG_ROCK.z); m.scale.y = 0.9; mesh(new THREE.DodecahedronGeometry(0.35, 0), glow(0xffe08a, 0xffd93b), BIG_ROCK.x + 0.9, 1.5, BIG_ROCK.z + 0.6); }
+  { const m = mesh(new THREE.DodecahedronGeometry(1.5, 0), flat(P.rockDark), BIG_ROCK.x, 0.9, BIG_ROCK.z); m.scale.y = 0.9;
+    whenKit(() => { const k = kitModel('Rock1', { isl_rock_dark: new THREE.MeshLambertMaterial({ color: P.rockDark }) }); if (!k) return; k.position.set(BIG_ROCK.x, 0, BIG_ROCK.z); k.scale.set(1.75, 1.6, 1.75); town.add(k); town.remove(m); }); mesh(new THREE.DodecahedronGeometry(0.35, 0), glow(0xffe08a, 0xffd93b), BIG_ROCK.x + 0.9, 1.5, BIG_ROCK.z + 0.6); }
 
   // ---- neighbours' tents -----------------------------------------------------------
   NEIGHBOURS.forEach((n, i) => {
@@ -500,7 +522,8 @@ export function buildTown() {
     if (kind === 0) flower(x, z, 1.4 + rand() * 1.5, P.petals[Math.floor(rand() * 4)]);
     else if (kind === 1) rock(x, z, 0.7 + rand() * 1.1);
     else if (kind === 2) pine(x, z, 0.9 + rand() * 0.7);
-    else mesh(new THREE.SphereGeometry(0.9 + rand(), 6, 4, 0, 6.28, 0, 1.57), flat(P.snow), x, 0, z);
+    else { const sz = 0.9 + rand(), m = mesh(new THREE.SphereGeometry(sz, 6, 4, 0, 6.28, 0, 1.57), flat(P.grassDark), x, 0, z), turn = rand() * 6;
+      whenKit(() => { const k = kitModel('Bush'); if (!k) return; k.position.set(x, 0, z); k.rotation.y = turn; k.scale.setScalar(sz * 0.95); town.add(k); town.remove(m); }); }
     placed++;
   }
   // chunky plank fence round the rim; open along the beach and at the waterfall
@@ -508,7 +531,7 @@ export function buildTown() {
     for (let i = 0; i < n; i++) { const a = -Math.PI + (i / n) * 6.283; if (a > BEACH.from - 0.05 && a < BEACH.to + 0.05) continue; if (Math.abs(a - fallA) < 0.09) continue; slots.push(a); }
     const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(0.75, 1.5, 0.3), flat(P.woodDark), slots.length), m = new THREE.Object3D();
     slots.forEach((a, i) => { m.position.set(Math.cos(a) * (R - 0.9), 0.6 + (i % 2) * 0.12, Math.sin(a) * (R - 0.9)); m.rotation.set(0, -a + Math.PI / 2, (rand() - 0.5) * 0.25); m.updateMatrix(); inst.setMatrixAt(i, m.matrix); });
-    town.add(inst); }
+    town.add(inst); whenKit(() => { const geo = kitGeometry('Fence'); if (geo) inst.geometry = geo; }); }
 
   // where the fairy lights go
   { const home = front('home'); if (home) fairy(home, [[-2.7, 3.15, 2.3], [-0.9, 3.15, 2.3], [0.9, 3.15, 2.3], [2.7, 3.15, 2.3]]);
