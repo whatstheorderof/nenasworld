@@ -3,6 +3,7 @@
 // Poses are worked out here every frame; her face shows whatever feeling she is given.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // models are meshopt-compressed
 
 const mat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
 const C = { coat: 0x232a4d, belly: 0xfdfaf2, beak: 0xffa62b, feet: 0xff8a1f, scarf: 0x2fc6b3, eye: 0xffffff, pupil: 0x141833, cheek: 0xff9aa8 };
@@ -126,7 +127,7 @@ export function buildNena() {
   const showEmote = name => { if (name === emoteNow) return; emoteNow = name; emoteAge = 0; if (!name) { emote.visible = false; return; } emote.material.map = emoteTex[name] ||= emoteTexture(name); emote.material.needsUpdate = true; emote.visible = true; };
 
   // ---- load her real model ----
-  new GLTFLoader().load(`${import.meta.env.BASE_URL}models/nena.glb`, gltf => {
+  new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(`${import.meta.env.BASE_URL}models/nena.glb`, gltf => {
     const mats = {};
     gltf.scene.traverse(o => { if (!o.isMesh) return; const m = o.material, key = m.name;
       o.material = mats[key] ||= (key === 'nena_shine' ? new THREE.MeshBasicMaterial({ color: 0xffffff }) : new THREE.MeshLambertMaterial({ color: m.color, map: m.map || null }));
@@ -142,7 +143,7 @@ export function buildNena() {
     const rest = o => ({ o, p: o.position.clone(), r: o.rotation.clone(), s: o.scale.clone() });
     face = {
       eyes: ['EyeL', 'EyeR'].map(n => N(n)), eyeRest: ['EyeL', 'EyeR'].map(n => rest(N(n))), pivots: ['EyePivotL', 'EyePivotR'].map(n => rest(N(n))),
-      shines: ['EyeShineL', 'EyeShine2L', 'EyeShineR', 'EyeShine2R'].map(n => N(n)),
+      shines: ['EyeShineL', 'EyeShine2L', 'EyeShineR', 'EyeShine2R'].map(n => rest(N(n))),
       brows: ['BrowPivotL', 'BrowPivotR'].map(n => rest(N(n))), hinge: rest(N('BeakHinge')),
       cheeks: ['CheekL', 'CheekR'].map(n => rest(N(n))), cheekMat: mats.nena_cheek, cheekBase: mats.nena_cheek.color.clone(),
     };
@@ -197,7 +198,7 @@ export function buildNena() {
       face.eyes.forEach((e, i) => { const d = e.morphTargetDictionary, inf = e.morphTargetInfluences; if (!d) return;
         inf[d.blink] = shut; inf[d.happy] = happy; inf[d.sad] = feel.sad * (1 - happy) * (1 - shut); inf[d.squint] = feel.squint * (1 - happy) * (1 - shut); });
       const open = 1 - Math.max(shut, happy, feel.squint * 0.6);
-      face.shines.forEach(sh => { sh.visible = open > 0.35; sh.scale.setScalar(Math.max(0.01, open)); });
+      face.shines.forEach(({ o, s }) => { o.visible = open > 0.35; o.scale.copy(s).multiplyScalar(Math.max(0.01, open)); });   // relative to its own scale (compressed models carry one)
       face.pivots.forEach(({ o, p, s }) => {  o.position.set(p.x + feel.lookX * 0.014, p.y + feel.lookY * 0.012, p.z); });
       face.eyeRest.forEach(({ o, p, s }) => { const m = 1 + feel.wide * 0.2; o.scale.set(s.x * m, s.y * m, s.z); o.position.set(p.x, p.y, p.z + feel.wide * 0.03); });
       face.brows.forEach(({ o, p, r }, i) => { const sx = i ? -1 : 1; o.position.set(p.x, p.y + feel.browUp * 0.03 - happy * 0.006, p.z); o.rotation.set(r.x, r.y, r.z - sx * feel.browTilt * 0.45); });

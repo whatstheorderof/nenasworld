@@ -186,15 +186,16 @@ export function buildTown() {
     box(0.14, 1.0, 0.14, P.woodDark, 0, 4.0, -0.6, g);
     sign('FISH', 2.4, g, 0, 4.7, -0.6); }
 
-  hut('library', { w: 5.6, h: 3.8, depth: 4, label: 'BOOKS', wall: 0xf7b34a, roof: 0x2f7f9a });
-  { const g = hut('studio', { w: 4.8, h: 3.4, depth: 4, label: 'STUDIO', wall: 0xff8f6b, roof: 0x6a2fc4 });
+  building(hut('library', { w: 5.6, h: 3.8, depth: 4, label: 'BOOKS', wall: 0xf7b34a, roof: 0x2f7f9a }), 'Library', {}, 'LIBRARY', [1.3, 0.38], { bg: '#f4eee2', fg: '#c45a7a' });
+  { const g = hut('studio', { w: 4.8, h: 3.4, depth: 4, label: 'STUDIO', wall: 0xff8f6b, roof: 0x6a2fc4 }), eg = new THREE.Group(); eg.userData.keep = true; g.add(eg);
+    building(g, 'Studio', {}, 'STUDIO', [1.8, 0.42], { bg: '#f4eee2', fg: '#c45a7a' });
     const easelCanvas = document.createElement('canvas'); easelCanvas.width = 300; easelCanvas.height = 200; drawPicture(easelCanvas, 'flowers', 1);
     const easelTex = new THREE.CanvasTexture(easelCanvas); easelTex.colorSpace = THREE.SRGBColorSpace;
-    box(1.3, 0.95, 0.06, P.woodDark, 1.7, 1.45, 2.97, g).rotation.x = -0.2;
-    const pic = mesh(new THREE.PlaneGeometry(1.2, 0.8), new THREE.MeshBasicMaterial({ map: easelTex }), 1.7, 1.45, 3.01, g); pic.rotation.x = -0.2;   // easel, showing her latest drawing
+    box(1.3, 0.95, 0.06, P.woodDark, 1.7, 1.45, 2.97, eg).rotation.x = -0.2;
+    const pic = mesh(new THREE.PlaneGeometry(1.2, 0.8), new THREE.MeshBasicMaterial({ map: easelTex }), 1.7, 1.45, 3.01, eg); pic.rotation.x = -0.2;   // easel, showing her latest drawing
     town.userData.easel = { canvas: easelCanvas, tex: easelTex, key: '' };
-    box(1.4, 0.06, 0.2, P.woodDark, 1.7, 0.98, 3.05, g);
-    for (const s of [-1, 1]) box(0.08, 1.7, 0.08, P.woodDark, 1.7 + s * 0.35, 0.85, 3.05, g); }
+    box(1.4, 0.06, 0.2, P.woodDark, 1.7, 0.98, 3.05, eg);
+    for (const s of [-1, 1]) box(0.08, 1.7, 0.08, P.woodDark, 1.7 + s * 0.35, 0.85, 3.05, eg); }
 
   // ---- museum -----------------------------------------------------------
   { const g = at('museum');
@@ -209,7 +210,8 @@ export function buildTown() {
   { const g = hut('shop', { w: 5, h: 3.4, depth: 4, label: 'SHOP', wall: 0x9fe0c8, roof: 0xf2792e, trim: 0x2f7f9a });
     box(2.2, 0.9, 1.0, P.wood, -3.6, 0.45, 2.6, g); box(2.4, 0.14, 1.2, P.woodDark, -3.6, 0.95, 2.6, g);     // workbench
     box(0.5, 0.3, 0.3, 0x5f82ad, -3.9, 1.15, 2.6, g); box(0.1, 0.5, 0.1, P.woodDark, -3.1, 1.25, 2.5, g);
-    for (let i = 0; i < 3; i++) box(0.7, 0.6, 0.7, [0xe8452c, 0xffd93b, 0x6a2fc4][i], 2.9 + (i % 2) * 0.5, 0.3 + (i > 1 ? 0.6 : 0), 2.5 + (i % 2) * 0.6, g); }   // crates
+    for (let i = 0; i < 3; i++) box(0.7, 0.6, 0.7, [0xe8452c, 0xffd93b, 0x6a2fc4][i], 2.9 + (i % 2) * 0.5, 0.3 + (i > 1 ? 0.6 : 0), 2.5 + (i % 2) * 0.6, g);   // crates
+    building(g, 'Shop', {}, 'SHOP', [2.4, 0.5], { bg: '#f4eee2', fg: '#c45a7a' }); }
 
   // ---- orchard: leaves change with the season, fruit shows when it is ready -----------
   const fruit = [];
@@ -356,7 +358,8 @@ export function buildTown() {
     [0x2fc6b3, 0xffd93b, 0x6a2fc4, 0xff7fa3, 0xe8452c].forEach((col, i) => box(0.32, 0.9, 0.06, col, -0.7 + i * 0.5, 1.08, 2.95, g));
     // a little table of sunglasses
     box(1.1, 0.7, 0.6, P.wood, 2.0, 0.35, 3.2, g); box(1.2, 0.08, 0.7, 0xfffaf0, 2.0, 0.72, 3.2, g);
-    for (let i = 0; i < 3; i++) { const gx = 1.65 + i * 0.36, col = [0x1d2545, 0xff7fa3, 0xffd93b][i]; for (const sd of [-1, 1]) { const l = mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.03, 8), flat(col), gx + sd * 0.08, 0.8, 3.2, g); l.rotation.x = Math.PI / 2 - 0.4; } } const bh = mesh(new THREE.SphereGeometry(0.26, 8, 5), flat(0x2fc6b3), -0.24, 1.45, 0.05, stand); bh.scale.y = 0.6; }
+    for (let i = 0; i < 3; i++) { const gx = 1.65 + i * 0.36, col = [0x1d2545, 0xff7fa3, 0xffd93b][i]; for (const sd of [-1, 1]) { const l = mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.03, 8), flat(col), gx + sd * 0.08, 0.8, 3.2, g); l.rotation.x = Math.PI / 2 - 0.4; } } const bh = mesh(new THREE.SphereGeometry(0.26, 8, 5), flat(0x2fc6b3), -0.24, 1.45, 0.05, stand); bh.scale.y = 0.6;
+    building(g, 'Tailor', {}, 'CLOTHES', [2.4, 0.5], { bg: '#f4eee2', fg: '#9c6fc4' }); }
 
   // ---- observatory: a round tower with a dome that turns at night ----------------------------
   let dome = null, scopeLight = null;
@@ -415,7 +418,8 @@ export function buildTown() {
     whenKit(() => {
       const warm = glow(0xffe0a0, 0xfff1cf), bulbs = glow(0xffe08a, 0xfff6d8);
       const b = kitBuilding(name, { glow_shopwindow: warm, glow_bulb: bulbs, ...swap }); if (!b) return;
-      g.clear(); g.add(b.group);
+      for (const c of [...g.children]) if (!c.userData.keep) g.remove(c);   // keep live bits (like the studio easel)
+      g.add(b.group);
       const a = b.anchors.SignAnchor; if (a && label) sign(label, w, g, a.x, a.y, a.z, { ...colours, board: false, h });
       if (b.anchors.Hero) heroes.push({ o: b.hero, y: b.hero.position.y, motion });
       done?.();
@@ -556,8 +560,8 @@ export function buildTown() {
 
   // where the fairy lights go
   { const home = front('home'); if (home) fairy(home, [[-2.7, 3.15, 2.3], [-0.9, 3.15, 2.3], [0.9, 3.15, 2.3], [2.7, 3.15, 2.3]]);
-    const tailor = front('tailor'); if (tailor) fairy(tailor, [[-2.5, 3.3, 2.1], [0, 3.3, 2.1], [2.5, 3.3, 2.1]]);
-    const studio = front('studio'); if (studio) fairy(studio, [[-2.5, 3.3, 2.1], [0, 3.3, 2.1], [2.5, 3.3, 2.1]]);
+    const tailor = front('tailor'); if (tailor) fairy(tailor, [[-2.8, 3.78, 2.3], [0, 3.78, 2.3], [2.8, 3.78, 2.3]], 0.25);   // along the cornice
+    const studio = front('studio'); if (studio) fairy(studio, [[-2.7, 3.58, 2.3], [0, 3.58, 2.3], [2.7, 3.58, 2.3]], 0.25);
     const cafe = front('cafe'); if (cafe) fairy(cafe, [[-1.3, 2.62, 0.95], [0, 2.62, 0.95], [1.3, 2.62, 0.95]], 0.5);
     const camp = front('camp'); if (camp) fairy(camp, [[-1.75, 0.15, 1.5], [0, 2.35, 1.5], [1.75, 0.15, 1.5]], 0.1);
     // swags round the square, strung between slim poles
