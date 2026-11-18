@@ -531,7 +531,7 @@ export function buildTown() {
     town.userData.sea = sea;
     // one sea running out from the beach to all three islets: a curved lagoon with rounded ends, a slab so it has a side
     { const a0 = ISLETS[0].a - 0.32, a1 = ISLETS[ISLETS.length - 1].a + 0.32, rin = R - 3, rout = Math.max(...ISLETS.map(i => i.r)) + 11, mid = (rin + rout) / 2, w = (rout - rin) / 2;
-      const sh = new THREE.Shape(), pt = (x, z, first) => first ? sh.moveTo(x, -z) : sh.lineTo(x, -z);
+      const sh = new THREE.Shape(), edge = [], pt = (x, z, first) => { edge.push([x, z]); first ? sh.moveTo(x, -z) : sh.lineTo(x, -z); };
       for (let i = 0; i <= 40; i++) { const a = a0 + (a1 - a0) * i / 40; pt(Math.cos(a) * rout, Math.sin(a) * rout, i === 0); }
       const cap = (a, dir) => { const ux = Math.cos(a), uz = Math.sin(a), vx = -uz, vz = ux, cx = ux * mid, cz = uz * mid;
         for (let i = 1; i < 16; i++) { const t = Math.PI * i / 16, c = Math.cos(t) * dir, s = Math.sin(t) * dir; pt(cx + w * (ux * c + vx * s), cz + w * (uz * c + vz * s)); } };
@@ -539,7 +539,21 @@ export function buildTown() {
       for (let i = 0; i <= 40; i++) { const a = a1 - (a1 - a0) * i / 40; pt(Math.cos(a) * rin, Math.sin(a) * rin); }
       cap(a0, -1);
       const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.8, bevelEnabled: false, curveSegments: 4 }); geo.rotateX(-Math.PI / 2);
-      const lagoon = new THREE.Mesh(geo, waterMaterial({ scale: 3.6 })); lagoon.position.y = -0.95; town.add(lagoon); }
+      const lagoon = new THREE.Mesh(geo, waterMaterial({ scale: 3.6 })); lagoon.position.y = -0.95; town.add(lagoon);
+      // the ground it sits in: a lip of sand, then earth and rock stepping in underneath, like the island itself
+      const slab = (depth, mat, y, k) => { const g2 = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false, curveSegments: 4 }); g2.rotateX(-Math.PI / 2); const m = new THREE.Mesh(g2, mat); m.position.y = y; m.scale.set(k, 1, k); town.add(m); return m; };
+      slab(0.5, flat(P.sandDark), -1.2, 1.006);
+      slab(3.2, flat(P.rockDark), -4.4, 0.995);
+      slab(4.5, flat(P.rock), -8.9, 0.94);
+      slab(5, flat(P.rockDark), -13.9, 0.86);
+      // a plank fence round its outer edge, like the one round the island
+      const posts = []; let since = 0;
+      for (let i = 1; i < edge.length; i++) { const [x0, z0] = edge[i - 1], [x1, z1] = edge[i], len = Math.hypot(x1 - x0, z1 - z0);
+        for (let u = 0; u < len; u += 0.25) { since += 0.25; if (since < 1.7) continue; const x = x0 + (x1 - x0) * u / len, z = z0 + (z1 - z0) * u / len;
+          if (Math.hypot(x, z) < R + 4) continue; since = 0; posts.push([x, z, Math.atan2(z1 - z0, x1 - x0)]); } }
+      const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(0.75, 1.5, 0.3), flat(P.woodDark), posts.length), o = new THREE.Object3D();
+      posts.forEach(([x, z, a], i) => { const k = 0.985; o.position.set(x * k, 0.35 + (i % 2) * 0.12, z * k); o.rotation.set(0, -a, (rand() - 0.5) * 0.25); o.updateMatrix(); inst.setMatrixAt(i, o.matrix); });
+      town.add(inst); }
     const b = PLACES.beach, g = new THREE.Group(); g.position.set(b.x, 0, b.z); g.rotation.y = Math.atan2(-b.x, -b.z); town.add(g);
     box(0.14, 3.0, 0.14, 0xfffaf0, -4.6, 1.5, -2.4, g); const um = mesh(new THREE.ConeGeometry(2.0, 0.9, 8), flat(0xe8452c), -4.6, 3.2, -2.4, g); um.rotation.z = 0.12;
     box(1.3, 0.06, 2.4, 0x2fc6b3, -4.4, 0.08, -1.4, g); box(1.3, 0.07, 0.4, 0xfffaf0, -4.4, 0.09, -1.4, g);                 // towel

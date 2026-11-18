@@ -10,7 +10,8 @@ void main() { vDir = normalize(position); vec4 p = modelViewMatrix * vec4(positi
 
 const frag = /* glsl */`
 uniform vec3 uTop, uHorizon, uSunDir, uMoonDir;
-uniform float uDay, uNight, uTime, uStreaks, uStars, uSunVis, uMoonVis;
+uniform float uDay, uNight, uTime, uStreaks, uStars, uSunVis, uMoonVis, uOceanY, uHaze;
+uniform vec3 uCam;
 varying vec3 vDir;
 float h1(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
 vec3 h3(vec3 p) { return fract(sin(vec3(dot(p, vec3(127.1, 311.7, 74.7)), dot(p, vec3(269.5, 183.3, 246.1)), dot(p, vec3(113.5, 271.9, 124.6)))) * 43758.5453); }
@@ -18,6 +19,11 @@ float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   float a = h1(vec3(i, 0.0)), b = h1(vec3(i + vec2(1, 0), 0.0)), c = h1(vec3(i + vec2(0, 1), 0.0)), d = h1(vec3(i + vec2(1, 1), 0.0));
   return mix(mix(a, b, f.x), mix(c, d, f.x), f.y); }
 float fbm(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += vn(p) * a; p *= 2.03; a *= 0.5; } return s; }
+vec2 h2(vec2 p) { p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453); }
+// the cartoon water cells (as in water.js): nearest and second-nearest moving centre
+vec2 cells(vec2 p, float t) { vec2 i = floor(p), f = fract(p); float d1 = 8.0, d2 = 8.0;
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 g = vec2(float(x), float(y)), o = h2(i + g); o = 0.5 + 0.42 * sin(t + 6.2831 * o); float dd = length(g + o - f); if (dd < d1) { d2 = d1; d1 = dd; } else if (dd < d2) d2 = dd; }
+  return vec2(d1, d2); }
 // a basis on the sky around a direction, so shapes on it are round
 void frame(vec3 n, out vec3 t, out vec3 b) { t = normalize(cross(abs(n.y) < 0.95 ? vec3(0, 1, 0) : vec3(1, 0, 0), n)); b = cross(n, t); }
 
@@ -27,7 +33,20 @@ void main() {
   // gradient: pale at the horizon, deep overhead, a soft bright band right on the horizon
   vec3 col = mix(uHorizon, uTop, pow(smoothstep(0.0, 0.42, up), 0.6));
   col = mix(col, uHorizon * 1.06, exp(-up * 40.0) * 0.45);
-  if (el < 0.0) col = uHorizon;
+  if (el < 0.0) {
+    // the sea on the earth, far below: where this view ray meets it, fading into the haze with distance
+    float t = min((uCam.y - uOceanY) / max(-el, 1e-4), 90000.0);
+    vec2 w = uCam.xz + d.xz * t, p = w / 46.0 + vec2(0.012, 0.007) * uTime;
+    p += vec2(fbm(p * 0.6), fbm(p * 0.6 + 7.3)) * 0.7;
+    vec2 c = cells(p, uTime * 0.3), c2 = cells(p * 1.35 + vec2(4.7, 1.3), uTime * 0.25);
+    float detail = exp(-t / 5200.0);                                   // the lines fade out far away instead of shimmering
+    vec3 wc = vec3(0.12, 0.42, 0.9);
+    wc = mix(wc, vec3(0.07, 0.33, 0.83), step(0.32, c2.x) * 0.8 * detail);
+    wc = mix(wc, vec3(0.9, 0.98, 1.0), (1.0 - smoothstep(0.06, 0.1, c.y - c.x)) * detail);
+    wc = mix(wc, wc * vec3(0.18, 0.24, 0.42), uNight);
+    float haze = 1.0 - exp(-t / 3800.0);
+    col = mix(wc, uHorizon, clamp(0.3 + haze * 0.8 + uHaze, 0.0, 1.0));
+  }
 
   // long thin streak clouds (cirrus), drifting
   float az = atan(d.z, d.x);
@@ -98,6 +117,7 @@ export const HORIZON = { day: C(0xb4f1ff), night: C(0x1d3c96), dusk: C(0xffa47a)
 
 export function buildSky(scene) {
   const uni = {
+    uCam: { value: new THREE.Vector3() }, uOceanY: { value: -900 }, uHaze: { value: 0 },
     uTop: { value: new THREE.Color() }, uHorizon: { value: new THREE.Color() },
     uSunDir: { value: new THREE.Vector3(0, 0.3, -1).normalize() }, uMoonDir: { value: new THREE.Vector3(0, 0.3, 1).normalize() },
     uDay: { value: 1 }, uNight: { value: 0 }, uTime: { value: 0 }, uStreaks: { value: 1 }, uStars: { value: 0 }, uSunVis: { value: 1 }, uMoonVis: { value: 0 },
@@ -118,7 +138,7 @@ export function buildSky(scene) {
   // hour 0..24, day 0..1, horizon colour (after weather), how grey/misty it is, meteor shower 0..1
   function update(hour, d, horizon, { grey = 0, mist = 0, flash = 0, meteors = 0 }, dt, camera) {
     const n = 1 - d, dusk = 4 * d * (1 - d);
-    dome.position.copy(camera.position);
+    dome.position.copy(camera.position); uni.uCam.value.copy(camera.position); uni.uHaze.value = Math.min(0.7, grey * 0.5 + mist * 0.7);
     top.copy(TOP.night).lerp(TOP.day, d).lerp(TOP.dusk, dusk * 0.7).lerp(horizon, Math.min(0.9, grey * 0.85 + mist * 0.7 + flash * 0.6));
     uni.uTop.value.copy(top); uni.uHorizon.value.copy(horizon);
     uni.uTime.value += dt; uni.uDay.value = d; uni.uNight.value = n;

@@ -67,9 +67,7 @@ const aurora = new THREE.Group(); scene.add(aurora);
     const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
     m.position.set(-10 + i * 12, 62 + i * 9, -120 - i * 22); aurora.add(m); } }
 
-// the ocean far below: the same cartoon water, much bigger cells, fading into the haze
-{ const ocean = new THREE.Mesh(new THREE.CircleGeometry(1400, 64), waterMaterial({ deep: 0x135fe0, mid: 0x1f6dff, foam: 0xeffcff, scale: 26, speed: 0.35, edge: 0.06, flow: [0.01, 0.006], fogMax: 0.8 }));   // a hint of it shows through the haze
-  ocean.rotation.x = -Math.PI / 2; ocean.position.y = -150; scene.add(ocean); }
+// the ocean far below is drawn by the sky dome (sky.js), so it reaches all the way to the horizon
 // clouds: it is a sky island, so a ring of slow clouds around and below it
 const clouds = new THREE.Group(); scene.add(clouds);
 const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.45, flatShading: true });
