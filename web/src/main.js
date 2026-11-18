@@ -15,6 +15,8 @@ import { startLocalMind } from './localmind.js';
 import { drawPicture, playTune } from './art.js';
 import { drawStamp } from './stamps.js';
 import { buildFarIslands } from './far.js';
+import { makeFeelings } from './feelings.js';
+const feelings = makeFeelings();
 
 const MIND = (import.meta.env.VITE_MIND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const qs = new URLSearchParams(location.search);   // ?hour=23&weather=aurora&season=winter&show=fireworks to preview a look
@@ -224,14 +226,14 @@ function setWeatherFx(dt, d, n, t) {
 // ---- live state: the real mind over WebSocket, or a stand-in in this browser ----------
 let now = null, local = null, fails = 0, lifeVersion = -1, lifeData = null, socket = null, myId = null;
 const chatLog = [];
-const onChat = item => { if (item.kind === 'nena' && item.to?.includes(myName())) sound.blip(); chatLog.push(item); if (chatLog.length > 200) chatLog.shift(); if (openPanel === 'chat') renderChat(); else if (item.kind === 'nena' && item.to?.includes(myName())) $('chat-dot').hidden = false; };
+const onChat = item => { if (item.kind === 'nena' && item.to?.includes(myName())) { sound.blip(); feelings.feel('happy', 3); } else if (item.kind !== 'nena') feelings.feel('surprised', 1.2); chatLog.push(item); if (chatLog.length > 200) chatLog.shift(); if (openPanel === 'chat') renderChat(); else if (item.kind === 'nena' && item.to?.includes(myName())) $('chat-dot').hidden = false; };
 const sendMind = m => { if (socket?.readyState === 1) socket.send(JSON.stringify(m)); };
 const feed = [];
 const target = new THREE.Vector3(PLACES.home.x, 0, PLACES.home.z);
 const api = (path, opts) => fetch(MIND + path, opts).then(r => r.json());
 function startStandIn() {
   if (local) return;
-  local = startLocalMind(item => { feed.push(item); if (openPanel === 'feed') show('feed'); }, onChat);
+  local = startLocalMind(item => { feed.push(item); feelings.fromFeed(item); if (openPanel === 'feed') show('feed'); }, onChat);
   chatLog.length = 0; chatLog.push(...local.chat);
   feed.length = 0; feed.push(...local.feed); apply(local.now(), true);
   $('offline').textContent = "Nena's own mind isn't online yet. This is a stand-in running in your browser, just for you."; $('offline').hidden = false;
@@ -249,7 +251,7 @@ function connect() {
     if (m.type === 'hello') { myId = m.you; feed.length = 0; feed.push(...m.feed); chatLog.length = 0; chatLog.push(...(m.chat || [])); apply(m.now, true); if (openPanel === 'chat') renderChat(); }
     if (m.type === 'chat') onChat(m.item);
     if (m.type === 'now') apply(m.now);
-    if (m.type === 'feed') { feed.push(m.item); if (openPanel === 'feed') show('feed'); }
+    if (m.type === 'feed') { feed.push(m.item); feelings.fromFeed(m.item); if (openPanel === 'feed') show('feed'); }
   };
   ws.onopen = () => { opened = true; fails = 0; socket = ws; ws.send(JSON.stringify({ type: 'hello', name: myName() })); if (local) { local.stop(); local = null; } $('offline').hidden = true; };
   ws.onclose = () => {
@@ -530,7 +532,7 @@ canvas.addEventListener('dblclick', e => {
 
 // ---- frame loop ----------------------------------------------------------------
 const clock = new THREE.Clock(), bubble = $('bubble'), head = new THREE.Vector3();
-let swimT = 0, heading = 0, elapsed = 0;
+let swimT = 0, heading = 0, elapsed = 0, lastSay = null, talkUntil = 0;
 function frame() {
   const dt = Math.min(0.1, clock.getDelta()); elapsed += dt;
   const act = now?.activity || { phase: 'idle', action: 'idle', anim: 'stand' };
@@ -550,6 +552,10 @@ function frame() {
   pos.lerp(goal, k);
   let dh = heading - nena.root.rotation.y; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
   nena.root.rotation.y += dh * k;
+  // her face: mood, weather, what she's doing and what just happened
+  if (now?.say !== lastSay) { lastSay = now?.say; if (lastSay) talkUntil = elapsed + Math.min(2.5, 0.6 + lastSay.length * 0.04); }
+  const f = feelings.compute(now && { ...now, weather: qs.get('weather') || now.weather }, elapsed, qs.get('feel') || window.__world?.feel);
+  f.talk = elapsed < talkUntil; nena.setFeeling(f);
   nena.animate(dt, act);
 
   const hour = qs.has('hour') ? Number(qs.get('hour')) : now ? now.hour : 12;

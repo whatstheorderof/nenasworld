@@ -128,7 +128,7 @@ export class Brain {
       if (r.remember) m.remember(w.day, r.remember, 0.7);
       this.todayLog.push({ made: r.text });
       m.diaryLine(w.day, w.hour, r.text.charAt(0).toUpperCase() + r.text.slice(1) + '.');
-      this.onFeed({ at: Date.now(), day: w.day, hour: w.hour, action: a.action, label: r.text, reason: '', source: 'world', result: true });
+      this.onFeed({ at: Date.now(), day: w.day, hour: w.hour, action: a.action, label: r.text, reason: '', source: 'world', result: true, lift: r.lift || 0 });
     }
   }
 

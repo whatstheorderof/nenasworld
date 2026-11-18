@@ -23,7 +23,7 @@ export function startLocalMind(onFeed, onChat = () => {}) {
       const a = world.finished.shift(), r = life.finish(a.action, a, world);
       if (!r) continue;
       life.save(); if (r.lift) world.bump(r.lift); if (r.say) { say = r.say; sayUntil = Date.now() + 9000; }
-      push({ at: Date.now(), day: world.day, hour: world.hour, action: a.action, label: r.text, reason: '', source: 'world', result: true });
+      push({ at: Date.now(), day: world.day, hour: world.hour, action: a.action, label: r.text, reason: '', source: 'world', result: true, lift: r.lift || 0 });
     }
     if (world.activity || Date.now() < nextThink) return;
     const c = chooseFallback(world.options(0), world.needs, recent, []);
