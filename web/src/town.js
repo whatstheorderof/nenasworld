@@ -7,6 +7,7 @@ import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROC
 import { drawPicture } from './art.js';
 import { pastel } from './palette.js';
 import { waterMaterial } from './water.js';
+import { makeTree, makeBush, setTreeSeason, tickTrees } from './trees.js';
 import { whenKit, kitModel, kitParts, kitGeometry, kitBuilding } from './kit.js';
 import { HOUSE_LOOKS, FLAGS } from '../../shared/data.js';
 
@@ -313,7 +314,8 @@ export function buildTown() {
     mesh(new THREE.CylinderGeometry(9, 12, 0.9, 12), waterMaterial({ scale: 3.4 }), 0, -0.3, 0, g);
     mesh(new THREE.CylinderGeometry(5.2, 5.8, 0.5, 9), flat(P.sand), 0, 0.1, 0, g); mesh(new THREE.CylinderGeometry(3.6, 4.2, 0.4, 8), flat(i === 1 ? P.rock : P.grass), 0, 0.42, 0, g);
     mesh(new THREE.CylinderGeometry(4.6, 2.5, 3.5, 7), flat(P.rockDark), 0, -2.0, 0, g);
-    if (i === 0) for (const [x, z] of [[-1.4, 0.6], [1.2, -1]]) { mesh(new THREE.CylinderGeometry(0.2, 0.26, 1.5, 5), flat(P.woodDark), x, 1.3, z, g); mesh(new THREE.DodecahedronGeometry(1.2, 0), flat(0xffb7d0), x, 2.9, z, g); }
+    if (i === 0) for (const [x, z, st, sc] of [[-1.4, 0.6, 2, 0.6], [1.5, -1.1, 1, 0.75], [1.4, 1.7, 0, 0.9]]) { const t = makeTree(st, 'cherry'); t.position.set(x, 0.62, z); t.rotation.y = x * 2; t.scale.setScalar(sc); g.add(t); }
+    if (i === 2) { const t = makeTree(1, 'oak'); t.position.set(-2.4, 0.62, -1.6); t.scale.setScalar(0.7); g.add(t); }
     if (i === 1) { for (const [x, z, sc] of [[-1, 0.5, 1.3], [1.3, -0.8, 0.9], [0.4, 1.6, 0.6]]) { const m = mesh(new THREE.DodecahedronGeometry(sc, 0), flat(x > 0 ? P.rock : P.rockDark), x, 0.6 + sc * 0.5, z, g); m.scale.y = 0.8; } mesh(new THREE.DodecahedronGeometry(0.3, 0), glow(0xffe08a, 0xffd93b), -0.3, 1.9, 0.9, g); }
     if (i === 2) for (const [x, z, sc] of [[-1.2, 0.4, 1.4], [1.1, -0.9, 1], [0.6, 1.5, 0.7]]) { mesh(new THREE.CylinderGeometry(0.22 * sc, 0.3 * sc, 1.3 * sc, 6), flat(0xfff1d6), x, 0.62 + 0.65 * sc, z, g); mesh(new THREE.CylinderGeometry(0.3 * sc, 1.0 * sc, 0.6 * sc, 8), flat([0xe8452c, 0x6a2fc4, 0xff8a1f][Math.round(sc * 10) % 3]), x, 0.62 + 1.5 * sc, z, g); }
     const boat = new THREE.Group(); boat.visible = false; g.add(boat); boat.position.set(-Math.cos(isl.a) * 6, 0.1, -Math.sin(isl.a) * 6); boat.rotation.y = -isl.a;
@@ -353,6 +355,7 @@ export function buildTown() {
   function setWind(w, t) {
     blades.material.uniforms.uWind.value += (w - blades.material.uniforms.uWind.value) * 0.05;   // grass leans more in a breeze
     tickPetals(t, Math.min(0.1, t - (bigTree.lastT ?? t)), w); bigTree.lastT = t;
+    tickTrees(t, w);
     for (const g of swayers) { g.rotation.z = Math.sin(t * 1.6 + g.id) * 0.04 * w + 0.05 * w; g.rotation.x = Math.cos(t * 1.3 + g.id) * 0.03 * w; }
     const f = town.userData.flagCloth; if (f) { f.rotation.y = Math.sin(t * (2 + w * 6)) * (0.25 + w * 0.35); f.rotation.z = -0.15 * (1 - w); }
   }
@@ -562,15 +565,17 @@ export function buildTown() {
   const extraObs = [site('cafe'), CLOCK, BIG_ROCK, ...NEIGHBOURS.flatMap(n => n.hobbies.filter(h => h.at).map(h => h.at)), ...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home)];
   const clear = (x, z, pad) => !onPath(x, z, 1.8) && !inBeach(x, z) && !nearRiver(x, z, 3.2) && extraObs.every(o => Math.hypot(o.x - x, o.z - z) > 3.6) && Object.keys(PLACES).every(k => { const s = site(k); return Math.hypot(s.x - x, s.z - z) > (s.r || 2.5) + pad && Math.hypot(PLACES[k].x - x, PLACES[k].z - z) > 3; });
   let placed = 0;
-  for (let i = 0; i < 1400 && placed < 80; i++) {
+  const trees = [];
+  for (let i = 0; i < 2400 && placed < 120; i++) {
     const a = rand() * 6.28, r = R * 0.5 + rand() * (R * 0.45), x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (!clear(x, z, 1.6)) continue;
-    const kind = placed % 4;
+    const kind = placed % 5, roll = rand(), stage = roll < 0.2 ? 0 : roll < 0.5 ? 1 : roll < 0.85 ? 2 : 3;
+    if (!clear(x, z, kind === 4 ? 1.2 + stage * 0.7 : 1.6)) continue;
+    if (kind === 4 && trees.some(t => Math.hypot(t.x - x, t.z - z) < 3 + stage * 1.2)) continue;
     if (kind === 0) flower(x, z, 1.4 + rand() * 1.5, P.petals[Math.floor(rand() * 4)]);
     else if (kind === 1) rock(x, z, 0.7 + rand() * 1.1);
     else if (kind === 2) pine(x, z, 0.9 + rand() * 0.7);
-    else { const sz = 0.9 + rand(), m = mesh(new THREE.SphereGeometry(sz, 6, 4, 0, 6.28, 0, 1.57), flat(P.grassDark), x, 0, z), turn = rand() * 6;
-      whenKit(() => { const k = kitModel('Bush'); if (!k) return; k.position.set(x, 0, z); k.rotation.y = turn; k.scale.setScalar(sz * 0.95); town.add(k); town.remove(m); }); }
+    else if (kind === 3) { const b = makeBush(); b.position.set(x, 0, z); b.rotation.y = rand() * 6; b.scale.setScalar(0.85 + rand() * 0.9); town.add(b); }
+    else { const t = makeTree(stage, rand() < 0.35 ? 'cherry' : 'oak'), wrap = new THREE.Group(); wrap.position.set(x, 0, z); wrap.rotation.y = rand() * 6.28; t.scale.setScalar(0.8 + rand() * 0.3); wrap.add(t); town.add(wrap); trees.push({ x, z }); }
     placed++;
   }
   // chunky plank fence round the rim; open along the beach and at the waterfall
@@ -665,6 +670,7 @@ export function buildTown() {
   })();
   const SEASON = { spring: [0xa8d88a, 0x8cc77c, 0xf4bfd0, 0x7fbf74, 0xc4e8a4], summer: [0x9fd486, 0x82c276, 0x86c97a, 0x6fb46a, 0xbfe39c], autumn: [0xc9d08a, 0xb3b672, 0xeab08a, 0x9fa564, 0xe2dc9c], winter: [0xeef6fb, 0xd5e6f2, 0xdfeaf2, 0xc9d9e6, 0xf6fbff] };
   function setSeason(name, fruitReady) {
+    setTreeSeason(name);
     const c = SEASON[name] || SEASON.summer; grassMat.color.set(c[0]); grassDarkMat.color.set(c[1]); leafMat.color.set(c[2]);
     blades.material.uniforms.uBase.value.set(c[3]); blades.material.uniforms.uTip.value.set(c[4]); blades.visible = name !== 'winter';
     const tree = { spring: [0xf2a0b4, 0xf7c2cf, 0xe58aa2, 0xf7b8c8], summer: [0xe98fa6, 0xf3b1c1, 0xd97a95, 0xf3b1c1], autumn: [0xeb9a72, 0xf2bf8a, 0xd9765e, 0xeb9a72] }[name];

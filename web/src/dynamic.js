@@ -1,6 +1,7 @@
 // Things on the island that change: what Nena has built and planted, the fossils,
 // weeds, bottles and balloons that turn up, and her neighbours.
 import * as THREE from 'three';
+import { makeTree, dropTree, stageForAge } from './trees.js';
 import { pastel } from './palette.js';
 import { whenKit, kitParts, kitModel } from './kit.js';
 const KIT_DECOR = new Set(['bench', 'lantern', 'cairn', 'shell arch', 'birdbath', 'scarecrow', 'signpost', 'campfire', 'wind chime', 'log stool', 'stepping stones', 'clay pot', 'stick fence', 'blossom wreath', 'mushroom stool', 'snow globe', 'pearl lamp', 'gold trophy']);
@@ -40,7 +41,7 @@ function decorModel(kind, day, today, glows, color) {
     case 'singing stone': { const grown = today - day >= 1; if (!grown) { add(g, new THREE.ConeGeometry(0.12, 0.3, 4), 0x9cf6ff, 0, 0.15, 0); break; }
       const body = add(g, new THREE.CylinderGeometry(0.3, 0.38, 0.9, 6), 0x7fb8c9, 0, 0.45, 0); body.name = 'sway'; add(g, new THREE.SphereGeometry(0.34, 6, 5), 0x7fb8c9, 0, 1.0, 0); for (const sd of [-1, 1]) box(g, 0.08, 0.08, 0.06, 0x141833, sd * 0.13, 1.05, 0.3); box(g, 0.14, 0.14, 0.06, lit(0x9cf6ff), 0, 0.88, 0.32); break; }
     case 'flowers': for (let i = 0; i < 5; i++) { const a = i * 1.26, r = i ? 0.55 : 0, c = BLOOMS[color] ?? BLOOMS.white; add(g, new THREE.CylinderGeometry(0.04, 0.05, 0.4, 4), 0x79c653, Math.cos(a) * r, 0.2, Math.sin(a) * r); add(g, new THREE.ConeGeometry(0.2, 0.22, 5), c, Math.cos(a) * r, 0.48, Math.sin(a) * r).rotation.x = Math.PI; } break;
-    case 'tree': { const age = Math.min(1, (today - day) / 3), k = 0.3 + age * 0.7; add(g, new THREE.CylinderGeometry(0.16, 0.22, 1.4, 5), WOOD, 0, 0.7, 0); add(g, new THREE.DodecahedronGeometry(1.0, 0), 0x4fae52, 0, 2.0, 0); g.scale.setScalar(k); break; }
+    case 'tree': { const t = makeTree(stageForAge(today - day), (Math.floor(day) % 3) ? 'oak' : 'cherry'); t.scale.setScalar(0.75); g.add(t); g.userData.tree = t; break; }   // grows up through the stages
     default: box(g, 0.6, 0.6, 0.6, LIGHT, 0, 0.3, 0);
   }
   // most things she makes have a Blender model; ones that grow or change keep the code version
@@ -127,7 +128,7 @@ export function buildDynamic(scene) {
   function setDecor(list, today) {
     const key = JSON.stringify(list) + Math.floor(today);
     if (key === decorKey) return; decorKey = key;
-    decorG.clear(); glows.length = 0;
+    decorG.children.forEach(c => dropTree(c.userData.tree)); decorG.clear(); glows.length = 0;
     list.forEach((d, i) => { const m = decorModel(d.kind, d.day, today, glows, d.color); m.position.set(d.x, 0, d.z); m.rotation.y = (i * 2.4) % 6.283; m.userData.sing = d.kind === 'singing stone' && today - d.day >= 1; decorG.add(m); });
   }
   function setSpots(list) {

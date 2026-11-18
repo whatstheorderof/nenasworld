@@ -176,3 +176,7 @@ rounded plank fence. Simple chunky shapes and flat shading.
 ### Characters (after the island)
 Bo the seal, Pip the puffin, Suvi the fox, the campers and the visiting gulls: chunky rounded
 little animals with simple faces like Nena's, in soft colours that sit happily in the pastel town.
+
+## Seasonal trees (TreeSapling, TreeYoung, TreeMature, TreeOld)
+Prompt: "A set of cute low-poly deciduous trees in four growth stages: a thin sapling, a young tree, a full mature tree with roots, and a big old tree with a gnarled bulging trunk, spreading roots and a dark hollow. Chunky faceted canopy puffs, warm brown bark, a few pebbles at the base. Each has seasonal parts: pink blossom dots for spring, snow caps on branches and a snow patch for winter, scattered orange leaves for autumn."
+Parts: body = bark; `LiveLeaves` (tree_leaf / tree_leaf2), `LiveBlossom` (tree_blossom), `LiveSnow` (tree_snow), `LiveFallen` (tree_fallen). Colours are set in web/src/trees.js per kind ('oak', 'cherry') and season — used on every island, and by trees Nena plants (they grow sapling → young → mature → old over 3 / 10 / 30 days).
