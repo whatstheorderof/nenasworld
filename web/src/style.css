@@ -211,7 +211,7 @@ body.charting #nav, body.charting #status, body.charting #tools { visibility: hi
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
 .tiles.small { grid-template-columns: repeat(5, 1fr); gap: 5px; }
 .tiles.wide { grid-template-columns: repeat(3, 1fr); }
-.tile { position: relative; display: grid; justify-items: center; align-content: start; gap: 2px; padding: 8px 4px 6px; background: #fff; border: 2.5px solid var(--line); border-radius: 12px; text-align: center; min-height: 74px; font: inherit; color: inherit; }
+.tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 7px 4px 7px; background: #fff; border: 2.5px solid var(--line); border-radius: 12px; text-align: center; min-height: 74px; font: inherit; color: inherit; }
 button.tile { cursor: pointer; } button.tile:hover { background: #fff6e0; }
 .tile span { font-size: 24px; line-height: 1.1; }
 .tiles.small .tile { min-height: 58px; padding: 6px 2px 4px; } .tiles.small .tile span { font-size: 18px; }
@@ -273,3 +273,29 @@ button.tile { cursor: pointer; } button.tile:hover { background: #fff6e0; }
 .bub.think::before { width: 14px; height: 12px; bottom: -19px; margin-left: -6px; }
 .bub.think::after { width: 8px; height: 7px; bottom: -31px; margin-left: -1px; }
 @media (max-width: 700px) { .bub { max-width: 190px; font-size: 13px; padding: 8px 11px 9px; } }
+
+/* item icons (drawn or your own), centred in their tiles */
+.ico { width: 40px; height: 40px; display: block; object-fit: contain; }
+.tile span { display: flex; align-items: center; justify-content: center; height: 42px; }
+.tiles.small .tile .ico { width: 34px; height: 34px; } .tiles.small .tile span { height: 36px; }
+.tile small { text-align: center; width: 100%; }
+.tile.unknown { justify-content: center; } .tile.unknown .q { height: auto; font-size: 20px; font-weight: 900; opacity: .35; }
+.banner .ico, .card-row .ico, .chips-list .ico, .purse .ico { width: 20px; height: 20px; display: inline-block; vertical-align: -5px; }
+.chips-list .ico { width: 15px; height: 15px; vertical-align: -3px; }
+.card-row.big .ico { width: 24px; height: 24px; vertical-align: -6px; }
+.purse { display: flex; align-items: center; gap: 5px; }
+.house-lv i .ico { width: 34px; height: 34px; }
+.stat-grid span .ico, .travel span .ico { width: 28px; height: 28px; margin: 0 auto; }
+.dish span .ico { width: 30px; height: 30px; }
+/* a tab row that scrolls: fade the edge and show an arrow while there is more to see */
+.tabs-wrap { position: relative; margin: 2px -4px 12px; }
+.tabs-wrap .tabs { margin: 0; scroll-behavior: smooth; }
+.tabs-more { position: absolute; top: 2px; z-index: 2; width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: var(--orange); color: #fff; border: 2.5px solid var(--line); box-shadow: 0 2px 0 var(--line); font-size: 20px; font-weight: 900; line-height: 1; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.tabs-more.right { right: 0; } .tabs-more.left { left: 0; }
+.tabs-wrap::before, .tabs-wrap::after { content: ''; position: absolute; top: 0; bottom: 6px; width: 46px; z-index: 1; pointer-events: none; opacity: 0; transition: opacity .2s; }
+.tabs-wrap::after { right: 0; background: linear-gradient(to right, transparent, var(--paper) 70%); }
+.tabs-wrap::before { left: 0; background: linear-gradient(to left, transparent, var(--paper) 70%); }
+.tabs-wrap.more-right::after, .tabs-wrap.more-left::before { opacity: 1; }
+.tabs-wrap.more-right .tabs-more.right, .tabs-wrap.more-left .tabs-more.left { opacity: 1; pointer-events: auto; animation: nudge 1.6s ease-in-out infinite; }
+@keyframes nudge { 50% { transform: translateX(3px); } }
+.tabs-wrap.more-left .tabs-more.left { animation-name: nudge-l; } @keyframes nudge-l { 50% { transform: translateX(-3px); } }

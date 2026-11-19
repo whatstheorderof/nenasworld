@@ -7,6 +7,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, site } from '../../shared/world.js';
 import { kitModel as kitM, whenKit as whenK } from './kit.js';
+import { icon } from './icons.js';
 import { WEATHER_WORDS, FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
 import { buildNena, buildRobot } from './nena.js';
 import { buildTown } from './town.js';
@@ -351,19 +352,25 @@ const standIn = '<p class="dim">This needs her real mind, which is not online ye
 
 // Belongings and Creations: tabs, item tiles and icons
 const panelTab = { things: 'pockets', makes: 'drawings' };
-const tabs = (panel, list) => `<div class="tabs">${list.map(([k, label]) => `<button class="${panelTab[panel] === k ? 'on' : ''}" data-tab="${k}">${label}</button>`).join('')}</div>`;
-const wireTabs = panel => $('panel-body').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { panelTab[panel] = b.dataset.tab; show(panel); });
+const tabs = (panel, list) => `<div class="tabs-wrap"><button class="tabs-more left" aria-label="More tabs to the left" tabindex="-1">‹</button><div class="tabs">${list.map(([k, label]) => `<button class="${panelTab[panel] === k ? 'on' : ''}" data-tab="${k}">${label}</button>`).join('')}</div><button class="tabs-more right" aria-label="More tabs to the right" tabindex="-1">›</button></div>`;
+const wireTabs = panel => {
+  const body = $('panel-body'); body.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { panelTab[panel] = b.dataset.tab; show(panel); });
+  const wrap = body.querySelector('.tabs-wrap'), row = wrap?.querySelector('.tabs'); if (!row) return;
+  const upd = () => { wrap.classList.toggle('more-right', row.scrollLeft + row.clientWidth < row.scrollWidth - 4); wrap.classList.toggle('more-left', row.scrollLeft > 4); };
+  row.addEventListener('scroll', upd, { passive: true }); addEventListener('resize', upd);
+  wrap.querySelector('.tabs-more.right').onclick = () => row.scrollBy({ left: 160, behavior: 'smooth' }); wrap.querySelector('.tabs-more.left').onclick = () => row.scrollBy({ left: -160, behavior: 'smooth' });
+  const on = row.querySelector('.on'); if (on) row.scrollLeft = Math.max(0, on.offsetLeft - row.clientWidth / 2 + on.offsetWidth / 2); requestAnimationFrame(upd); };
 const ICONS = { fruit: '🍎', veg: '🥕', shell: '🐚', 'sea glass': '🔹', stick: '🥢', stone: '🪨', ore: '⛏️', clay: '🟤', wood: '🪵', weeds: '🌿', gift: '🎁', sapling: '🌱', 'flower seeds': '🌼', 'hum seed': '🌰', mushroom: '🍄', 'blossom petals': '🌸', snowflake: '❄️', furnishing: '🪑',
   dates: '🌴', 'cactus fruit': '🌵', 'wild berries': '🫐', honeycomb: '🍯', 'ice fish': '🐟', 'snow berries': '🍒', obsidian: '🖤', 'fire opal': '💎', 'sand glass': '⏳', 'glow moss': '🌿', 'silver bark': '🪵', 'fairy dust': '✨', 'giant acorn': '🌰', 'clear ice': '🧊', 'old coins': '🪙', pearl: '🦪', 'sunken tile': '🔶',
   bench: '🪑', lantern: '🏮', cairn: '🪨', 'shell arch': '🐚', birdbath: '⛲', scarecrow: '🌾', signpost: '🪧', campfire: '🔥', 'wind chime': '🎐', 'log stool': '🪵', 'stepping stones': '🪨', 'clay pot': '🏺', 'stick fence': '🚧', 'blossom wreath': '💐', 'mushroom stool': '🍄', 'snow globe': '🔮', 'pearl lamp': '💡', 'gold trophy': '🏆', flowers: '🌷', tree: '🌳', 'coin tree': '🪙', 'singing stone': '🎶' };
 Object.assign(ICONS, { squid: '🦑', lanternfish: '🐠', 'golden trout': '🐠', 'moon ray': '🐋', ladybird: '🐞', 'blue butterfly': '🦋', cricket: '🦗', 'stag beetle': '🪲', firefly: '✨', 'snow moth': '🦋', 'pond skater': '🦟', 'emerald dragonfly': '🪰',
   'sea star': '⭐', urchin: '🟣', scallop: '🐚', 'sea cucumber': '🥒', 'pearl oyster': '🦪', ammonite: '🐌', trilobite: '🪲', 'fern imprint': '🌿', 'old tooth': '🦷', 'giant feather': '🪶', 'tiny skull': '💀' });
 const CAT_ICON = { fish: '🐟', bug: '🐞', sea: '🐚', fossil: '🦴', art: '🖼️' };
-const itemIcon = k => ICONS[k] || CAT_ICON[SPECIES[k]?.cat] || (/seed/.test(k) ? '🌱' : '📦');
+const itemIcon = (k, kind) => icon(k, kind);
 const TREASURE = new Set(SKY_ISLANDS.flatMap(i => i.resources).filter(k => !FORAGE.includes(k)));
 const itemGroup = k => FORAGE.includes(k) || ['fruit', 'veg'].includes(k) || SPECIES[k]?.cat === 'fish' ? 'Food' : TREASURE.has(k) ? 'Treasures' : /seed|sapling/.test(k) ? 'Seeds and plants' : SPECIES[k] ? 'Collectables' : ['shell', 'sea glass', 'stick', 'stone', 'ore', 'clay', 'wood', 'weeds', 'blossom petals', 'snowflake'].includes(k) ? 'Materials' : 'Made and found';
-const tile = (k, n, icon, cls = '') => `<div class="tile ${cls}" title="${esc(k)}"><span>${icon || itemIcon(k)}</span>${n ? `<b>${n}</b>` : ''}<small>${esc(k)}</small></div>`;
-const dishIcon = d => /cake|tart|crumble|bake/.test(d) ? '🍰' : /pancake/.test(d) ? '🥞' : /jam|toast/.test(d) ? '🍞' : /tea/.test(d) ? '🍵' : /soup|stew/.test(d) ? '🍲' : /mushroom/.test(d) ? '🍄' : /fish|trout|salmon|herring|mackerel|pike|minnow|squid|flounder/.test(d) ? '🐟' : /fruit|berry|salad/.test(d) ? '🍓' : '🍽️';
+const tile = (k, n, kind, cls = '') => `<div class="tile ${cls}" title="${esc(k)}"><span>${itemIcon(k, kind)}</span>${n ? `<b>${n}</b>` : ''}<small>${esc(k)}</small></div>`;
+const dishIcon = d => { d = d.toLowerCase(); if (/cake|tart|crumble|bake|pancake/.test(d)) return icon('cake'); if (/soup|stew|tea/.test(d)) return icon('soup'); const hit = [...Object.keys(SPECIES), ...FORAGE, 'mushroom', 'fruit', 'veg'].filter(k => d.includes(k)).sort((a, b) => b.length - a.length)[0]; return icon(hit || 'dish'); };
 
 async function show(name) {
   openPanel = name; $('panel').hidden = false;
@@ -381,40 +388,40 @@ async function show(name) {
       let html = '';
       if (tab === 'pockets') {
         const groups = {}; for (const [k, v] of Object.entries(l.items)) (groups[itemGroup(k)] ||= []).push([k, v]);
-        html = `${l.hot ? `<div class="banner">🛍️ The shop pays double for <b>${esc(l.hot)}</b> today</div>` : ''}
+        html = `${l.hot ? `<div class="banner">${icon('shop')} The shop pays double for <b>${esc(l.hot)}</b> today</div>` : ''}
           ${['Food', 'Treasures', 'Materials', 'Seeds and plants', 'Made and found', 'Collectables'].filter(g => groups[g]).map(g => `<h3>${g}</h3><div class="tiles">${groups[g].sort((a, b) => b[1] - a[1]).map(([k, v]) => tile(k, v)).join('')}</div>`).join('') || '<p class="dim">Her pockets are empty.</p>'}
-          ${Object.keys(l.golden || {}).length ? `<h3>Golden tools</h3><div class="tiles">${Object.keys(l.golden).map(k => tile(`golden ${k}`, 0, '✨')).join('')}</div>` : ''}
-          ${l.turnips.n ? `<h3>Turnips</h3><div class="card-row">🧅 Holding <b>${l.turnips.n}</b> bought at ${l.turnips.paid}. Today's price: <b>${l.turnipPrice}</b> ${l.turnipPrice > l.turnips.paid ? '📈' : '📉'}</div>` : ''}`;
+          ${Object.keys(l.golden || {}).length ? `<h3>Golden tools</h3><div class="tiles">${Object.keys(l.golden).map(k => tile(`golden ${k}`)).join('')}</div>` : ''}
+          ${l.turnips.n ? `<h3>Turnips</h3><div class="card-row">${icon('turnip')} Holding <b>${l.turnips.n}</b> bought at ${l.turnips.paid}. Today's price: <b>${l.turnipPrice}</b> ${l.turnipPrice > l.turnips.paid ? '(up)' : '(down)'}</div>` : ''}`;
       } else if (tab === 'collections') {
-        html = `<div class="card-row big"><span>🏛️ Museum</span><b>${got}/${l.total}</b></div><div class="meter"><i style="width:${got / l.total * 100}%"></i></div>
+        html = `<div class="card-row big"><span>${icon('museum')} Museum</span><b>${got}/${l.total}</b></div><div class="meter"><i style="width:${got / l.total * 100}%"></i></div>
           ${Object.entries(CATS).map(([cat, label]) => { const all = Object.keys(SPECIES).filter(k => SPECIES[k].cat === cat), has = l.museum[cat] || [];
-            return `<h3>${label} <span class="dim">${has.length}/${all.length}</span></h3><div class="tiles small">${all.map(k => has.includes(k) ? tile(k, 0, null, SPECIES[k].rare ? 'rare' : '') : '<div class="tile unknown"><span>?</span></div>').join('')}</div>`; }).join('')}
+            return `<h3>${label} <span class="dim">${has.length}/${all.length}</span></h3><div class="tiles small">${all.map(k => has.includes(k) ? tile(k, 0, '', SPECIES[k].rare ? 'rare' : '') : '<div class="tile unknown"><span class="q">?</span></div>').join('')}</div>`; }).join('')}
           <h3>Flower colours <span class="dim">${l.blooms.length}/${Object.keys(BLOOMS).length}</span></h3><div class="swatches">${Object.keys(BLOOMS).map(k => l.blooms.includes(k) ? `<span title="${k}"><i style="background:#${BLOOMS[k].toString(16).padStart(6, '0')}"></i>${k}</span>` : '<span class="dim"><i></i>?</span>').join('')}</div>
-          <h3>Star chart <span class="dim">${(l.sky || []).length}/${SKY_LIST.length + SKY_RARE.length}</span></h3><div class="chips-list">${(l.sky || []).map(x => `<span>⭐ ${esc(x)}</span>`).join('') || '<span class="dim">Nothing spotted yet</span>'}</div>
-          <h3>Records <span class="dim">${l.songs.length}</span></h3><div class="chips-list">${l.songs.map(x => `<span>💿 ${esc(x)}</span>`).join('') || '<span class="dim">None yet</span>'}</div>
+          <h3>Star chart <span class="dim">${(l.sky || []).length}/${SKY_LIST.length + SKY_RARE.length}</span></h3><div class="chips-list">${(l.sky || []).map(x => `<span>${icon('star')} ${esc(x)}</span>`).join('') || '<span class="dim">Nothing spotted yet</span>'}</div>
+          <h3>Records <span class="dim">${l.songs.length}</span></h3><div class="chips-list">${l.songs.map(x => `<span>${icon('record')} ${esc(x)}</span>`).join('') || '<span class="dim">None yet</span>'}</div>
           <h3>Stamps <span class="dim">${l.stamps.length}/${STAMPS.length}</span></h3><p><button class="inline" id="to-stamps">Open her stamp book</button></p>`;
       } else if (tab === 'wardrobe') {
         const look = now?.look || {};
-        html = `<h3>Hats</h3><div class="tiles">${(l.hats || [0]).filter(i => i).map(i => tile(HATS[i], 0, '🎩', i === look.hat ? 'worn' : '')).join('') || '<p class="dim">No hats yet. The clothes shop sells them.</p>'}</div>
-          <h3>Sunglasses</h3><div class="tiles">${(l.glasses || [0]).filter(i => i).map(i => tile(GLASSES[i], 0, '🕶️', i === look.glasses ? 'worn' : '')).join('') || '<p class="dim">None yet.</p>'}</div>
+        html = `<h3>Hats</h3><div class="tiles">${(l.hats || [0]).filter(i => i).map(i => tile(HATS[i], 0, 'wear', i === look.hat ? 'worn' : '')).join('') || '<p class="dim">No hats yet. The clothes shop sells them.</p>'}</div>
+          <h3>Sunglasses</h3><div class="tiles">${(l.glasses || [0]).filter(i => i).map(i => tile(GLASSES[i], 0, 'wear', i === look.glasses ? 'worn' : '')).join('') || '<p class="dim">None yet.</p>'}</div>
           <h3>Scarf</h3><div class="swatches">${SCARVES.map((c, i) => `<span class="${i === look.scarf ? 'on' : ''}"><i style="background:#${c.toString(16).padStart(6, '0')}"></i>${i === look.scarf ? 'wearing' : ''}</span>`).join('')}</div>
           <p class="dim">Gold outline: what she is wearing now.</p>`;
       } else if (tab === 'home') {
-        html = `<div class="home-card"><div class="house-lv">${[1, 2, 3].map(n => `<i class="${n <= l.house.level ? 'on' : ''}">🏠</i>`).join('')}</div><b>House level ${l.house.level} of 3</b>
+        html = `<div class="home-card"><div class="house-lv">${[1, 2, 3].map(n => `<i class="${n <= l.house.level ? 'on' : ''}">${icon('house')}</i>`).join('')}</div><b>House level ${l.house.level} of 3</b>
             ${l.loan ? `<div class="meter"><i style="width:${l.house.paid / l.loan * 100}%"></i></div><small>${l.house.paid} of ${l.loan} coins paid toward the next</small>` : '<small>As big as it gets.</small>'}</div>
-          <div class="stat-grid">${[['🪙', l.coins, 'coins'], ['🛋️', l.cosy, 'cosiness'], ['🪴', l.decor, 'things placed outside'], ['📷', l.photos, 'photos taken'], ['🤖', l.rides, 'robot rides'], ['🏷️', l.stamps.length, 'stamps']].map(([i, v, t]) => `<div><span>${i}</span><b>${v}</b><small>${t}</small></div>`).join('')}</div>
-          ${l.tune ? `<h3>Island tune</h3><p>🎵 ${esc(l.tune)}</p>` : ''}`;
+          <div class="stat-grid">${[['coin', l.coins, 'coins'], ['cosiness', l.cosy, 'cosiness'], ['outside', l.decor, 'things placed outside'], ['photos', l.photos, 'photos taken'], ['rides', l.rides, 'robot rides'], ['stamps', l.stamps.length, 'stamps']].map(([i, v, t]) => `<div><span>${icon(i)}</span><b>${v}</b><small>${t}</small></div>`).join('')}</div>
+          ${l.tune ? `<h3>Island tune</h3><div class="card-row">${icon('record')} ${esc(l.tune)}</div>` : ''}`;
       } else if (tab === 'travels') {
         const far = l.farVisited || {};
-        html = `<h3>Big islands <span class="dim">${Object.keys(far).length}/${SKY_ISLANDS.length}</span></h3><div class="travel">${SKY_ISLANDS.map(isl => `<div class="${far[isl.id] ? 'been' : ''}"><span>${{ ember: '🌋', wood: '🌳', glass: '🧊' }[isl.id]}</span><b>${esc(cap(isl.name))}</b><small>${far[isl.id] ? `visited ${far[isl.id]} time${far[isl.id] > 1 ? 's' : ''}` : 'not yet'}</small></div>`).join('')}</div>
-          <h3>Islets <span class="dim">${l.islets.length}/${ISLETS.length}</span></h3><div class="travel">${ISLETS.map(isl => `<div class="${l.islets.includes(isl.name) ? 'been' : ''}"><span>🏝️</span><b>${esc(isl.name)}</b><small>${l.islets.includes(isl.name) ? 'rowed to' : 'not yet'}</small></div>`).join('')}</div>
-          <h3>Travellers met <span class="dim">${l.metCampers.length}/${CAMPERS.length}</span></h3><div class="travel">${CAMPERS.map(c => { const met = l.metCampers.includes(c.name), home = TOWN_ISLANDS.find(t => t.id === c.home); return `<div class="${met ? 'been' : ''}"><span>${{ otter: '🦦', hare: '🐇', owl: '🦉', walrus: '🦭' }[c.kind] || '🐾'}</span><b>${met ? esc(c.name) : '?'}</b><small>${met ? `the ${esc(c.kind)}, from ${esc(home?.name || 'far off')}` : 'not met yet'}</small></div>`; }).join('')}</div>
-          ${l.camper ? `<div class="banner">⛺ ${esc(l.camper.name)} the ${esc(l.camper.kind)} is at the campsite today${l.camper.from ? `, over from ${esc(l.camper.from)}` : ''}.</div>` : ''}
-          ${l.inspo?.length ? `<h3>Things she wants to draw</h3><div class="chips-list">${l.inspo.map(x => `<span>✏️ ${esc(x)}</span>`).join('')}</div>` : ''}`;
+        html = `<h3>Big islands <span class="dim">${Object.keys(far).length}/${SKY_ISLANDS.length}</span></h3><div class="travel">${SKY_ISLANDS.map(isl => `<div class="${far[isl.id] ? 'been' : ''}"><span>${icon({ ember: 'ember', wood: 'wood_isle', glass: 'glass' }[isl.id])}</span><b>${esc(cap(isl.name))}</b><small>${far[isl.id] ? `visited ${far[isl.id]} time${far[isl.id] > 1 ? 's' : ''}` : 'not yet'}</small></div>`).join('')}</div>
+          <h3>Islets <span class="dim">${l.islets.length}/${ISLETS.length}</span></h3><div class="travel">${ISLETS.map(isl => `<div class="${l.islets.includes(isl.name) ? 'been' : ''}"><span>${icon('islet')}</span><b>${esc(isl.name)}</b><small>${l.islets.includes(isl.name) ? 'rowed to' : 'not yet'}</small></div>`).join('')}</div>
+          <h3>Travellers met <span class="dim">${l.metCampers.length}/${CAMPERS.length}</span></h3><div class="travel">${CAMPERS.map(c => { const met = l.metCampers.includes(c.name), home = TOWN_ISLANDS.find(t => t.id === c.home); return `<div class="${met ? 'been' : ''}"><span>${icon(c.kind)}</span><b>${met ? esc(c.name) : '?'}</b><small>${met ? `the ${esc(c.kind)}, from ${esc(home?.name || 'far off')}` : 'not met yet'}</small></div>`; }).join('')}</div>
+          ${l.camper ? `<div class="banner">${icon('tent')} ${esc(l.camper.name)} the ${esc(l.camper.kind)} is at the campsite today${l.camper.from ? `, over from ${esc(l.camper.from)}` : ''}.</div>` : ''}
+          ${l.inspo?.length ? `<h3>Things she wants to draw</h3><div class="chips-list">${l.inspo.map(x => `<span>${icon('pencil')} ${esc(x)}</span>`).join('')}</div>` : ''}`;
       } else if (tab === 'friends') {
         html = `<p class="dim">How close she is to each neighbour.</p>${Object.entries(l.friends).map(([k, v]) => `<div class="friend"><b>${esc(k)}</b><span class="hearts">${'♥'.repeat(Math.round(v / 2))}<i>${'♥'.repeat(5 - Math.round(v / 2))}</i></span></div>`).join('')}`;
       }
-      body.innerHTML = `<div class="panel-head"><h2>Belongings</h2><div class="purse">🪙 <b>${l.coins.toLocaleString()}</b></div></div>${tabs('things', [['pockets', 'Pockets'], ['collections', 'Collections'], ['wardrobe', 'Wardrobe'], ['home', 'Home'], ['travels', 'Travels'], ['friends', 'Friends']])}<div class="tab-body">${html}</div>`;
+      body.innerHTML = `<div class="panel-head"><h2>Belongings</h2><div class="purse">${icon('coin')} <b>${l.coins.toLocaleString()}</b></div></div>${tabs('things', [['pockets', 'Pockets'], ['collections', 'Collections'], ['wardrobe', 'Wardrobe'], ['home', 'Home'], ['travels', 'Travels'], ['friends', 'Friends']])}<div class="tab-body">${html}</div>`;
       wireTabs('things'); if ($('to-stamps')) $('to-stamps').onclick = () => show('stamps');
     } else if (name === 'chat') {
       $('chat-dot').hidden = true;
@@ -473,11 +480,11 @@ async function show(name) {
       const names = { flowers: ['flower patch', 'flower patches'], 'stepping stones': ['set of stepping stones', 'sets of stepping stones'], 'stick fence': ['stick fence', 'stick fences'], 'wind chime': ['wind chime', 'wind chimes'] };
       const named = (k, n) => names[k] ? names[k][n > 1 ? 1 : 0] : n > 1 ? (k.endsWith('s') ? k : k.endsWith('h') ? k + 'es' : k + 's') : k;
       let html = '';
-      if (tab === 'drawings') html = l.drawings.length ? `<p class="dim">${l.drawings.length} drawing${l.drawings.length > 1 ? 's' : ''}. Her latest is on the easel outside the studio. Tap one to see it bigger.</p><div class="gallery framed">${[...l.drawings].reverse().slice(0, 16).map((d, i) => `<figure data-big="${i}"><canvas width="320" height="214" data-draw="${i}"></canvas><figcaption>${esc(d.title)}<span class="dim">day ${d.day}</span></figcaption></figure>`).join('')}</div>` : '<p class="empty">✏️ No drawings yet. She draws at the studio, often things she saw on her travels.</p>';
-      else if (tab === 'photos') html = l.photoLog.length ? `<p class="dim">Taken from where she stood, shown in today's light.</p><div class="gallery framed">${[...l.photoLog].reverse().slice(0, 10).map((p, i) => `<figure><canvas width="320" height="214" data-photo="${i}"></canvas><figcaption>day ${p.day}, ${clockText(p.hour)}</figcaption></figure>`).join('')}</div>` : '<p class="empty">📷 No photos yet.</p>';
-      else if (tab === 'built') html = Object.keys(built).length ? `<p class="dim">Out on the island. Tap to fly over and look.</p><div class="tiles wide">${Object.entries(built).map(([k, list]) => `<button class="tile" data-fly="${esc(k)}"><span>${itemIcon(k)}</span><b>${list.length}</b><small>${esc(named(k, list.length))}</small></button>`).join('')}</div>` : '<p class="empty">🪴 Nothing out on the island yet.</p>';
-      else if (tab === 'kitchen') html = l.dishes.length ? `<p class="dim">The last ${Math.min(14, l.dishes.length)} things she cooked, newest first.</p>${[...l.dishes].reverse().slice(0, 14).map(d => `<div class="dish"><span>${dishIcon(d.name)}</span><div><b>${esc(cap(d.name))}</b><small>day ${d.day}</small></div></div>`).join('')}` : '<p class="empty">🍳 She has not cooked anything yet.</p>';
-      else if (tab === 'music') html = `<h3>Her island tune</h3>${l.tune ? `<div class="card-row">🎵 <b>${esc(l.tune)}</b> <button class="inline" id="play-tune">Play it</button></div>` : '<p class="dim">She has not made one up yet.</p>'}
+      if (tab === 'drawings') html = l.drawings.length ? `<p class="dim">${l.drawings.length} drawing${l.drawings.length > 1 ? 's' : ''}. Her latest is on the easel outside the studio. Tap one to see it bigger.</p><div class="gallery framed">${[...l.drawings].reverse().slice(0, 16).map((d, i) => `<figure data-big="${i}"><canvas width="320" height="214" data-draw="${i}"></canvas><figcaption>${esc(d.title)}<span class="dim">day ${d.day}</span></figcaption></figure>`).join('')}</div>` : '<p class="empty">No drawings yet. She draws at the studio, often things she saw on her travels.</p>';
+      else if (tab === 'photos') html = l.photoLog.length ? `<p class="dim">Taken from where she stood, shown in today's light.</p><div class="gallery framed">${[...l.photoLog].reverse().slice(0, 10).map((p, i) => `<figure><canvas width="320" height="214" data-photo="${i}"></canvas><figcaption>day ${p.day}, ${clockText(p.hour)}</figcaption></figure>`).join('')}</div>` : '<p class="empty">No photos yet.</p>';
+      else if (tab === 'built') html = Object.keys(built).length ? `<p class="dim">Out on the island. Tap to fly over and look.</p><div class="tiles wide">${Object.entries(built).map(([k, list]) => `<button class="tile" data-fly="${esc(k)}"><span>${itemIcon(k)}</span><b>${list.length}</b><small>${esc(named(k, list.length))}</small></button>`).join('')}</div>` : '<p class="empty">Nothing out on the island yet.</p>';
+      else if (tab === 'kitchen') html = l.dishes.length ? `<p class="dim">The last ${Math.min(14, l.dishes.length)} things she cooked, newest first.</p>${[...l.dishes].reverse().slice(0, 14).map(d => `<div class="dish"><span>${dishIcon(d.name)}</span><div><b>${esc(cap(d.name))}</b><small>day ${d.day}</small></div></div>`).join('')}` : '<p class="empty">She has not cooked anything yet.</p>';
+      else if (tab === 'music') html = `<h3>Her island tune</h3>${l.tune ? `<div class="card-row">${icon('record')} <b>${esc(l.tune)}</b> <button class="inline" id="play-tune">Play it</button></div>` : '<p class="dim">She has not made one up yet.</p>'}
         <h3>Her flag</h3><div class="flag-card"><span class="flag" style="background:#${(FLAGS[l.flag] ?? FLAGS[0]).toString(16).padStart(6, '0')}"></span><small>Flying in the square</small></div>`;
       body.innerHTML = `<h2>Creations</h2>${tabs('makes', [['drawings', 'Drawings'], ['photos', 'Photos'], ['built', 'Built & planted'], ['kitchen', 'Kitchen'], ['music', 'Tune & flag']])}<div class="tab-body">${html}</div>`;
       wireTabs('makes');
