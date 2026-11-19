@@ -2,7 +2,7 @@
 // each with one small sign of what lives there: smoke and a red glow on the
 // volcano, tiny lights in the forest, and light coming up through the hole in the ice.
 import * as THREE from 'three';
-import { SKY_ISLANDS, TOWN_ISLANDS, BLOOM_ISLE, townPos, islePos, isleTurn } from '../../shared/world.js';
+import { SKY_ISLANDS, TOWN_ISLANDS, BLOOM_ISLE, RUIN_ISLE, townPos, islePos, isleTurn } from '../../shared/world.js';
 import { waterMaterial } from './water.js';
 import { kitParts } from './kit.js';
 import { whenKit, kitModel } from './kit.js';
@@ -14,7 +14,7 @@ export function buildFarIslands(scene) {
   const add = (parent, geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
   const glows = [], smoke = [], sparks = [], mats = [];
   const lit = (c, e = c) => new THREE.MeshLambertMaterial({ color: c, emissive: e, emissiveIntensity: 0.4, flatShading: true });
-  const farLit = { glow_lava: lit(0xff7a2a), glow_opal: lit(0xff9a7a), glow_hutwin: lit(0xffd27a), glow_shroom: lit(0x7ff0e6), glow_fairy: lit(0xfff1a8), glow_coins: lit(0xf5c84a), glow_pearl: lit(0xf4f2ff), glow_icehole: lit(0x7fe6ff) };
+  const farLit = { glow_lava: lit(0xff7a2a), glow_opal: lit(0xff9a7a), glow_hutwin: lit(0xffd27a), glow_shroom: lit(0x7ff0e6), glow_fairy: lit(0xfff1a8), glow_coins: lit(0xf5c84a), glow_pearl: lit(0xf4f2ff), glow_icehole: lit(0x7fe6ff), glow_ruinlamp: lit(0xffd58a) };
   const farGlow = { ...farLit };
 
   // the three big islands (biomes): proper models, turned so their landing pad faces her island, and held still
@@ -76,6 +76,10 @@ export function buildFarIslands(scene) {
     for (let i = 0; i < 5; i++) { const g = kitParts('Goat'); if (!g) break; g.scale.setScalar(0.85 + Math.random() * 0.3); const a = Math.random() * 6.28, r = Math.random() * 8;
       g.position.set(Math.cos(a) * r, 0, -Math.sin(a) * r); g.userData.goat = { tx: g.position.x, tz: g.position.z, wait: Math.random() * 6, step: Math.random() * 6, legs: ['FL', 'FR', 'BL', 'BR'].map(k => g.getObjectByName(`GoatLeg${k}`)), head: g.getObjectByName('GoatHead') }; bloom.add(g); goats.push(g); } });
   const goats = [];
+  // the Old Hotel, empty but for one lit window
+  const ruin = new THREE.Group(), RU = RUIN_ISLE; ruin.position.set(Math.cos(RU.a) * RU.r, RU.y, Math.sin(RU.a) * RU.r); ruin.scale.setScalar(RU.scale); ruin.rotation.y = isleTurn(RU); scene.add(ruin);
+  const ruinPond = waterMaterial({ deep: 0x2c5a63, mid: 0x4f8790, foam: 0xdfeee9, scale: 2.0, speed: 0.15, flow: [0.02, 0.0] });
+  whenKit(() => { const m = kitModel('IslandRuin', { ...farLit, ruin_pond: ruinPond }); if (m) ruin.add(m); });
   // the height of the hills at a point (model units; three x = model x, three z = -model y)
   // goats live in the meadow and now and then hop up the terraces to graze
   const T = B.terraces, terH = (x, z) => { const d = Math.hypot(x - T.c[0], -z - T.c[1]); let h = 0;

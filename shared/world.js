@@ -95,6 +95,10 @@ export const ISLETS = [
 // for wild food, rarer finds and things to draw. Models: art/island.blend (IslandEmber / IslandWood /
 // IslandGlass), radius 36 in model units, shown at `scale`; each one faces her island.
 // spots are in model units (x, y on the model, front = the landing pad side, toward her island).
+// An old hotel standing empty on its own island, a slab of round windows with faded olive awnings,
+// the far end fallen in and ivy climbing the rest. One window is always lit. Model: IslandRuin (radius 12), front faces her island.
+export const RUIN_ISLE = { id: 'ruin', name: 'the Old Hotel', a: 0.55, r: 150, y: -1, scale: 2.4, size: 30,
+  about: 'A tall old hotel with rows of round windows and faded green awnings, standing empty on its own island. The far end has fallen in and ivy climbs the rest. One window is always lit.' };
 export const SKY_ISLANDS = [
   { id: 'ember', name: 'the smoking island', theme: 'volcano and desert', a: 3.75, r: 262, y: -6, scale: 1.6, size: 58, resources: ['obsidian', 'fire opal', 'sand glass', 'cactus fruit'],
     spots: { pad: [0, -31], oasis: [12.5, -12, { does: 'picking dates by the oasis', food: 'dates' }], cactus: [-14, -12, { does: 'picking prickly pears (carefully)', food: 'cactus fruit' }],
