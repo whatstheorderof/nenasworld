@@ -608,6 +608,30 @@ export function buildTown() {
     else { const t = makeTree(stage, rand() < 0.35 ? 'cherry' : 'oak'), wrap = new THREE.Group(); wrap.position.set(x, 0, z); wrap.rotation.y = rand() * 6.28; t.scale.setScalar(0.8 + rand() * 0.3); wrap.add(t); town.add(wrap); trees.push({ x, z }); }
     placed++;
   }
+  // sunflowers: a few patches, all turned to face the morning sun (east); small in spring, tall in summer,
+  // turning bronze in autumn, gone in winter
+  const sunflowers = [];
+  { const patches = [];
+    for (let i = 0; i < 3000 && patches.length < 5; i++) {
+      const a = rand() * 6.28, r = R * 0.3 + rand() * R * 0.52, x = Math.cos(a) * r, z = Math.sin(a) * r;
+      if (!clear(x, z, 3.6) || trees.some(t => Math.hypot(t.x - x, t.z - z) < 5) || patches.some(p => Math.hypot(p.x - x, p.z - z) < 16)) continue;
+      patches.push({ x, z }); const n = 6 + Math.floor(rand() * 4);
+      for (let k = 0; k < n; k++) { const b = rand() * 6.28, d = Math.sqrt(rand()) * 1.9; sunflowers.push({ x: x + Math.cos(b) * d, z: z + Math.sin(b) * d, s: 0.8 + rand() * 0.45, ry: Math.PI / 2 + (rand() - 0.5) * 0.6 }); }
+    } }
+  const sunInst = [], sunMats = {}; town.userData.sunflowers = sunflowers;
+  const layoutSunflowers = season => {
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), k = { spring: 0.55, summer: 1, autumn: 0.95 }[season] || 0;
+    for (const im of sunInst) { im.visible = k > 0; sunflowers.forEach((f, i) => { q.setFromAxisAngle(up, f.ry); m4.compose(p.set(f.x, 0, f.z), q, sc.setScalar(f.s * k || 0.001)); im.setMatrixAt(i, m4); }); im.instanceMatrix.needsUpdate = true; }
+    const look = { petal: season === 'autumn' ? 0xd98a2a : 0xffc928, petal2: season === 'autumn' ? 0xb8641e : 0xffaa1c, leaf: season === 'autumn' ? 0x9aa84a : 0x7cc15a };
+    if (sunMats.petal) { sunMats.petal.color.set(look.petal); sunMats.petal2.color.set(look.petal2); sunMats.leaf.color.set(look.leaf); }
+  };
+  whenKit(() => {
+    sunMats.petal = flat(0xffc928); sunMats.petal2 = flat(0xffaa1c); sunMats.leaf = flat(0x7cc15a);
+    const k = kitModel('Sunflower', { sf_petal: sunMats.petal, sf_petal2: sunMats.petal2, sf_leaf: sunMats.leaf }); if (!k) return;
+    for (const m of k.children) { const im = new THREE.InstancedMesh(m.geometry, m.material, sunflowers.length); town.add(im); sunInst.push(im); }
+    layoutSunflowers(town.userData.season || 'summer');
+  });
+
   // the rim: stone coping with a wooden fence on top, lanterns, a promenade inside it and vines trailing over the edge;
   // open along the beach and at the waterfall
   { const end = RIVER[RIVER.length - 1], fallA = Math.atan2(end[1], end[0]);
@@ -704,7 +728,7 @@ export function buildTown() {
   })();
   const SEASON = { spring: [0xa8d88a, 0x8cc77c, 0xf4bfd0, 0x7fbf74, 0xc4e8a4], summer: [0x9fd486, 0x82c276, 0x86c97a, 0x6fb46a, 0xbfe39c], autumn: [0xc9d08a, 0xb3b672, 0xeab08a, 0x9fa564, 0xe2dc9c], winter: [0xeef6fb, 0xd5e6f2, 0xdfeaf2, 0xc9d9e6, 0xf6fbff] };
   function setSeason(name, fruitReady) {
-    setTreeSeason(name);
+    setTreeSeason(name); town.userData.season = name; layoutSunflowers(name);
     const c = SEASON[name] || SEASON.summer; grassMat.color.set(c[0]); grassDarkMat.color.set(c[1]); leafMat.color.set(c[2]);
     blades.material.uniforms.uBase.value.set(c[3]); blades.material.uniforms.uTip.value.set(c[4]); blades.visible = name !== 'winter';
     const tree = { spring: [0xf2a0b4, 0xf7c2cf, 0xe58aa2, 0xf7b8c8], summer: [0xe98fa6, 0xf3b1c1, 0xd97a95, 0xf3b1c1], autumn: [0xeb9a72, 0xf2bf8a, 0xd9765e, 0xeb9a72] }[name];
