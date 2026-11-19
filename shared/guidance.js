@@ -7,7 +7,7 @@
 const TOPICS = [
   [/fish/, ['go_fishing', 'sea_fishing']], [/draw|art|paint/, ['draw', 'buy_art']], [/read|book|librar/, ['read']],
   [/music|sing|song|tune|record/, ['play_record', 'compose_tune', 'plant_hum']], [/friend|neighbou?r|bo\b|pip\b|suvi/, ['chat', 'give_gift', 'write_letter', 'join_hobby']],
-  [/visitor|gull/, ['greet_visitors']], [/explor|wander|walk/, ['wander', 'gaze_far', 'boat_trip']], [/cook|bak|cookie|food/, ['cook', 'bake_cookies', 'buy_cookie']],
+  [/visitor|gull/, ['greet_visitors']], [/explor|wander|walk/, ['wander', 'gaze_far', 'boat_trip', 'voyage']], [/cook|bak|cookie|food/, ['cook', 'bake_cookies', 'buy_cookie']],
   [/star|sky|observ/, ['stargaze', 'observe', 'tour_observatory', 'cloud_shapes']], [/garden|flower|plant|crop|veg/, ['garden', 'plant_flowers', 'water_flowers', 'tend_crops', 'harvest']],
   [/swim|sea|dive|beach/, ['swim', 'dive', 'beachcomb']], [/museum|fossil|bug|collect/, ['visit_museum', 'dig_fossil', 'catch_bugs', 'donate']],
   [/film|cinema|movie/, ['watch_film']], [/build|craft|decor|house|home/, ['craft', 'decorate', 'furnish_home', 'redecorate']],

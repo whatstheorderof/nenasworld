@@ -128,6 +128,9 @@ function draw() {
       const n = f.id === 'gable' ? 3 : hole ? 8 : 6, rr = hole ? r * 0.76 : f.id === 'fountain' ? r * 0.72 : r * 0.5;
       for (let i = 0; i < n; i++) { const a = i / n * 6.28 + 0.4, hx = px + Math.cos(a) * rr, hy = py + Math.sin(a) * rr, w = Math.max(3, r * 0.14);
         ctx.fillStyle = '#d9412b'; ctx.beginPath(); ctx.moveTo(hx - w, hy + w * 0.6); ctx.lineTo(hx, hy - w * 0.7); ctx.lineTo(hx + w, hy + w * 0.6); ctx.closePath(); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.stroke(); }
+    } else if ((state.info.far || []).includes(f.id)) {   // a big island she has been to: inked in properly
+      blob(px, py, r, seed, 26); ctx.fillStyle = f.id === 'ember' ? '#e9c98a' : f.id === 'wood' ? '#a9c27e' : '#e6eef0'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.2; ctx.stroke();
+      glyph(f.id, px, py, r, true);
     } else {   // far sky islands: only sketched until she has been
       blob(px, py, r, seed, 22); ctx.fillStyle = 'rgba(107,74,43,.08)'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.8; ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]);
       ctx.save(); blob(px, py, r, seed, 22); ctx.clip(); ctx.strokeStyle = 'rgba(107,74,43,.18)'; ctx.lineWidth = 1;
@@ -156,13 +159,13 @@ function draw() {
   ctx.textBaseline = 'alphabetic';
 }
 // small pictures for the far islands' themes
-function glyph(id, x, y, r) {
+function glyph(id, x, y, r, known = false) {
   ctx.strokeStyle = INK; ctx.fillStyle = INK; ctx.lineWidth = 1.8; const s = Math.max(6, r * 0.45);
   if (id === 'ember') { ctx.beginPath(); ctx.moveTo(x - s, y + s * 0.6); ctx.lineTo(x - s * 0.25, y - s * 0.5); ctx.lineTo(x + s * 0.25, y - s * 0.5); ctx.lineTo(x + s, y + s * 0.6); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(x, y - s * 0.7); ctx.quadraticCurveTo(x + s * 0.4, y - s * 1.1, x + s * 0.1, y - s * 1.5); ctx.stroke(); }
   else if (id === 'wood') for (const dx of [-0.5, 0.3]) { const cx = x + dx * s; ctx.beginPath(); ctx.moveTo(cx, y - s * 0.8); ctx.lineTo(cx + s * 0.4, y + s * 0.3); ctx.lineTo(cx - s * 0.4, y + s * 0.3); ctx.closePath(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx, y + s * 0.3); ctx.lineTo(cx, y + s * 0.6); ctx.stroke(); }
   else { for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3; ctx.beginPath(); ctx.moveTo(x - Math.cos(a) * s * 0.7, y - Math.sin(a) * s * 0.7); ctx.lineTo(x + Math.cos(a) * s * 0.7, y + Math.sin(a) * s * 0.7); ctx.stroke(); } }
-  ctx.font = `900 ${Math.round(s * 0.9)}px Nunito, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('?', x + r * 0.62, y - r * 0.45);
+  if (!known) { ctx.font = `900 ${Math.round(s * 0.9)}px Nunito, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('?', x + r * 0.62, y - r * 0.45); }
 }
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -177,10 +180,10 @@ function detail() {
 }
 function stats() {
   const fs = features(), islets = fs.filter(f => f.kind === 'islet'), been = (state.info.islets || []).length, far = fs.filter(f => f.kind === 'sky');
-  root.querySelector('#chart-stats').innerHTML = `<div><span>🏝️</span><b>${1 + been + fs.filter(f => f.kind === 'town').length}</b><small>of ${fs.length} islands charted</small></div>
+  root.querySelector('#chart-stats').innerHTML = `<div><span>🏝️</span><b>${1 + been + fs.filter(f => f.kind === 'town').length + (state.info.far || []).length}</b><small>of ${fs.length} islands charted</small></div>
     <div><span>⛵</span><b>${been}/${islets.length}</b><small>islets rowed to</small></div>
     <div><span>🏘️</span><b>${fs.filter(f => f.kind === 'town').length}</b><small>neighbouring towns</small></div>
-    <div><span>☁️</span><b>${far.length}</b><small>far islands in the haze</small></div>`;
+    <div><span>☁️</span><b>${far.length}</b><small>big islands (${(state.info.far || []).length} visited)</small></div>`;
 }
 function loop() { state.t += 1 / 60; draw(); state.raf = requestAnimationFrame(loop); }
 

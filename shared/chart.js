@@ -23,7 +23,7 @@ export function features() {
     out.push({ id: t.id, kind: 'town', name: t.name, x: p.x, z: p.z, r: (t.id === 'fountain' || t.id === 'hoop' ? 13 : 10) * t.scale, model: t.model,
       about: t.about + (folk.length ? ` Home of ${folk.map(c => `${c.name} the ${c.kind}`).join(' and ')}, who sometimes camp on her island.` : '') }); }
   for (const s of SKY_ISLANDS) out.push({ id: s.id, kind: 'sky', name: s.name, theme: s.theme, resources: s.resources, x: Math.cos(s.a) * s.r, z: Math.sin(s.a) * s.r, r: s.size,
-    about: `Only a shape in the haze so far: ${s.theme}. One day she will get there.` });
+    about: `A big island: ${s.theme}. She flies the balloon here for wild food, rare finds and things to draw. Foods: ${Object.values(s.spots).map(x => x[2]?.food).filter(Boolean).join(', ')}.` });
   return out;
 }
 

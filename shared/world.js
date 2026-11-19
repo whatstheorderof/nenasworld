@@ -81,11 +81,35 @@ export const ISLETS = [
 ];
 // Other sky islands, far off. For now they are only shapes in the haze; one day she will get to them.
 // Names are working titles until the lore is settled.
+// The three big far islands, the biomes. She flies the balloon from the lookout to one of them
+// for wild food, rarer finds and things to draw. Models: art/island.blend (IslandEmber / IslandWood /
+// IslandGlass), radius 36 in model units, shown at `scale`; each one faces her island.
+// spots are in model units (x, y on the model, front = the landing pad side, toward her island).
 export const SKY_ISLANDS = [
-  { id: 'ember', name: 'the smoking island', theme: 'volcano and desert', a: 3.75, r: 235, y: -6, size: 34, resources: ['obsidian', 'fire opal', 'sand glass', 'cactus fruit'] },
-  { id: 'wood', name: 'the forest island', theme: 'ancient fairy forest', a: 5.25, r: 250, y: 4, size: 40, resources: ['glow moss', 'silver bark', 'fairy dust', 'giant acorn'] },
-  { id: 'glass', name: 'the ice island', theme: 'ice crust over water, with drowned ruins below', a: 2.55, r: 225, y: -2, size: 32, resources: ['clear ice', 'old coins', 'pearl', 'sunken tile'] },
+  { id: 'ember', name: 'the smoking island', theme: 'volcano and desert', a: 3.75, r: 262, y: -6, scale: 1.6, size: 58, resources: ['obsidian', 'fire opal', 'sand glass', 'cactus fruit'],
+    spots: { pad: [0, -31], oasis: [12.5, -12, { does: 'picking dates by the oasis', food: 'dates' }], cactus: [-14, -12, { does: 'picking prickly pears (carefully)', food: 'cactus fruit' }],
+      obsidian: [-19, 7, { does: 'hunting for obsidian', find: 'obsidian' }], volcano: [0, -4, { does: 'drawing the volcano from its foot', draw: 'the smoking volcano from its foot' }],
+      opal: [18, 6, { does: 'digging for fire opals', find: 'fire opal' }], village: [6, -21, { does: 'visiting the little dome huts', draw: 'the dome huts in the sand', find: 'sand glass' }] } },
+  { id: 'wood', name: 'the forest island', theme: 'ancient fairy forest', a: 5.25, r: 272, y: 4, scale: 1.6, size: 58, resources: ['glow moss', 'silver bark', 'fairy dust', 'giant acorn'],
+    spots: { pad: [0, -31], door: [0, 5, { does: 'knocking on the door in the giant tree', draw: 'the door in the giant tree', find: 'silver bark' }], berries: [-14, -12, { does: 'picking wild berries', food: 'wild berries' }],
+      hive: [14, -11, { does: 'taking a little honeycomb (the bees allowed it)', food: 'honeycomb' }], mushrooms: [-17, 8, { does: 'gathering mushrooms in the glade', food: 'mushroom', find: 'glow moss' }],
+      ring: [15, 12, { does: 'sitting very still in the fairy ring', draw: 'the fairy ring at dusk', find: 'fairy dust' }], acorns: [5, -20, { does: 'rolling a giant acorn', find: 'giant acorn' }] } },
+  { id: 'glass', name: 'the ice island', theme: 'ice crust over water, with drowned ruins below', a: 2.55, r: 256, y: -2, scale: 1.6, size: 58, resources: ['clear ice', 'old coins', 'pearl', 'sunken tile'],
+    spots: { pad: [0, -31], fishing: [9.5, -14.5, { does: 'ice fishing by the little hut', food: 'ice fish' }], ruins: [-12, 5, { does: 'drawing the drowned ruins', draw: 'the drowned ruins poking through the ice', find: 'old coins' }],
+      spires: [15, 9, { does: 'chipping clear ice from the spires', find: 'clear ice' }], clams: [-14, -14, { does: 'looking for pearls in the clam beds', find: 'pearl' }],
+      berries: [3, 18, { does: 'picking snow berries', food: 'snow berries' }], hole: [0, -6, { does: 'peering into the big hole in the ice', draw: 'the light under the ice', find: 'sunken tile' }] } },
 ];
+// wild food she can find out there (and bring home)
+export const FORAGE = ['dates', 'cactus fruit', 'wild berries', 'honeycomb', 'mushroom', 'ice fish', 'snow berries'];
+// a big island's turn (so its landing pad faces her island) and where a spot is in the world
+export const isleTurn = isl => Math.atan2(-Math.cos(isl.a), -Math.sin(isl.a));
+export const islePos = isl => ({ x: Math.cos(isl.a) * isl.r, y: isl.y, z: Math.sin(isl.a) * isl.r });
+export function isleSpot(isl, key) {
+  const [bx, by] = isl.spots[key], s = isl.scale, th = isleTurn(isl), lx = bx * s, lz = -by * s, c = islePos(isl);
+  return { x: c.x + lx * Math.cos(th) + lz * Math.sin(th), y: c.y + (key === 'pad' ? 0.4 : 0), z: c.z - lx * Math.sin(th) + lz * Math.cos(th) };
+}
+// where the balloon waits on her island: just outside the lookout
+export const BALLOON = (() => { const l = PLACES.lookout, d = Math.hypot(l.x, l.z); return { x: Math.round(l.x / d * (d + 6.5) * 10) / 10, z: Math.round(l.z / d * (d + 6.5) * 10) / 10 }; })();
 export const isletPos = i => ({ x: Math.cos(ISLETS[i].a) * ISLETS[i].r, z: Math.sin(ISLETS[i].a) * ISLETS[i].r });
 export const ORCHARD_TREES = [[-0.6, 2.4], [2.2, -1.4], [-2.2, -2.4]].map(([x, z]) => [PLACES.orchard.x + x, PLACES.orchard.z + z]);
 export const BIG_ROCK = { x: PLACES.rock.x - 2, z: PLACES.rock.z };
@@ -110,6 +134,7 @@ export const OBSTACLES = [
   { key: 'bigrock', ...BIG_ROCK, r: 1.3 },
   { key: 'clock', ...CLOCK, r: 1.5 },
   { key: 'board', ...BOARD, r: 0.9 },
+  { key: 'balloon', ...BALLOON, r: 4.4 },
   ...SQUARE_SEATS.map(q => ({ key: q.kind, x: q.x, z: q.z, r: 0.8 })),
   ...ORCHARD_TREES.map(([x, z]) => ({ key: 'tree', x, z, r: 0.9 })),
   ...NEIGHBOURS.map(n => ({ key: 'tent', x: n.home.x, z: n.home.z, r: 1.9 })),

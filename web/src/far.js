@@ -2,7 +2,7 @@
 // each with one small sign of what lives there: smoke and a red glow on the
 // volcano, tiny lights in the forest, and light coming up through the hole in the ice.
 import * as THREE from 'three';
-import { SKY_ISLANDS, TOWN_ISLANDS, townPos } from '../../shared/world.js';
+import { SKY_ISLANDS, TOWN_ISLANDS, townPos, islePos, isleTurn } from '../../shared/world.js';
 import { whenKit, kitModel } from './kit.js';
 
 export function buildFarIslands(scene) {
@@ -15,43 +15,29 @@ export function buildFarIslands(scene) {
   const farLit = { glow_lava: lit(0xff7a2a), glow_opal: lit(0xff9a7a), glow_hutwin: lit(0xffd27a), glow_shroom: lit(0x7ff0e6), glow_fairy: lit(0xfff1a8), glow_coins: lit(0xf5c84a), glow_pearl: lit(0xf4f2ff), glow_icehole: lit(0x7fe6ff) };
   const farGlow = { ...farLit };
 
+  // the three big islands (biomes): proper models, turned so their landing pad faces her island, and held still
+  // so she can walk about on them when she flies over. A plain silhouette stands in until the models load.
   for (const isl of SKY_ISLANDS) {
-    const g = new THREE.Group(), S = isl.size; g.position.set(Math.cos(isl.a) * isl.r, isl.y, Math.sin(isl.a) * isl.r); g.userData.isl = isl; root.add(g);
+    const g = new THREE.Group(), c = islePos(isl), S = isl.size, k = isl.scale; g.position.set(c.x, c.y, c.z); g.rotation.y = isleTurn(isl); g.userData.isl = isl; root.add(g);
     const base = isl.id === 'ember' ? 0x6b5a5e : isl.id === 'wood' ? 0x3f5a5c : 0x8aa3bd, dark = new THREE.Color(base).multiplyScalar(0.72).getHex();
     const top = shade(base), under = shade(dark); mats.push([top, base], [under, dark]);
-    const firstChild = g.children.length;
-    // every island hangs on a rocky root, like hers
-    add(g, new THREE.CylinderGeometry(S, S * 0.92, S * 0.12, 18), top, 0, 0, 0);
-    add(g, new THREE.ConeGeometry(S * 0.9, S * 1.2, 9), under, 0, -S * 0.66, 0).rotation.x = Math.PI;
-    for (let i = 0; i < 4; i++) { const a = rnd() * 6.283; add(g, new THREE.ConeGeometry(S * 0.18, S * 0.6, 6), under, Math.cos(a) * S * 0.5, -S * 0.35, Math.sin(a) * S * 0.5).rotation.x = Math.PI; }
-
-    if (isl.id === 'ember') {   // volcano and dunes
-      add(g, new THREE.CylinderGeometry(S * 0.16, S * 0.62, S * 0.85, 12), top, -S * 0.1, S * 0.48, 0);
-      for (let i = 0; i < 5; i++) { const d = add(g, new THREE.SphereGeometry(S * (0.18 + rnd() * 0.12), 10, 6), top, (rnd() - 0.2) * S * 1.3, S * 0.05, (rnd() - 0.5) * S * 1.2); d.scale.y = 0.35; }
+    const sil = [add(g, new THREE.CylinderGeometry(S, S * 0.92, 2, 24), top, 0, -0.9, 0), add(g, new THREE.ConeGeometry(S * 0.85, S * 0.5, 12), under, 0, -S * 0.27, 0)]; sil[1].rotation.x = Math.PI;
+    whenKit(() => { const m = kitModel({ ember: 'IslandEmber', wood: 'IslandWood', glass: 'IslandGlass' }[isl.id], farGlow); if (!m) return; m.scale.setScalar(k); g.add(m); sil.forEach(o => { o.visible = false; }); });
+    if (isl.id === 'ember') {   // smoke and a glow from the crater (the volcano stands at model (0, 14), 2.2× its kit size)
+      const cx = 0, cy = 20.0 * k, cz = -14 * k;
       const crater = new THREE.MeshBasicMaterial({ color: 0xff6a3a, transparent: true, opacity: 0 }); glows.push(crater);
-      add(g, new THREE.CircleGeometry(S * 0.14, 12), crater, -S * 0.1, S * 0.868, 0).rotation.x = -Math.PI / 2;
-      for (let i = 0; i < 9; i++) { const m = new THREE.MeshBasicMaterial({ color: 0x9a8f96, transparent: true, opacity: 0.0 }); const p = add(g, new THREE.SphereGeometry(S * 0.12, 8, 6), m, -S * 0.1, S, 0); p.userData = { k: i / 9, S }; smoke.push(p); }
+      add(g, new THREE.CircleGeometry(1.4 * 2.2 * k, 12), crater, cx, cy + 0.2, cz).rotation.x = -Math.PI / 2;
+      for (let i = 0; i < 10; i++) { const m = new THREE.MeshBasicMaterial({ color: 0x9a8f96, transparent: true, opacity: 0 }); const p = add(g, new THREE.SphereGeometry(4, 8, 6), m, cx, cy, cz); p.userData = { k: i / 10, at: [cx, cy, cz] }; smoke.push(p); }
     }
-    if (isl.id === 'wood') {    // a forest of very tall trees, one far taller than the rest
-      for (let i = 0; i < 22; i++) { const a = rnd() * 6.283, r = Math.sqrt(rnd()) * S * 0.85, h = S * (0.35 + rnd() * 0.45), big = i === 0;
-        const x = big ? 0 : Math.cos(a) * r, z = big ? 0 : Math.sin(a) * r, H = big ? S * 1.5 : h;
-        add(g, new THREE.CylinderGeometry(S * (big ? 0.07 : 0.025), S * (big ? 0.12 : 0.04), H, 6), under, x, H / 2, z);
-        const c = add(g, new THREE.SphereGeometry(S * (big ? 0.45 : 0.14 + rnd() * 0.1), 9, 7), top, x, H, z); c.scale.y = 0.7; }
-      const pts = new Float32Array(90 * 3); for (let i = 0; i < 90; i++) { const a = rnd() * 6.283, r = Math.sqrt(rnd()) * S * 0.9; pts.set([Math.cos(a) * r, S * (0.2 + rnd() * 1.1), Math.sin(a) * r], i * 3); }
+    if (isl.id === 'wood') {    // fireflies and fairy lights among the trees at night
+      const pts = new Float32Array(160 * 3); for (let i = 0; i < 160; i++) { const a = rnd() * 6.283, r = Math.sqrt(rnd()) * 33 * k; pts.set([Math.cos(a) * r, 1.5 + rnd() * 14, Math.sin(a) * r], i * 3); }
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pts, 3));
-      const pm = new THREE.PointsMaterial({ color: 0xc9ffb0, size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0, fog: false }); sparks.push(pm); g.add(new THREE.Points(geo, pm));
+      const pm = new THREE.PointsMaterial({ color: 0xd9ffb0, size: 2.4, sizeAttenuation: false, transparent: true, opacity: 0, fog: false }); sparks.push(pm); g.add(new THREE.Points(geo, pm));
     }
-    if (isl.id === 'glass') {   // an ice crust with spires round a dark hole, ruins hanging underneath
-      const hole = new THREE.MeshBasicMaterial({ color: 0x1d2545 }); add(g, new THREE.CircleGeometry(S * 0.22, 14), hole, S * 0.08, S * 0.065, 0).rotation.x = -Math.PI / 2;
-      for (let i = 0; i < 14; i++) { const a = i / 14 * 6.283 + rnd() * 0.3, r = S * (0.4 + rnd() * 0.5), h = S * (0.2 + rnd() * 0.5); const sp = add(g, new THREE.ConeGeometry(S * 0.07, h, 5), top, Math.cos(a) * r, h / 2, Math.sin(a) * r); sp.rotation.z = (rnd() - 0.5) * 0.4; }
-      const dome = add(g, new THREE.SphereGeometry(S * 0.3, 12, 6, 0, 6.283, 0, Math.PI / 2), under, S * 0.08, -S * 0.32, 0); dome.rotation.x = Math.PI;
-      for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283; add(g, new THREE.CylinderGeometry(S * 0.025, S * 0.025, S * 0.35, 5), under, S * 0.08 + Math.cos(a) * S * 0.38, -S * 0.25, Math.sin(a) * S * 0.38); }
+    if (isl.id === 'glass') {   // light coming up through the big hole in the ice
       const shaft = new THREE.MeshBasicMaterial({ color: 0x9cf6ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }); glows.push(shaft);
-      add(g, new THREE.CylinderGeometry(S * 0.2, S * 0.05, S * 0.7, 12, 1, true), shaft, S * 0.08, S * 0.4, 0);
+      add(g, new THREE.CylinderGeometry(4.6 * k / 1.6, 1.2, 30, 14, 1, true), shaft, 0, 15, 0);
     }
-    // the proper model (art/island.blend: IslandEmber / IslandWood / IslandGlass) replaces the silhouette; the smoke, glows and sparks stay
-    const sil = g.children.slice(firstChild).filter(m => m.isMesh && (m.material === top || m.material === under));
-    whenKit(() => { const m = kitModel({ ember: 'IslandEmber', wood: 'IslandWood', glass: 'IslandGlass' }[isl.id], farGlow); if (!m) return; m.scale.setScalar(S / 10); g.add(m); sil.forEach(o => { o.visible = false; }); });
   }
 
   // neighbouring islands with towns on them: proper models, near enough to make out, windows lit at night
@@ -64,14 +50,13 @@ export function buildFarIslands(scene) {
 
   const tmp = new THREE.Color();
   function update(t, night, dayTint) {
-    root.children.forEach((g, i) => { g.position.y = g.userData.isl.y + Math.sin(t * 0.08 + i * 2) * 1.5; g.rotation.y = Math.sin(t * 0.02 + i) * 0.05; });
     for (const [m, c] of mats) m.color.copy(tmp.set(c).lerp(dayTint, 0.25).multiplyScalar(1 - night * 0.55));
     glows.forEach(m => { m.opacity = 0.25 + night * 0.65; });
     towns.children.forEach((g, i) => { g.position.y = g.userData.isl.y + Math.sin(t * 0.1 + i * 1.7) * 1.2; });
     winMat.emissiveIntensity = night * 1.4;
     for (const m of Object.values(farLit)) m.emissiveIntensity = 0.4 + night * 1.1;
     sparks.forEach(m => { m.opacity = night * (0.6 + Math.sin(t * 2) * 0.25); });
-    smoke.forEach(p => { const { k, S } = p.userData, f = (k + t * 0.02) % 1; p.position.set(-S * 0.1 + f * S * 0.5, S * (0.88 + f * 0.9), f * S * 0.15); p.scale.setScalar(0.6 + f * 1.8); p.material.opacity = (1 - f) * 0.45 * (1 - night * 0.4); });
+    smoke.forEach(p => { const { k, at } = p.userData, f = (k + t * 0.02) % 1; p.position.set(at[0] + f * 22, at[1] + 2 + f * 40, at[2] + f * 6); p.scale.setScalar(0.7 + f * 2.4); p.material.opacity = (1 - f) * 0.45 * (1 - night * 0.4); });
   }
   return { update };
 }

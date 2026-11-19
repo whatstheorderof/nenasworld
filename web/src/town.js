@@ -3,7 +3,7 @@
 // Blender (kit.js) replace them as soon as they load. Positions come from shared/world.js
 // so the mind and the picture agree.
 import * as THREE from 'three';
-import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, SQUARE_SEATS, BOARD, RING, OBSTACLES, onPath, nearRiver as riverBand } from '../../shared/world.js';
+import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, SQUARE_SEATS, BOARD, RING, OBSTACLES, BALLOON, onPath, nearRiver as riverBand } from '../../shared/world.js';
 import { drawPicture } from './art.js';
 import { pastel } from './palette.js';
 import { waterMaterial } from './water.js';
@@ -592,7 +592,7 @@ export function buildTown() {
   for (let i = 0; i < 5; i++) { const a = BEACH.from + 0.08 + i / 4 * (BEACH.to - BEACH.from - 0.16), r = BEACH.inner + 2.5 + (i % 2) * 6; lamp(Math.cos(a) * r, Math.sin(a) * r, 'torch'); }
 
   // ---- decoration round the edge ------------------------------------------------------------
-  const extraObs = [site('cafe'), CLOCK, BIG_ROCK, ...NEIGHBOURS.flatMap(n => n.hobbies.filter(h => h.at).map(h => h.at)), ...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home)];
+  const extraObs = [site('cafe'), CLOCK, BIG_ROCK, BALLOON, ...NEIGHBOURS.flatMap(n => n.hobbies.filter(h => h.at).map(h => h.at)), ...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home)];
   const clear = (x, z, pad) => !onPath(x, z, 1.8) && !inBeach(x, z) && !nearRiver(x, z, 3.2) && extraObs.every(o => Math.hypot(o.x - x, o.z - z) > 3.6) && Object.keys(PLACES).every(k => { const s = site(k); return Math.hypot(s.x - x, s.z - z) > (s.r || 2.5) + pad && Math.hypot(PLACES[k].x - x, PLACES[k].z - z) > 3; });
   let placed = 0;
   const trees = [];

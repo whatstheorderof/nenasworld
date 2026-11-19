@@ -2,7 +2,7 @@
 // things that turn up on the island. Pure code, no model. It ticks 20 times a second
 // and decides what is possible; the brain only chooses among what the world offers.
 // (No Node imports here, so the browser can run it too.)
-import { PLACES, NEEDS, NEIGHBOURS, BEACH, ISLETS, WORLD, route, blocked, freeSpot } from '../../shared/world.js';
+import { PLACES, NEEDS, NEIGHBOURS, BEACH, ISLETS, SKY_ISLANDS, WORLD, route, blocked, freeSpot } from '../../shared/world.js';
 import { ACTIONS, calendar, currentEvent, painterIn, SEASON_WEATHER, STORM_SAFE } from '../../shared/data.js';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
@@ -93,6 +93,11 @@ export class World {
     else if (def.target) { const s = this.nearest(this.spots.filter(x => x.kind === def.target)); if (!s) return false; a.ref = s.id; a.at = def.target === 'glow' ? { x: s.x, z: s.z } : undefined; target = { x: s.x + 0.9, z: s.z + 0.3 }; }
     else { for (let i = 0; i < 20; i++) { const ang = Math.random() * Math.PI * 2, r = 4 + Math.random() * (WORLD.radius - 14); target = { x: Math.cos(ang) * r, z: Math.sin(ang) * r }; if (!blocked(target.x, target.z, 1.5)) break; } }
     if (action === 'boat_trip') a.islet = Math.floor(Math.random() * ISLETS.length);
+    if (action === 'voyage') {   // which big island, and the spots she will visit there (one at least for food)
+      const seen = this.life?.s?.farVisited || {}, isl = [...SKY_ISLANDS].sort((x, y) => (seen[x.id] || 0) - (seen[y.id] || 0) + (Math.random() - 0.5) * 0.8)[0];
+      const keys = Object.keys(isl.spots).filter(k => k !== 'pad'), food = keys.filter(k => isl.spots[k][2]?.food), rest = keys.filter(k => !food.includes(k)).sort(() => Math.random() - 0.5);
+      const first = food[Math.floor(Math.random() * food.length)]; a.isle = isl.id; a.route = [first, ...rest.slice(0, 3)].sort(() => Math.random() - 0.5);
+      a.label = `flying the balloon to ${isl.name}`; }
     a.path = route(this.pos, target);
     let len = 0, prev = this.pos; for (const p of a.path) { len += Math.hypot(p.x - prev.x, p.z - prev.z); prev = p; }
     a.ride = len > RIDE_OVER;
@@ -214,7 +219,7 @@ export class World {
       day: this.day, hour: this.hour, night: this.isNight, weather: this.weather, season: c.seasonName, dayOfSeason: c.dayOfSeason,
       event: e ? { id: e.id, name: e.name, show: e.show, place: e.place } : null,
       pos: this.pos, heading: this.heading,
-      activity: a ? { action: a.action, anim: a.anim, ride: a.phase === 'walking' && a.ride, label: a.phase === 'walking' ? (a.place ? `${a.ride ? 'riding her robot' : 'walking'} to the ${PLACES[a.place].label.toLowerCase()}` : a.ref && ACTIONS[a.action].target === 'npc' ? `going to find ${a.ref}` : a.action === 'wander' ? 'wandering' : `on her way (${a.label})`) : a.label, place: a.place, phase: a.phase, detail: a.detail, islet: a.islet, progress: a.phase === 'doing' ? 1 - a.left / a.dur : 0 } : { action: 'idle', label: 'thinking', phase: 'idle', anim: 'stand' },
+      activity: a ? { action: a.action, anim: a.anim, ride: a.phase === 'walking' && a.ride, label: a.phase === 'walking' ? (a.place ? `${a.ride ? 'riding her robot' : 'walking'} to the ${PLACES[a.place].label.toLowerCase()}` : a.ref && ACTIONS[a.action].target === 'npc' ? `going to find ${a.ref}` : a.action === 'wander' ? 'wandering' : `on her way (${a.label})`) : a.label, place: a.place, phase: a.phase, detail: a.detail, islet: a.islet, isle: a.isle, route: a.route, progress: a.phase === 'doing' ? 1 - a.left / a.dur : 0 } : { action: 'idle', label: 'thinking', phase: 'idle', anim: 'stand' },
       needs: this.needs, mood: this.mood().label,
       npcs: this.npcs.map(n => ({ name: n.name, kind: n.kind, x: n.x, z: n.z, heading: n.heading, out: n.out, moving: n.path.length > 0 && Date.now() >= n.hold, doing: n.doing || null, anim: n.anim || null })),
       camper: s.camper && !this.isNight ? { name: s.camper.name, kind: s.camper.kind } : null, visitors: this.visitors,

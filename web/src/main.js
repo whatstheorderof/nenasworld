@@ -5,7 +5,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { PLACES, NEEDS, ISLETS, WORLD, isletPos, site } from '../../shared/world.js';
+import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, BALLOON, isletPos, isleSpot, site } from '../../shared/world.js';
+import { kitModel as kitM, whenKit as whenK } from './kit.js';
 import { WEATHER_WORDS, FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
 import { buildNena, buildRobot } from './nena.js';
 import { buildTown } from './town.js';
@@ -285,7 +286,7 @@ function connect() {
 setTimeout(connect, 0);
 setInterval(() => { if (local) apply(local.now()); }, 200);
 $('status').onclick = () => $('status').classList.toggle('open');
-$('map-btn').onclick = () => (chartOpen() ? closeChart() : openChart({ islets: lifeData?.islets || [], at: now?.pos, heading: now?.heading }));
+$('map-btn').onclick = () => (chartOpen() ? closeChart() : openChart({ islets: lifeData?.islets || [], far: Object.keys(lifeData?.farVisited || {}), at: (({ x, z }) => ({ x, z }))(nena.root.position), heading: now?.heading }));
 $('offline').onclick = () => { $('offline').hidden = true; };   // on phones the card starts small
 
 const NEED_COLORS = { fullness: '#f2792e', energy: '#ffd93b', wonder: '#6a2fc4', joy: '#ff7fa3', calm: '#2fc6b3' };
@@ -312,13 +313,14 @@ function apply(n, snap) {
   $('doing-ico').textContent = doingIcon(n.activity);
   { const pr = n.activity.phase === 'doing' && n.activity.progress > 0; $('doing-bar').hidden = !pr; if (pr) $('doing-bar').firstChild.style.width = `${Math.round(n.activity.progress * 100)}%`; }
   $('event').textContent = upcoming; $('event').hidden = !upcoming;
-  $('doing').textContent = n.activity.label + (n.activity.detail && n.activity.phase === 'doing' ? `: ${n.activity.detail}` : '');
+  { const v = n.activity.anim === 'voyage' && n.activity.phase === 'doing' ? voyagePose(n.activity) : null;
+    $('doing').textContent = v ? v.text : n.activity.label + (n.activity.detail && n.activity.phase === 'doing' ? `: ${n.activity.detail}` : ''); }
   $('thought').textContent = n.thought ? `"${n.thought}"` : '';
   $('coins').innerHTML = `<i class="coin"></i>${n.coins}`;
   { const m = $('mind'); m.textContent = n.mind.local ? 'stand-in mind' : n.mind.model ? 'her own mind' : 'scripted mind'; m.className = n.mind.local ? 'standin' : n.mind.model ? 'live' : 'scripted';
     m.title = n.mind.local ? 'Her own mind is not online yet: a stand-in is running in your browser' : n.mind.model ? `Mind: ${n.mind.model} (last choice: ${n.mind.source})` : 'Scripted fallback: no model connected yet'; }
   for (const k of NEEDS) { const v = Math.round(n.needs[k] * 100); $(`need-${k}`).setAttribute('stroke-dashoffset', 100 - v); const b = $(`needbox-${k}`); b.title = `${cap(k)}: ${v}%`; b.classList.toggle('low', v < 25); }
-  updateChart({ at: n.activity.action === 'boat_trip' && n.activity.phase === 'doing' && n.activity.islet != null ? isletPos(n.activity.islet) : n.pos, heading: n.heading });
+  updateChart({ at: n.activity.action === 'boat_trip' && n.activity.phase === 'doing' && n.activity.islet != null ? isletPos(n.activity.islet) : n.activity.anim === 'voyage' && n.activity.phase === 'doing' ? (({ x, z }) => ({ x, z }))(nena.root.position) : n.pos, heading: n.heading, far: Object.keys(lifeData?.farVisited || {}) });
   town.flag.rotation.z = n.mail ? 0 : -1.4; town.flag.position.y = n.mail ? 1.5 : 1.25;
   nena.setScarf(SCARVES[n.look.scarf] ?? SCARVES[0]);
   // what she wears depends on the weather as well as her wardrobe
@@ -564,6 +566,27 @@ canvas.addEventListener('dblclick', e => {
   const hit = new THREE.Vector3(); if (ray.ray.intersectPlane(groundPlane, hit)) sendMind({ type: 'move', x: hit.x, z: hit.z });
 });
 
+// ---- the sky balloon: waits by the lookout, carries her to the big islands -------------------
+const balloon = new THREE.Group(), balloonPad = new THREE.Group(); scene.add(balloon, balloonPad);
+balloonPad.position.set(BALLOON.x, 0, BALLOON.z); balloon.position.set(BALLOON.x, 0.45, BALLOON.z); balloon.scale.setScalar(1.9); balloonPad.scale.setScalar(1.7);   // big enough for her to stand in the basket
+whenK(() => { const b = kitM('SkyBalloon', { glow_flame: new THREE.MeshBasicMaterial({ color: 0xffb04a }) }); if (b) balloon.add(b); const p = kitM('Sky_Pad'); if (p) balloonPad.add(p); });
+// where she and the balloon are during a trip: flying out (first 10%), walking from spot to spot, flying home (last 10%)
+const V3 = THREE.Vector3;
+function voyagePose(act) {
+  const isl = SKY_ISLANDS.find(i => i.id === act.isle); if (!isl) return null;
+  const p = act.progress || 0, home = new V3(BALLOON.x, 0.45, BALLOON.z), padP = isleSpot(isl, 'pad'), land = new V3(padP.x, padP.y, padP.z);
+  if (p < 0.1 || p > 0.9) {
+    const u = p < 0.1 ? p / 0.1 : 1 - (p - 0.9) / 0.1, e = u * u * (3 - 2 * u), b = home.clone().lerp(land, e); b.y += Math.sin(e * Math.PI) * 45;
+    const dir = p < 0.1 ? land.clone().sub(home) : home.clone().sub(land);
+    return { flying: true, balloon: b, pos: b.clone().add(new V3(0, 0.2, 0)), heading: Math.atan2(dir.x, dir.z), act: { ...act, ride: false, phase: 'doing', anim: 'lookup' }, isl, text: p < 0.1 ? `flying the balloon to ${isl.name}` : 'flying home in the balloon' };
+  }
+  const stops = ['pad', ...(act.route || []), 'pad'], segs = stops.length - 1, x = (p - 0.1) / 0.8 * segs, i = Math.min(segs - 1, Math.floor(x)), f = x - i;
+  const A = isleSpot(isl, stops[i]), B = isleSpot(isl, stops[i + 1]), walk = f < 0.3, w = walk ? f / 0.3 : 1;
+  const pos = new V3(A.x + (B.x - A.x) * w, A.y + (B.y - A.y) * w, A.z + (B.z - A.z) * w), sp = isl.spots[stops[i + 1]][2];
+  return { flying: false, balloon: land, pos, heading: Math.atan2(B.x - A.x, B.z - A.z), act: { ...act, ride: false, phase: walk ? 'walking' : 'doing', anim: !sp ? 'stand' : sp.draw && !sp.food ? 'flap' : 'peck' }, isl,
+    text: walk ? (sp ? `on ${isl.name}, heading off ${sp.food ? 'to find food' : 'exploring'}` : `on ${isl.name}, back to the balloon`) : sp ? `on ${isl.name}: ${sp.does}` : `on ${isl.name}, packing up the balloon` };
+}
+
 // ---- frame loop ----------------------------------------------------------------
 const clock = new THREE.Clock(), bubble = $('bubble'), head = new THREE.Vector3();
 let swimT = 0, heading = 0, elapsed = 0, lastSay = null, talkUntil = 0;
@@ -571,12 +594,14 @@ function frame() {
   const dt = Math.min(0.1, clock.getDelta()); elapsed += dt;
   const act = now?.activity || { phase: 'idle', action: 'idle', anim: 'stand' };
   if (qs.has('ride')) { act.phase = 'walking'; act.ride = true; }   // preview her on the robot
+  if (qs.has('voyage')) { const [id, pr] = qs.get('voyage').split(':'), isl = SKY_ISLANDS.find(i => i.id === id) || SKY_ISLANDS[0]; Object.assign(act, { action: 'voyage', anim: 'voyage', phase: 'doing', isle: isl.id, route: Object.keys(isl.spots).filter(k => k !== 'pad').slice(0, 4), progress: window.__world?.vp ?? Number(pr || 0.5) }); }   // preview a trip: ?voyage=wood:0.5
   if (qs.has('at')) { const [ax, az] = qs.get('at').split(',').map(Number); target.set(ax, 0, az); if (!qs.has('ride')) { act.phase = 'idle'; act.anim = 'stand'; } }   // preview: stand her somewhere
   const pos = nena.root.position, k = 1 - Math.exp(-dt * 6), doing = act.phase === 'doing';
 
-  const goal = target.clone();
+  const goal = target.clone(); let voy = null;
   if (doing && act.anim === 'swim') { swimT += dt * 0.55; goal.set(town.pond.x + Math.cos(swimT) * 5.5, 0.12, town.pond.z + Math.sin(swimT) * 5.5); heading = -swimT; }            // circles on the pond
   else if (doing && act.anim === 'dive') { swimT += dt * 0.5; const l = Math.hypot(target.x, target.z); goal.set(target.x / l * (WORLD.radius + 3.5) + Math.cos(swimT) * 2, 0, target.z / l * (WORLD.radius + 3.5) + Math.sin(swimT) * 2); heading = -swimT; }   // out in the sea
+  else if (doing && act.anim === 'voyage' && (voy = voyagePose(act))) { goal.copy(voy.pos); heading = voy.heading; if (voy.flying || pos.distanceTo(goal) > 6) pos.copy(goal); }   // out on a big island
   else if (doing && act.anim === 'sail') { swimT += dt * 0.5; const ip = isletPos(act.islet ?? 0); goal.set(ip.x + Math.cos(swimT) * 1.6, 0.35, ip.z + Math.sin(swimT) * 1.6); heading = -swimT; if (pos.distanceTo(goal) > 12) pos.copy(goal); }   // ashore on a little island
   else if (doing && act.anim === 'inside' && act.place) { const s = site(act.place); goal.set(s.x, 0, s.z); heading = 0; }                                           // indoors
   else if (doing && ['read', 'sit', 'lie'].includes(act.anim) || (doing && act.place === 'beach' && act.anim !== 'fish')) heading = Math.atan2(-target.x, -target.z);   // back to the wall / the sea
@@ -590,7 +615,8 @@ function frame() {
   if (now?.say !== lastSay) { lastSay = now?.say; if (lastSay) talkUntil = elapsed + Math.min(2.5, 0.6 + lastSay.length * 0.04); }
   const f = feelings.compute(now && { ...now, weather: qs.get('weather') || now.weather }, elapsed, qs.get('feel') || window.__world?.feel);
   f.talk = elapsed < talkUntil; nena.setFeeling(f);
-  nena.animate(dt, act);
+  nena.animate(dt, voy ? voy.act : act);
+  if (voy) { balloon.position.copy(voy.balloon); } else balloon.position.set(BALLOON.x, 0.45 + Math.sin(elapsed * 0.8) * 0.05, BALLOON.z);   // waiting at the lookout, tugging gently at its rope
 
   const hour = qs.has('hour') ? Number(qs.get('hour')) : now ? now.hour : 12;
   const showEv = qs.get('show') || now?.event?.show || null;
@@ -619,7 +645,7 @@ function frame() {
     if (camera.position.y < 1.5) { controls.target.y += 1.5 - camera.position.y; camera.position.y = 1.5; }
   } else if (!window.__world?.freeze && settings.follow) {
     const before = controls.target.clone();
-    controls.target.lerp(new THREE.Vector3(pos.x, 1, pos.z), 1 - Math.exp(-dt * 2.5));
+    controls.target.lerp(new THREE.Vector3(pos.x, pos.y + 1, pos.z), 1 - Math.exp(-dt * 2.5));
     camera.position.add(controls.target.clone().sub(before));   // camera travels with her
   }
   controls.update();

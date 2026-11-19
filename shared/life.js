@@ -2,7 +2,7 @@
 // what she has built and where she put it, her house, her scarves, her friendships.
 // Pure logic with an injected store, so the same code runs on the server and in the browser.
 import { SPECIES, MATERIAL_VALUE, RECIPES, SHOP, SCARVES, HOUSE_LOOKS, HOUSE_LOAN, SEASON_FIND, SONGS, STAMPS, FLAGS, BLOOMS, HATS, CLOTHES_PRICE, SKY, SKY_RARE, GLASSES, crossBloom, catchOne, calendar } from './data.js';
-import { NEIGHBOURS, CAMPERS, ISLETS, SKY_ISLANDS, WORLD, K, LAYOUT_K, SQUARE, freeSpot, freeNear, blocked } from './world.js';
+import { NEIGHBOURS, CAMPERS, ISLETS, SKY_ISLANDS, FORAGE, WORLD, K, LAYOUT_K, SQUARE, freeSpot, freeNear, blocked } from './world.js';
 
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
@@ -27,7 +27,7 @@ export class Life {
   // ---- pockets -----------------------------------------------------------
   count(k) { return this.s.items[k] || 0; }
   add(k, n = 1) { this.s.items[k] = this.count(k) + n; if (this.s.items[k] <= 0) delete this.s.items[k]; }
-  food() { return this.count('fruit') + this.count('veg') + Object.keys(this.s.items).filter(k => SPECIES[k]?.cat === 'fish').length; }
+  food() { return this.count('fruit') + this.count('veg') + FORAGE.reduce((n, k) => n + this.count(k), 0) + Object.keys(this.s.items).filter(k => SPECIES[k]?.cat === 'fish').length; }
   has(species) { return this.s.museum[SPECIES[species].cat].includes(species); }
   newFinds() { return Object.keys(this.s.items).filter(k => SPECIES[k] && !this.has(k)); }
   museumCount() { return Object.values(this.s.museum).reduce((t, a) => t + a.length, 0); }
@@ -132,7 +132,11 @@ export class Life {
       case 'greet_visitors': { s.greeted = Math.floor(day * 24 + w.hour); const names = (w.visitors || []).slice(0, 3).map(v => v.name); if (!names.length) return null;
         return { text: `waved at ${names.join(', ')}${(w.visitors.length > 3) ? ' and the rest' : ''}`, say: `hello ${names[0]}!`, lift: 0.2 }; }
       case 'plant_tree': { if (!a.at) return null; this.add('sapling', -1); this.place('tree', a.at, day); return { text: 'planted a tree. it will take a few days', remember: `i planted a tree on day ${day}` }; }
-      case 'cook': { const fish = Object.keys(s.items).find(k => SPECIES[k]?.cat === 'fish' && (this.has(k) || s.items[k] > 1)) || Object.keys(s.items).find(k => SPECIES[k]?.cat === 'fish');
+      case 'cook': { const wild = FORAGE.filter(k => this.count(k) > 0);
+        if (wild.length && Math.random() < 0.7) { const k = pick(wild); this.add(k, -1);
+          const dish = { dates: 'sticky date cakes', 'cactus fruit': 'pink prickly-pear jam on toast', 'wild berries': 'a wild berry crumble', honeycomb: 'honey pancakes', mushroom: 'mushrooms on toast', 'ice fish': 'crispy ice fish', 'snow berries': 'snow berry tea and a tart' }[k] || k;
+          return { text: `made ${dish} with what she brought back from the far islands`, lift: 0.15 }; }
+        const fish = Object.keys(s.items).find(k => SPECIES[k]?.cat === 'fish' && (this.has(k) || s.items[k] > 1)) || Object.keys(s.items).find(k => SPECIES[k]?.cat === 'fish');
         if (this.count('veg') && (fish || this.count('fruit'))) { this.add('veg', -1); if (fish) this.add(fish, -1); else this.add('fruit', -1); return { text: fish ? `made ${fish} and vegetable stew` : 'made a vegetable and fruit pie', lift: 0.15 }; }
         if (fish && (this.has(fish) || !this.count('fruit'))) { this.add(fish, -1); return { text: `cooked the ${fish}` }; } if (this.count('fruit')) { this.add('fruit', -1); return { text: 'made a fruit bake' }; } this.add('veg', -1); return { text: 'made vegetable soup' }; }
       case 'redecorate': { s.coins -= 60; s.look.house = (s.look.house + rint(1, HOUSE_LOOKS.length - 1)) % HOUSE_LOOKS.length; s.look.painted = day; return { text: 'repainted the house', say: 'better.', lift: 0.2 }; }
@@ -184,6 +188,16 @@ export class Life {
       case 'furnish_home': { this.add('furnishing', -1); s.cosy++; return { text: `found a place for it. the house feels cosier (cosiness ${s.cosy})` }; }
       case 'design_flag': { s.look.flag = ((s.look.flag || 0) + rint(1, FLAGS.length - 1)) % FLAGS.length; s.look.flagDay = day; return { text: 'designed a new flag for the square', say: 'that is our flag now.', lift: 0.2 }; }
       case 'compose_tune': { const syl = ['do', 'la', 'pip', 'bo', 'su', 'mi', 'na', 'ne', 'fa', 'lo']; s.tune = Array.from({ length: 6 }, () => pick(syl)).join('-'); s.tuneDay = day; return { text: `made up a new island tune: ${s.tune}`, remember: `the island tune goes ${s.tune}` }; }
+      case 'voyage': {   // a day out on a big island: wild food, rare finds, and things to draw later
+        const isl = SKY_ISLANDS.find(x => x.id === a.isle) || SKY_ISLANDS[0], seen = (s.farVisited ||= {}); s.voyDay = day; seen[isl.id] = (seen[isl.id] || 0) + 1;
+        const got = [], did = [];
+        for (const k of a.route || []) { const sp = isl.spots[k]?.[2]; if (!sp) continue; did.push(sp.does);
+          if (sp.food) { const n = rint(2, 3); this.add(sp.food, n); got.push(`${n} ${sp.food}`); }
+          if (sp.find && Math.random() < 0.65) { this.add(sp.find); got.push(sp.find); }
+          if (sp.draw) { (s.inspo ||= []).push(sp.draw); if (s.inspo.length > 12) s.inspo.shift(); } }
+        const first = seen[isl.id] === 1;
+        return { text: `flew the balloon to ${isl.name}${first ? ' for the first time' : ''}: ${did.join(', ')}. came home with ${got.join(', ') || 'only sandy feet'}`,
+          remember: first ? `i flew to ${isl.name}. ${pick(did)}. i want to draw it.` : `back on ${isl.name}: ${pick(did)}`, say: first ? 'it is so much bigger up close.' : null, lift: 0.45 }; }
       case 'boat_trip': { s.boatDay = day; const isl = ISLETS[a.islet ?? 0]; if (!s.islets.includes(isl.name)) s.islets.push(isl.name); const finds = [pick(isl.gives), pick(['shell', 'sea glass', ...isl.gives])]; for (const k of finds) this.add(k, rint(1, 2));
         const saw = pick(['a rock shaped like a sleeping whale', 'an islet with one tree and nobody on it', 'a buoy with a bell that nobody rings', 'the island from far away. it is small', 'something large under the boat, going the other way']);
         return { text: `rowed out to ${isl.name} and came back with ${finds.join(' and ')}. on the way she saw ${saw}`, remember: `i rowed to ${isl.name}. on the way i saw ${saw}`, lift: 0.35 }; }
@@ -211,7 +225,7 @@ export class Life {
         const notice = { ember: ['there is smoke coming off the top of it', 'the edge of it looks orange, like sand', 'something up there glows when the sun goes'], wood: ['the trees on it are taller than our lighthouse', 'it looks soft, like moss', 'birds go in and do not come out for ages'], glass: ['it shines like a window', 'there is a dark hole right in the middle of it', 'the bottom of it looks like it has steps carved in'] }[isl.id];
         const what = pick(notice); return { text: `looked out at ${isl.name}. ${what}`, remember: seen[isl.id] === 1 || Math.random() < 0.3 ? `${isl.name}: ${what}. one day i will go.` : null, lift: 0.2 }; }
       case 'take_photo': { s.photos++; (s.photoLog ||= []).push({ x: Math.round(w.pos.x * 10) / 10, z: Math.round(w.pos.z * 10) / 10, h: Math.round(w.heading * 100) / 100, day, hour: Math.round(w.hour * 10) / 10 }); if (s.photoLog.length > 24) s.photoLog.shift(); return { text: 'took a photo of the view' }; }
-      case 'draw': { const title = a.detail || 'something she saw'; (s.drawings ||= []).push({ title, day, seed: Math.floor(Math.random() * 1e9) }); if (s.drawings.length > 40) s.drawings.shift(); return { text: `finished a drawing: ${title}` }; }
+      case 'draw': { const title = s.inspo?.length && (Math.random() < 0.6 || !a.detail) ? s.inspo.splice(Math.floor(Math.random() * s.inspo.length), 1)[0] : a.detail || 'something she saw'; (s.drawings ||= []).push({ title, day, seed: Math.floor(Math.random() * 1e9) }); if (s.drawings.length > 40) s.drawings.shift(); return { text: `finished a drawing: ${title}` }; }
       case 'wish': return { text: 'wished on a shooting star', remember: 'i made a wish on a falling star. i am not saying what.', lift: 0.3 };
       case 'event': { const e = a.event; if (!e) return null; let extra = ''; s.eventDone = `${day}:${e.id}`;
         if (e.prize === 'fish') { const k = catchOne('fish', 'river', season); this.add(k); const c = rint(150, 400); s.coins += c; extra = `, landed ${an(k)} and won ${c} coins`; }
@@ -226,7 +240,7 @@ export class Life {
 
   summary() {
     const s = this.s;
-    return { coins: s.coins, items: s.items, museum: s.museum, total: Object.keys(SPECIES).length, decor: s.decor.length, house: s.house, loan: HOUSE_LOAN[s.house.level] || null, friends: s.friends, turnips: s.turnips, turnipPrice: s.turnipPrice, photos: s.photos, shaken: s.shaken, songs: s.songs, stamps: s.stamps, cosy: s.cosy, tune: s.tune, hot: s.hot, golden: s.golden, rides: s.rides, blooms: s.blooms, camper: s.camper, metCampers: s.metCampers, islets: s.islets, sky: s.sky || [], hats: s.look.hats || [0], glasses: s.look.glasses_owned || [0], stampDays: s.stampDays || {}, drawings: s.drawings || [], photoLog: s.photoLog || [], dishes: s.dishes || [], flag: s.look.flag || 0 };
+    return { coins: s.coins, items: s.items, museum: s.museum, total: Object.keys(SPECIES).length, decor: s.decor.length, house: s.house, loan: HOUSE_LOAN[s.house.level] || null, friends: s.friends, turnips: s.turnips, turnipPrice: s.turnipPrice, photos: s.photos, shaken: s.shaken, songs: s.songs, stamps: s.stamps, cosy: s.cosy, tune: s.tune, hot: s.hot, golden: s.golden, rides: s.rides, blooms: s.blooms, camper: s.camper, metCampers: s.metCampers, islets: s.islets, farVisited: s.farVisited || {}, inspo: s.inspo || [], sky: s.sky || [], hats: s.look.hats || [0], glasses: s.look.glasses_owned || [0], stampDays: s.stampDays || {}, drawings: s.drawings || [], photoLog: s.photoLog || [], dishes: s.dishes || [], flag: s.look.flag || 0 };
   }
   freeSpot() { return freeSpot(this.s.decor); }
 }
