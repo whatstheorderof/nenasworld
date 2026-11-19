@@ -28,7 +28,7 @@ textarea { min-height: 96px; resize: vertical; }
 .entry.result { padding-left: 12px; border-left: 4px solid var(--orange); border-top: 0; margin: 2px 0 6px; }
 #offline { max-width: min(520px, 60vw); text-align: center; font-size: 12px; opacity: .92; }
 [hidden] { display: none !important; }
-#panel { z-index: 2; }
+#panel { z-index: 4; }   /* above the speech bubbles, which belong to the world */
 #camhelp { position: fixed; bottom: 78px; left: 50%; transform: translateX(-50%); padding: 6px 14px; font-size: 12px; font-weight: 800; white-space: nowrap; }
 
 .gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -299,3 +299,8 @@ button.tile { cursor: pointer; } button.tile:hover { background: #fff6e0; }
 .tabs-wrap.more-right .tabs-more.right, .tabs-wrap.more-left .tabs-more.left { opacity: 1; pointer-events: auto; animation: nudge 1.6s ease-in-out infinite; }
 @keyframes nudge { 50% { transform: translateX(3px); } }
 .tabs-wrap.more-left .tabs-more.left { animation-name: nudge-l; } @keyframes nudge-l { 50% { transform: translateX(-3px); } }
+/* settings: the Advanced fold */
+details.advanced { margin: 10px 0 4px; border-top: 1.5px dashed rgba(42, 33, 64, .18); padding-top: 8px; }
+details.advanced > summary { cursor: pointer; font-weight: 900; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; opacity: .7; list-style: none; padding: 4px 0; }
+details.advanced > summary::before { content: '▸ '; display: inline-block; transition: transform .15s; }
+details.advanced[open] > summary::before { transform: rotate(90deg); }

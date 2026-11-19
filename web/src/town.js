@@ -95,7 +95,11 @@ export function buildTown() {
         if (w && wet == null) wet = t; if ((!w || t + 0.25 > len) && wet != null) { const t0 = wet, t1 = t, mx = a.x + dx / full * (t0 + t1) / 2, mz = a.z + dz / full * (t0 + t1) / 2; wet = null;
           if (t1 - t0 > 0.6 && !bridges.some(b => Math.hypot(b.x - mx, b.z - mz) < 3)) bridges.push({ x: mx, z: mz, a: Math.atan2(dz, dx), len: t1 - t0 + 1.6 }); } }
     }
-    const inst = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.2, 0), new THREE.MeshLambertMaterial({ flatShading: true }), stones.length), m = new THREE.Object3D(), c = new THREE.Color();
+    const hex = (() => { const v = [], r = 0.2, h = 0.2; for (let i = 0; i < 6; i++) { const a = i / 6 * 6.2832 + 0.26, b = (i + 1) / 6 * 6.2832 + 0.26, ax = Math.cos(a) * r, az = Math.sin(a) * r, bx = Math.cos(b) * r, bz = Math.sin(b) * r;
+        v.push(ax, h, az, bx, -h, bz, ax, -h, az, ax, h, az, bx, h, bz, bx, -h, bz); }   // sides, facing out
+      for (let i = 1; i < 5; i++) { const p = k => [Math.cos(k / 6 * 6.2832 + 0.26) * r, h, Math.sin(k / 6 * 6.2832 + 0.26) * r]; v.push(...p(0), ...p(i + 1), ...p(i)); }   // the top
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals(); return g; })();
+    const inst = new THREE.InstancedMesh(hex, new THREE.MeshLambertMaterial({ flatShading: true }), stones.length), m = new THREE.Object3D(), c = new THREE.Color();
     const tones = [0xc9c2b4, 0xb4bfcb, 0xd9d0bf, 0xa9b2bc, 0xe4dccd, 0xcdc1ab, 0xbcc6cf];
     stones.forEach(([x, z], i) => { const sc = 0.7 + rand() * 0.45; m.position.set(x, 0.07, z); m.rotation.set(0, rand() * 6.283, 0); m.scale.set(sc, sc * 0.3, sc * (0.75 + rand() * 0.35)); m.updateMatrix(); inst.setMatrixAt(i, m.matrix); inst.setColorAt(i, c.set(tones[Math.floor(rand() * tones.length)])); });
     town.add(inst); }

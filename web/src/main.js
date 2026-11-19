@@ -28,14 +28,18 @@ const qs = new URLSearchParams(location.search);   // ?hour=23&weather=aurora&se
 const $ = id => document.getElementById(id);
 
 // ---- settings (kept in this browser) -----------------------------------------------------
-const DEFAULTS = { sound: true, volume: 0.6, dots: localStorage.getItem('nena-dots') !== 'off', quality: matchMedia('(max-width: 700px)').matches ? 'low' : 'high', labels: true, bubbles: true, flashes: true, clock24: true, follow: true };
+const DEFAULTS = { sound: true, volume: 0.6, dots: localStorage.getItem('nena-dots') !== 'off', quality: matchMedia('(max-width: 700px)').matches ? 'low' : 'high', labels: true, bubbles: true, flashes: true, clock24: true, follow: true, res: 'auto', draw: 1 };
 const settings = (() => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nena-settings') || '{}') }; } catch { return { ...DEFAULTS }; } })();
 const saveSettings = () => { try { localStorage.setItem('nena-settings', JSON.stringify(settings)); } catch {} };
 
 // ---- scene ---------------------------------------------------------------
 const canvas = $('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(settings.quality === 'low' ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, 2));
+// Render resolution: a fixed share of the screen's pixels, or Auto, which lowers it when frames run slow
+// (long frames make taps and clicks feel laggy) and raises it again when there's room.
+const res = { auto: 1, acc: 0, n: 0, good: 0 };
+const pixelRatio = () => (settings.quality === 'low' ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, 2)) * (settings.res === 'auto' ? res.auto : Number(settings.res) || 1);
+renderer.setPixelRatio(pixelRatio());
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x7fe9ff, 150, 470);
 const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 1400);
@@ -468,7 +472,11 @@ async function show(name) {
         <h3>Look</h3>
         ${row('dots', 'Dot filter', 'The printed dot-screen look over everything')}
         <label class="set"><span><b>Graphics</b><small>Lower is smoother on phones and older computers</small></span><select data-set="quality"><option value="high"${settings.quality === 'high' ? ' selected' : ''}>High</option><option value="low"${settings.quality === 'low' ? ' selected' : ''}>Low</option></select></label>
+        <label class="set"><span><b>Resolution</b><small>Auto lowers it if things get slow, so it stays smooth</small></span><select data-set="res">${[['auto', 'Auto'], ['1', '100%'], ['0.75', '75%'], ['0.5', '50%']].map(([v, l]) => `<option value="${v}"${String(settings.res) === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
         ${row('flashes', 'Lightning flashes', 'Turn off if flashing light bothers you')}
+        <details class="advanced"><summary>Advanced</summary>
+          <label class="set"><span><b>Draw distance</b><small>How far you can see. Shorter is faster on slower machines</small></span><input type="range" min="0.3" max="1" step="0.05" value="${settings.draw ?? 1}" data-set="draw" /></label>
+        </details>
         <h3>On the island</h3>
         ${row('labels', 'Name tags', 'Names over neighbours, campers and visitors')}
         ${row('bubbles', 'Speech bubbles', 'What Nena and visitors say, over their heads')}
@@ -559,7 +567,7 @@ function applySettings(k) {
   if (k === 'volume') sound.setVolume(settings.volume);
   if (k === 'labels') display.labels = settings.labels;
   if (k === 'bubbles') display.bubbles = settings.bubbles;
-  if (k === 'quality') { renderer.setPixelRatio(settings.quality === 'low' ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, 2)); dots.uniforms.cell.value = 5 * renderer.getPixelRatio(); resize(); }
+  if (k === 'quality' || k === 'res') { if (k === 'res') res.auto = 1; renderer.setPixelRatio(pixelRatio()); dots.uniforms.cell.value = 5 * renderer.getPixelRatio(); resize(); }
   if (k === 'clock24' && now) apply(now);
 }
 for (const k of ['labels', 'bubbles', 'volume']) applySettings(k);
@@ -747,6 +755,15 @@ function frame() {
   const hour = qs.has('hour') ? Number(qs.get('hour')) : now ? now.hour : 12;
   const showEv = qs.get('show') || now?.event?.show || null;
   setSky(hour, qs.get('weather') || now?.weather || 'clear', dt, showEv);
+  // draw distance: pull the haze in and stop drawing what is past it (the sky dome shrinks to stay inside)
+  { const D = settings.draw ?? 1; scene.fog.near *= D; scene.fog.far *= D;
+    const far = Math.max(scene.fog.far + 60, 1400 * Math.pow(D, 1.5)); if (Math.abs(camera.far - far) > 1) { camera.far = far; camera.updateProjectionMatrix(); }
+    skyDome.dome.scale.setScalar(Math.min(1, far * 0.92 / 700)); }
+  // Auto resolution: every second or so, look at how long frames are taking
+  if (settings.res === 'auto' && dt > 0 && dt < 0.25) { res.acc += dt; res.n++;
+    if (res.acc > 1.2) { const ms = res.acc / res.n * 1000; res.acc = 0; res.n = 0;
+      if (ms > 24 && res.auto > 0.5) { res.auto = Math.max(0.5, res.auto - 0.125); res.good = 0; renderer.setPixelRatio(pixelRatio()); resize(); }
+      else if (ms < 17.5 && res.auto < 1 && ++res.good >= 4) { res.auto = Math.min(1, res.auto + 0.125); res.good = 0; renderer.setPixelRatio(pixelRatio()); resize(); } } }
   town.setNight(nightness, doing && act.action === 'watch_film', elapsed); tickWater(elapsed, nightness);
   town.setSeason(qs.get('season') || now?.season || 'summer', !lifeData || lifeData.shaken !== now?.day);
   town.setEvent(showEv);
@@ -791,4 +808,4 @@ function frame() {
   requestAnimationFrame(frame);
 }
 frame();
-window.__world = { dyn, scene, camera, controls, nena, sound, site, town, npcs: () => now?.npcs || [], camper: () => now?.camper, pos: () => now?.pos };   // handy in the console
+window.__world = { renderer, dyn, scene, camera, controls, nena, sound, site, town, npcs: () => now?.npcs || [], camper: () => now?.camper, pos: () => now?.pos };   // handy in the console
