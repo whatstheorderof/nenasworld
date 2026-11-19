@@ -229,3 +229,8 @@ New town props are built with the `town_props` helpers and merged into one mesh 
 - **Volcano (Ember):** a caravan camp of two tents with a rug and a campfire (glows at night), a camel resting near the oasis, steam vents round the volcano, an old sandstone temple of columns (some fallen) on steps behind the volcano, and the half-buried bones of something enormous.
 - **Fairy forest (Wood):** a stepping-stone path from the landing pad up to the giant tree's door, lined with little lanterns; a lily pond with a frog; toadstool fairy houses with round doors and lit windows; a ring of mossy standing stones; and a hollow log.
 - **Ice island (Glass):** a ship caught in the ice, listing, its sail in tatters; three igloos with lit doorways; a penguin colony; and a frozen waterfall of icicles pouring over the edge.
+
+## The Old Hotel and Bluebell Isle, detailed
+- **Old Hotel (`HT_X_*`):** HOTEL in faded red letters on the roof, with the L fallen and leaning; an entrance canopy on two pillars; a cracked slab path out to stone gateposts and a rusty gate left ajar; a drained swimming pool out the back with a puddle and leaves, deckchairs and a yellow parasol; young birches growing from the fallen end; gulls along the roof edge; a jetty off the left edge with a rowing boat tied up in the sky.
+- **Bluebell Isle (`BL_X_*`):** an arched stone bridge over the gold river, a green shepherd's hut on wheels with a lit window by the terraces, a goat shelter with a hay rack, a cairn on a hill, a bench looking at the river, and white and yellow wildflowers among the bluebells.
+- **Ice island penguins:** white fronts and faces, eyes and flippers, all looking roughly towards the landing pad.
