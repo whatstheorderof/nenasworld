@@ -2,7 +2,9 @@
 // each with one small sign of what lives there: smoke and a red glow on the
 // volcano, tiny lights in the forest, and light coming up through the hole in the ice.
 import * as THREE from 'three';
-import { SKY_ISLANDS, TOWN_ISLANDS, townPos, islePos, isleTurn } from '../../shared/world.js';
+import { SKY_ISLANDS, TOWN_ISLANDS, BLOOM_ISLE, townPos, islePos, isleTurn } from '../../shared/world.js';
+import { waterMaterial } from './water.js';
+import { kitParts } from './kit.js';
 import { whenKit, kitModel } from './kit.js';
 
 export function buildFarIslands(scene) {
@@ -48,12 +50,40 @@ export function buildFarIslands(scene) {
     whenKit(() => { const m = kitModel(t.model, { glow_farwin: winMat }); if (m) g.add(m); });
   }
 
+  // Bluebell Isle: rolling blue flower hills, a marbled gold-and-teal river, and goats wandering about
+  const bloom = new THREE.Group(), B = BLOOM_ISLE; bloom.position.set(Math.cos(B.a) * B.r, B.y, Math.sin(B.a) * B.r); bloom.scale.setScalar(B.scale); bloom.rotation.y = -B.a + Math.PI / 2; scene.add(bloom);
+  const speckled = (c) => { const m = new THREE.MeshLambertMaterial({ color: c, flatShading: true });   // little flowers all over the hills
+    m.onBeforeCompile = sh => { sh.vertexShader = 'varying vec3 vWp;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vWp = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = 'varying vec3 vWp;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+        vec2 q = vWp.xz * 1.6 + vWp.y * 0.7; vec2 c = floor(q), f = fract(q) - 0.5; float h = fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453);
+        vec2 o = vec2(fract(h * 7.1), fract(h * 3.7)) - 0.5; float d = length(f - o * 0.5);
+        vec3 tint = h < 0.33 ? vec3(0.93, 0.95, 1.0) : h < 0.66 ? vec3(0.72, 0.66, 1.0) : vec3(0.55, 0.68, 1.0);
+        diffuseColor.rgb = mix(diffuseColor.rgb, tint, smoothstep(0.2, 0.12, d) * 0.85);
+        diffuseColor.rgb *= 0.9 + 0.2 * fract(sin(dot(floor(vWp.xz * 4.0), vec2(4.1, 9.7))) * 917.3);`); }; return m; };
+  const bloomRiver = waterMaterial({ deep: 0x2fbfb0, mid: 0xe9c25a, foam: 0xfff6dc, scale: 1.5, speed: 0.55, flow: [0.12, 0.04] });
+  whenKit(() => { const m = kitModel('IslandBloom', { bloom_flowers: speckled(0x5a6ae6), bloom_flowers_dark: speckled(0x4352c8), bloom_flowers_light: speckled(0x7f8cf2), bloom_river: bloomRiver }); if (m) bloom.add(m);
+    for (let i = 0; i < 5; i++) { const g = kitParts('Goat'); if (!g) break; g.scale.setScalar(0.85 + Math.random() * 0.3); const a = Math.random() * 6.28, r = Math.random() * 8;
+      g.position.set(Math.cos(a) * r, 0, -Math.sin(a) * r); g.userData.goat = { tx: g.position.x, tz: g.position.z, wait: Math.random() * 6, step: Math.random() * 6, legs: ['FL', 'FR', 'BL', 'BR'].map(k => g.getObjectByName(`GoatLeg${k}`)), head: g.getObjectByName('GoatHead') }; bloom.add(g); goats.push(g); } });
+  const goats = [];
+  // the height of the hills at a point (model units; three x = model x, three z = -model y)
+  const hillH = (x, z) => { let h = 0; for (const [hx, hy, rx, ry, top] of B.hills) { const dx = (x - hx) / rx, dy = (-z - hy) / ry, k = 1 - dx * dx - dy * dy; if (k > 0) { const zc = -ry * 0.1; h = Math.max(h, zc + (top - zc) * Math.sqrt(k)); } } return h; };
+  function tickGoats(dt) {
+    for (const g of goats) { const s = g.userData.goat;
+      if (s.wait > 0) { s.wait -= dt; if (s.head) s.head.rotation.x = s.graze ? -0.55 + Math.sin(performance.now() / 300) * 0.08 : 0; s.legs.forEach(l => l && (l.rotation.x = 0)); if (s.wait <= 0) { const a = Math.random() * 6.28, r = Math.sqrt(Math.random()) * 9.5; s.tx = Math.cos(a) * r; s.tz = Math.sin(a) * r; } continue; }
+      const dx = s.tx - g.position.x, dz = s.tz - g.position.z, d = Math.hypot(dx, dz);
+      if (d < 0.1) { s.wait = 3 + Math.random() * 9; s.graze = Math.random() < 0.7; continue; }
+      const sp = 0.55 * dt; g.position.x += dx / d * Math.min(sp, d); g.position.z += dz / d * Math.min(sp, d);
+      const want = Math.atan2(dx, dz); let turn = want - g.rotation.y; turn = Math.atan2(Math.sin(turn), Math.cos(turn)); g.rotation.y += turn * Math.min(1, dt * 4);
+      g.position.y = hillH(g.position.x, g.position.z); s.step += dt * 7;
+      s.legs.forEach((l, i) => l && (l.rotation.x = Math.sin(s.step + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.45)); if (s.head) s.head.rotation.x = Math.sin(s.step * 2) * 0.04; } }
+
   const tmp = new THREE.Color();
   function update(t, night, dayTint) {
     for (const [m, c] of mats) m.color.copy(tmp.set(c).lerp(dayTint, 0.25).multiplyScalar(1 - night * 0.55));
     glows.forEach(m => { m.opacity = 0.25 + night * 0.65; });
     towns.children.forEach((g, i) => { g.position.y = g.userData.isl.y + Math.sin(t * 0.1 + i * 1.7) * 1.2; });
     winMat.emissiveIntensity = night * 1.4;
+    tickGoats(Math.min(0.1, t - (update.last ?? t))); update.last = t;
     for (const m of Object.values(farLit)) m.emissiveIntensity = 0.4 + night * 1.1;
     sparks.forEach(m => { m.opacity = night * (0.6 + Math.sin(t * 2) * 0.25); });
     smoke.forEach(p => { const { k, at } = p.userData, f = (k + t * 0.02) % 1; p.position.set(at[0] + f * 22, at[1] + 2 + f * 40, at[2] + f * 6); p.scale.setScalar(0.7 + f * 2.4); p.material.opacity = (1 - f) * 0.45 * (1 - night * 0.4); });

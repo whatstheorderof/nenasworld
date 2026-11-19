@@ -72,6 +72,11 @@ export const TOWN_ISLANDS = [
   { id: 'fountain', name: 'Fountain Round', model: 'IslandPlaza', a: 5.95, r: 205, y: 6, scale: 2.1, about: 'A round town square with a pool in the middle, houses all round it and topiary outside the fence.' },
   { id: 'hoop', name: 'Hoopstead', model: 'IslandRing', a: 4.45, r: 212, y: 12, scale: 2.1, about: 'A town built in a ring round a hole in the sky, with a tall slate spire.' },
 ];
+// A small island of rolling blue flower hills with a marbled gold-and-teal river, where goats roam.
+// Model: art/island.blend IslandBloom (radius 12 in model units). hills: [x, y, half-width x, half-width y, top] in model units.
+export const BLOOM_ISLE = { id: 'bloom', name: 'Bluebell Isle', a: 5.53, r: 118, y: 3, scale: 2.2, size: 26,
+  about: 'A small island of rolling blue flower hills with a marbled gold and teal river running through it. Goats live there.',
+  hills: [[3.76, 4.87, 1.53, 1.39, 0.45], [-2.82, -3.38, 2.0, 1.83, 0.59], [9.37, -3.26, 2.19, 2.0, 0.64], [-2.5, 9.42, 2.41, 2.21, 0.71], [-0.64, -7.15, 1.33, 1.22, 0.39], [-2.61, -6.49, 2.13, 1.95, 0.62], [-7.45, -5.89, 2.36, 2.16, 0.69], [-4.71, 3.12, 1.82, 1.66, 0.53], [6.53, -6.65, 2.56, 2.34, 0.75], [-0.48, -5.01, 1.49, 1.36, 0.44], [1.9, -3.03, 1.39, 1.27, 0.41], [7.32, 3.71, 2.52, 2.31, 0.74], [-4.93, -4.9, 1.79, 1.63, 0.52], [6.78, 6.52, 2.6, 2.38, 0.76], [-0.47, 6.91, 2.5, 2.29, 0.73], [2.76, -9.72, 1.93, 1.77, 0.57], [4.45, -4.09, 1.61, 1.47, 0.47], [-7.84, 5.35, 1.92, 1.76, 0.56], [-2.93, 7.07, 1.53, 1.4, 0.45], [-0.96, -2.76, 1.54, 1.41, 0.45], [2.34, -5.34, 1.86, 1.7, 0.54], [1.24, 4.68, 1.94, 1.77, 0.57], [3.25, 8.09, 3.61, 3.3, 1.06], [-2.46, 3.78, 1.32, 1.21, 0.39]] };
 export const townPos = t => ({ x: Math.cos(t.a) * t.r, z: Math.sin(t.a) * t.r });
 // Little islands out past the foam that she rows to.
 export const ISLETS = [

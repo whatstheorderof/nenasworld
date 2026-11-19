@@ -205,3 +205,6 @@ IslandEmber / IslandWood / IslandGlass were rebuilt big: radius 36 in model unit
 - Food props: Ember_DatePalm (dates), Ember_PricklyPear (cactus fruit), Ember_Oasis; Wood_BerryBush (wild berries), Wood_HiveTree (honeycomb), toadstool glade (mushrooms); Glass_FishHut (ice fishing), Glass_SnowBerry (snow berries).
 - Landmarks: Ember_RockArch, the volcano at 2.2×, the giant door-tree at 1.8×, the big ice hole at 2.4× with drowned columns and an arch.
 - SkyBalloon: "A striped hot-air balloon in pink, butter yellow and sky blue with a wicker basket, ropes and a little burner flame." It waits on a pad by the lookout and carries her out and back.
+
+## Bluebell Isle (IslandBloom) and the goats (Goat)
+Prompt: "A small floating island covered in rolling, soft hills of tiny blue-violet flowers, a marbled river of gold, teal and pearl winding through and pouring off one edge, a few pale rocks, and cream goats with curved horns grazing and wandering over the hills." The flower speckle and the marbled river are shaders in web/src/far.js; the goats walk between random points, climb the hills (BLOOM_ISLE.hills in shared/world.js) and stop to graze.
