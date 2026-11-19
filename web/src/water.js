@@ -22,7 +22,8 @@ const frag = `uniform float uTime, uScale, uSpeed, uEdge, uNight, uFall, uAlpha,
       o = 0.5 + 0.42 * sin(t + 6.2831 * o); float d = length(g + o - f); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d; }
     return vec2(d1, d2); }
   void main() {
-    vec2 p = (uFall > 0.5 ? vec2(vUv.x * 3.0, vUv.y * 6.0 + uTime * 1.6) : vW.xz / uScale + uFlow * uTime);
+    // uFall 1: a falls laid out by its UVs; 2: a falls patterned from where it is in the world (no UVs needed)
+    vec2 p = uFall > 1.5 ? vec2((vW.x + vW.z) / uScale, vW.y / uScale + uTime * 1.6) : uFall > 0.5 ? vec2(vUv.x * 3.0, vUv.y * 6.0 + uTime * 1.6) : vW.xz / uScale + uFlow * uTime;
     p += vec2(noise(p * 1.7 + uTime * 0.15), noise(p * 1.7 - 3.1 + uTime * 0.12)) * 0.55;   // wobbly, hand-drawn edges
     float t = uTime * uSpeed;
     vec2 c = cells(p, t), c2 = cells(p * 1.35 + vec2(4.7, 1.3), t * 0.8);
@@ -40,7 +41,7 @@ const frag = `uniform float uTime, uScale, uSpeed, uEdge, uNight, uFall, uAlpha,
 
 export function waterMaterial({ deep = 0x138ccc, mid = 0x2ea0d8, foam = 0xe0ffff, scale = 3.2, speed = 0.55, edge = 0.075, flow = [0.04, 0.02], fall = false, alpha = 1, fog = true, fogMax = 1 } = {}) {
   const m = new THREE.ShaderMaterial({ vertexShader: vert, fragmentShader: frag, fog, transparent: alpha < 1, side: THREE.DoubleSide,
-    uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), uTime: { value: 0 }, uScale: { value: scale }, uSpeed: { value: speed }, uEdge: { value: edge }, uNight: { value: 0 }, uFall: { value: fall ? 1 : 0 }, uAlpha: { value: alpha }, uFogMax: { value: fogMax },
+    uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), uTime: { value: 0 }, uScale: { value: scale }, uSpeed: { value: speed }, uEdge: { value: edge }, uNight: { value: 0 }, uFall: { value: fall === 'world' ? 2 : fall ? 1 : 0 }, uAlpha: { value: alpha }, uFogMax: { value: fogMax },
       uDeep: { value: new THREE.Color(deep) }, uMid: { value: new THREE.Color(mid) }, uFoam: { value: new THREE.Color(foam) }, uFlow: { value: new THREE.Vector2(...flow) } } });
   mats.push(m); return m;
 }

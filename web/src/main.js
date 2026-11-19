@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, TRIP_ISLES, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, site } from '../../shared/world.js';
+import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, TRIP_ISLES, LONE_ISLES, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, site } from '../../shared/world.js';
 import { kitModel as kitM, whenKit as whenK } from './kit.js';
 import { icon } from './icons.js';
 import { WEATHER_WORDS, FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
@@ -37,8 +37,8 @@ const canvas = $('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(settings.quality === 'low' ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x7fe9ff, 130, 320);
-const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 800);
+scene.fog = new THREE.Fog(0x7fe9ff, 150, 470);
+const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 1400);
 camera.position.set(PLACES.home.x + 10, 9, PLACES.home.z + 15);
 const controls = new OrbitControls(camera, canvas);
 controls.target.set(PLACES.home.x, 1, PLACES.home.z);
@@ -73,13 +73,31 @@ const aurora = new THREE.Group(); scene.add(aurora);
 // clouds: it is a sky island, so a ring of slow clouds around and below it
 const clouds = new THREE.Group(); scene.add(clouds);
 const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.45, flatShading: true });
+// Clouds thin out and shrink away when they drift into an island, or when the camera flies into them,
+// so they never sit in front of what is going on. Each puff shrinks away as a whole (by its centre).
+const ISLES = [{ x: 0, z: 0, r: WORLD.radius + 16, y: 0 },
+  ...TOWN_ISLANDS.map(t => ({ x: Math.cos(t.a) * t.r, z: Math.sin(t.a) * t.r, r: (t.id === 'fountain' ? 16 : 13) * t.scale + 6, y: t.y })),
+  ...LONE_ISLES.map(l => ({ x: Math.cos(l.a) * l.r, z: Math.sin(l.a) * l.r, r: 12 * l.scale + 6, y: l.y })),
+  ...SKY_ISLANDS.map(s => ({ x: Math.cos(s.a) * s.r, z: Math.sin(s.a) * s.r, r: s.size + 8, y: s.y }))];
+const cloudFade = { uIsles: { value: ISLES.slice(0, 16).map(i => new THREE.Vector4(i.x, i.z, i.r, i.y)).concat(Array(Math.max(0, 16 - ISLES.length)).fill().map(() => new THREE.Vector4(0, 0, -1, 0))) }, uCamPos: { value: new THREE.Vector3() } };
+function fadeClouds(mat) {
+  mat.onBeforeCompile = sh => { Object.assign(sh.uniforms, cloudFade);
+    sh.vertexShader = 'uniform vec4 uIsles[16]; uniform vec3 uCamPos; varying float vFade;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      vec4 ic = modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0); float f = 1.0;
+      for (int i = 0; i < 16; i++) { vec4 s = uIsles[i]; if (s.z < 0.0) continue; float d = length(ic.xz - s.xy);
+        f = min(f, max(smoothstep(s.z * 0.85, s.z * 1.35 + 12.0, d), smoothstep(30.0, 60.0, abs(ic.y - s.w)))); }
+      f = min(f, smoothstep(10.0, 34.0, distance(ic.xyz, uCamPos)));
+      vFade = f; transformed *= f * f * (3.0 - 2.0 * f);`);
+    sh.fragmentShader = 'varying float vFade;\n' + sh.fragmentShader.replace('void main() {', `void main() {
+      if (vFade < 0.02) discard;`); }; }
+fadeClouds(cloudMat);
 { const puff = new THREE.IcosahedronGeometry(1, 1), N = 80, PER = 7;
   const inst = new THREE.InstancedMesh(puff, cloudMat, N * PER), m = new THREE.Object3D();
   let seed = 3; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   for (let c = 0, k = 0; c < N; c++) {
-    const below = c < 26, a = rnd() * 6.283, r = below ? 40 + rnd() * 130 : 130 + rnd() * 120, y = below ? -30 - rnd() * 26 : -18 + rnd() * 44, size = below ? 7 + rnd() * 6 : 6 + rnd() * 8;
+    const below = c < 26, a = rnd() * 6.283, r = below ? 40 + rnd() * 150 : 120 + rnd() * 260, y = below ? -30 - rnd() * 26 : -18 + rnd() * 44, size = below ? 7 + rnd() * 6 : 6 + rnd() * 8;
     const cx = Math.cos(a) * r, cz = Math.sin(a) * r;
-    const blocksView = !below && [3.75, 5.25, 2.55, 1.15, 3.15, 5.95, 4.45].some(fa => Math.abs(Math.atan2(Math.sin(a - fa), Math.cos(a - fa))) < 0.16) && y > -6;   // keep the far islands in view
+    const blocksView = false;   // clouds now melt away round the islands instead (fadeClouds)
     for (let i = 0; i < PER; i++, k++) {
       if (blocksView) { m.position.set(0, -9999, 0); m.scale.setScalar(0.001); m.updateMatrix(); inst.setMatrixAt(k, m.matrix); continue; }
       const s = size * (0.55 + rnd() * 0.5) * (i === 0 ? 1.3 : 1);
@@ -89,11 +107,11 @@ const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xff
   }
   clouds.add(inst); }
 // a second, far ring of big clouds round the horizon; not fogged (they are past the fog), tinted into the haze instead
-const farCloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5, flatShading: true, fog: false });
+const farCloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5, flatShading: true, fog: false }); fadeClouds(farCloudMat);
 { const puff = new THREE.IcosahedronGeometry(1, 1), N = 70, PER = 8, inst = new THREE.InstancedMesh(puff, farCloudMat, N * PER), m = new THREE.Object3D();
   let seed = 41; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   for (let c = 0, k = 0; c < N; c++) {
-    const a = c / N * 6.283 + rnd() * 0.08, r = 300 + rnd() * 230, y = -70 + rnd() * 95, size = 14 + rnd() * 18, cx = Math.cos(a) * r, cz = Math.sin(a) * r;
+    const a = c / N * 6.283 + rnd() * 0.08, r = 480 + rnd() * 200, y = -70 + rnd() * 95, size = 14 + rnd() * 18, cx = Math.cos(a) * r, cz = Math.sin(a) * r;
     for (let i = 0; i < PER; i++, k++) { const s = size * (0.5 + rnd() * 0.55) * (i === 0 ? 1.35 : 1);
       m.position.set(cx + (rnd() - 0.5) * size * 2.8 * Math.abs(Math.sin(a)) + (rnd() - 0.5) * size * 0.8, y + rnd() * size * 0.3, cz + (rnd() - 0.5) * size * 2.8 * Math.abs(Math.cos(a)) + (rnd() - 0.5) * size * 0.8);
       m.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); m.scale.set(s, s * 0.55, s); m.updateMatrix(); inst.setMatrixAt(k, m.matrix); } }
@@ -156,7 +174,7 @@ function setSky(hour, weather, dt, show) {
   for (const key of Object.keys(wx)) wx[key] += ((weather === key ? 1 : 0) - wx[key]) * k;
   if (wx.mist > 0.01) sky.lerp(new THREE.Color(d > 0.5 ? 0xd8eef5 : 0x232a45), wx.mist * 0.6);
   scene.background = sky; scene.fog.color.copy(sky);
-  scene.fog.near = 130 - wx.mist * 98; scene.fog.far = 320 - wx.mist * 195;   // misty, but she and the town stay in view
+  scene.fog.near = 150 - wx.mist * 115; scene.fog.far = 470 - wx.mist * 330;   // misty, but she and the town stay in view
   hemi.intensity = 0.28 + d * 1.25; hemi.color.set(d > 0.5 ? 0xffffff : 0x8fa8ff); hemi.groundColor.set(d > 0.5 ? 0x9fd27a : 0x1d2545);
   sun.intensity = d * 2.0 + n * 0.25; sun.color.set(d > 0.5 ? 0xfff2d8 : 0x9bb4ff);
   stars.visible = false;   // the sky dome draws the stars now
@@ -287,7 +305,7 @@ function connect() {
 setTimeout(connect, 0);
 setInterval(() => { if (local) apply(local.now()); }, 200);
 $('status').onclick = () => $('status').classList.toggle('open');
-$('map-btn').onclick = () => (chartOpen() ? closeChart() : openChart({ islets: lifeData?.islets || [], far: Object.keys(lifeData?.farVisited || {}), at: (({ x, z }) => ({ x, z }))(nena.root.position), heading: now?.heading }));
+$('map-btn').onclick = () => (chartOpen() ? closeChart() : openChart({ islets: lifeData?.islets || [], far: Object.keys(lifeData?.farVisited || {}), at: (({ x, z }) => ({ x, z }))(nena.root.position), heading: now?.heading, cam: freeCam ? { x: camera.position.x, z: camera.position.z, yaw: 0 } : null }));
 $('offline').onclick = () => { $('offline').hidden = true; };   // on phones the card starts small
 
 const NEED_COLORS = { fullness: '#f2792e', energy: '#ffd93b', wonder: '#6a2fc4', joy: '#ff7fa3', calm: '#2fc6b3' };
@@ -521,12 +539,13 @@ $('close').onclick = close;
 // ---- camera: follow her, or roam free ----------------------------------------------
 let freeCam = false;
 const keys = new Set();
-addEventListener('keydown', e => { if (!/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) keys.add(e.key.toLowerCase()); });
+addEventListener('keydown', e => { if (chartOpen() && e.key.startsWith('Arrow')) return;   // with the chart open the arrows pick squares; WASD still flies
+  if (!/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) keys.add(e.key.toLowerCase()); });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());
 $('cam').onclick = () => {
   freeCam = !freeCam;
-  controls.enablePan = freeCam; controls.maxDistance = freeCam ? 300 : 165; controls.maxPolarAngle = freeCam ? 1.55 : 1.45;
+  controls.enablePan = freeCam; controls.maxDistance = freeCam ? 300 : 165; controls.maxPolarAngle = freeCam ? Math.PI * 0.94 : 1.45;
   $('cam').classList.toggle('on', freeCam); $('cam').title = freeCam ? 'Follow Nena again' : 'Roam the island yourself';
   $('camhelp').hidden = !freeCam; if (freeCam) $('offline').hidden = true;
   if (matchMedia('(pointer: coarse)').matches) $('camhelp').textContent = 'Drag to look · pinch to zoom · two fingers to move';
@@ -749,13 +768,22 @@ function frame() {
     if (keys.has('w') || keys.has('arrowup')) mv.add(f); if (keys.has('s') || keys.has('arrowdown')) mv.sub(f); if (keys.has('d') || keys.has('arrowright')) mv.add(r); if (keys.has('a') || keys.has('arrowleft')) mv.sub(r);
     if (keys.has('e')) mv.y += 1; if (keys.has('q')) mv.y -= 1;
     mv.multiplyScalar(sp); camera.position.add(mv); controls.target.add(mv);
-    if (camera.position.y < 1.5) { controls.target.y += 1.5 - camera.position.y; camera.position.y = 1.5; }
+    // over her island the ground is the floor, or once you are underneath, the bottom of the island is the ceiling.
+    // Anywhere else you can sink a long way down towards the sea.
+    { const P = camera.position, TOP = 1.5, BOT = -46, R = WORLD.radius + 8, inBand = y => y < TOP && y > BOT;
+      const over = Math.hypot(P.x, P.z) < R, wasOver = Math.hypot(P.x - mv.x, P.z - mv.z) < R;
+      if (over && inBand(P.y)) {
+        if (!wasOver) { P.x -= mv.x; P.z -= mv.z; controls.target.x -= mv.x; controls.target.z -= mv.z; }   // the island's side is a wall
+        else { const prev = P.y - mv.y, to = prev >= TOP ? TOP : prev <= BOT ? BOT : P.y > -20 ? TOP : BOT; controls.target.y += to - P.y; P.y = to; } }
+      if (P.y < -400) { controls.target.y += -400 - P.y; P.y = -400; } }
   } else if (!window.__world?.freeze && settings.follow) {
     const before = controls.target.clone();
     controls.target.lerp(new THREE.Vector3(pos.x, pos.y + 1, pos.z), 1 - Math.exp(-dt * 2.5));
     camera.position.add(controls.target.clone().sub(before));   // camera travels with her
   }
+  cloudFade.uCamPos.value.copy(camera.position);
   controls.update();
+  if (chartOpen()) { const d = camera.getWorldDirection(new THREE.Vector3()); updateChart({ cam: freeCam ? { x: camera.position.x, z: camera.position.z, yaw: Math.atan2(d.x, d.z) } : null }); }
   composer.render();
 
   bubble.hidden = true;

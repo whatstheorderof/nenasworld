@@ -67,14 +67,14 @@ export const CAMPERS = [
 // Neighbouring islands with towns on them, near enough to see from hers. The travellers who
 // pitch up at her campsite come from these. Models are in art/island.blend.
 export const TOWN_ISLANDS = [
-  { id: 'gable', name: 'Little Gable', model: 'IslandCottage', a: 1.15, r: 175, y: 4, scale: 2.3, about: 'Two cottages and a tower with a flag, inside a picket fence.' },
-  { id: 'snowcap', name: 'Snowcap', model: 'IslandRock', a: 3.15, r: 185, y: -3, scale: 2.3, about: 'A great stone house under a cap of snow, a dome tower and a red cottage.' },
-  { id: 'fountain', name: 'Fountain Round', model: 'IslandPlaza', a: 5.95, r: 205, y: 6, scale: 2.1, about: 'A round town square with a pool in the middle, houses all round it and topiary outside the fence.' },
-  { id: 'hoop', name: 'Hoopstead', model: 'IslandRing', a: 4.45, r: 212, y: 12, scale: 2.1, about: 'A town built in a ring round a hole in the sky, with a tall slate spire.' },
+  { id: 'gable', name: 'Little Gable', model: 'IslandCottage', a: 1.15, r: 300, y: 4, scale: 2.3, about: 'Two cottages and a tower with a flag, inside a picket fence.' },
+  { id: 'snowcap', name: 'Snowcap', model: 'IslandRock', a: 3.15, r: 290, y: -3, scale: 2.3, about: 'A great stone house under a cap of snow, a dome tower and a red cottage.' },
+  { id: 'fountain', name: 'Fountain Round', model: 'IslandPlaza', a: 5.95, r: 330, y: 6, scale: 2.1, about: 'A round town square with a pool in the middle, houses all round it and topiary outside the fence.' },
+  { id: 'hoop', name: 'Hoopstead', model: 'IslandRing', a: 4.45, r: 320, y: 12, scale: 2.1, about: 'A town built in a ring round a hole in the sky, with a tall slate spire.' },
 ];
 // A small island of rolling blue flower hills with a marbled gold-and-teal river, where goats roam.
 // Model: art/island.blend IslandBloom (radius 12 in model units). hills: [x, y, half-width x, half-width y, top] in model units.
-export const BLOOM_ISLE = { id: 'bloom', name: 'Bluebell Isle', a: 5.53, r: 118, y: 3, scale: 2.2, size: 26,
+export const BLOOM_ISLE = { id: 'bloom', name: 'Bluebell Isle', a: 5.6, r: 180, y: 3, scale: 3.0, size: 36,
   about: 'A small island of rolling blue flower hills with a marbled gold and teal river running through it. Old stone terraces of bluebells climb to snowy pines. Goats live there.', resources: ['bluebells', 'goat wool'],
   spots: { pad: [0, -10.4], goats: [-5.8, 4.9, { does: 'sitting in the flowers with the goats', draw: 'the goats on Bluebell Isle', food: 'goat cheese' }], flowers: [4.0, 2.5, { does: 'picking bluebells', find: 'bluebells' }],
     river: [-8.9, -0.1, { does: 'drawing the gold river', draw: 'the gold river through the blue flowers' }], wool: [0.6, -6.2, { does: 'collecting tufts of goat wool off the flowers', find: 'goat wool' }],
@@ -97,18 +97,22 @@ export const ISLETS = [
 // spots are in model units (x, y on the model, front = the landing pad side, toward her island).
 // An old hotel standing empty on its own island, a slab of round windows with faded olive awnings,
 // the far end fallen in and ivy climbing the rest. One window is always lit. Model: IslandRuin (radius 12), front faces her island.
-export const RUIN_ISLE = { id: 'ruin', name: 'the Old Hotel', a: 0.55, r: 150, y: -1, scale: 2.4, size: 30,
+export const RUIN_ISLE = { id: 'ruin', name: 'the Old Hotel', a: 0.55, r: 230, y: -1, scale: 2.4, size: 30,
   about: 'A tall old hotel with rows of round windows and faded green awnings, standing empty on its own island. The far end has fallen in and ivy climbs the rest. One window is always lit.' };
+// Islands that stand on their own (not towns, not the three big ones). EVERY island goes on the sea chart:
+// add a new one here (or to ISLETS / TOWN_ISLANDS / SKY_ISLANDS) and shared/chart.js features() picks it up.
+// `chart` is the ink colour it gets on the chart.
+export const LONE_ISLES = [{ ...BLOOM_ISLE, chart: '#9aa6e8' }, { ...RUIN_ISLE, chart: '#efe4cc' }];
 export const SKY_ISLANDS = [
-  { id: 'ember', name: 'the smoking island', theme: 'volcano and desert', a: 3.75, r: 262, y: -6, scale: 1.6, size: 58, resources: ['obsidian', 'fire opal', 'sand glass', 'cactus fruit'],
+  { id: 'ember', name: 'the smoking island', theme: 'volcano and desert', a: 3.75, r: 405, y: -6, scale: 1.6, size: 58, resources: ['obsidian', 'fire opal', 'sand glass', 'cactus fruit'],
     spots: { pad: [0, -31], oasis: [12.5, -12, { does: 'picking dates by the oasis', food: 'dates' }], cactus: [-14, -12, { does: 'picking prickly pears (carefully)', food: 'cactus fruit' }],
       obsidian: [-19, 7, { does: 'hunting for obsidian', find: 'obsidian' }], volcano: [0, -4, { does: 'drawing the volcano from its foot', draw: 'the smoking volcano from its foot' }],
       opal: [18, 6, { does: 'digging for fire opals', find: 'fire opal' }], village: [6, -21, { does: 'visiting the little dome huts', draw: 'the dome huts in the sand', find: 'sand glass' }] } },
-  { id: 'wood', name: 'the forest island', theme: 'ancient fairy forest', a: 5.25, r: 272, y: 4, scale: 1.6, size: 58, resources: ['glow moss', 'silver bark', 'fairy dust', 'giant acorn'],
+  { id: 'wood', name: 'the forest island', theme: 'ancient fairy forest', a: 5.25, r: 410, y: 4, scale: 1.6, size: 58, resources: ['glow moss', 'silver bark', 'fairy dust', 'giant acorn'],
     spots: { pad: [0, -31], door: [0, 5, { does: 'knocking on the door in the giant tree', draw: 'the door in the giant tree', find: 'silver bark' }], berries: [-14, -12, { does: 'picking wild berries', food: 'wild berries' }],
       hive: [14, -11, { does: 'taking a little honeycomb (the bees allowed it)', food: 'honeycomb' }], mushrooms: [-17, 8, { does: 'gathering mushrooms in the glade', food: 'mushroom', find: 'glow moss' }],
       ring: [15, 12, { does: 'sitting very still in the fairy ring', draw: 'the fairy ring at dusk', find: 'fairy dust' }], acorns: [5, -20, { does: 'rolling a giant acorn', find: 'giant acorn' }] } },
-  { id: 'glass', name: 'the ice island', theme: 'ice crust over water, with drowned ruins below', a: 2.55, r: 256, y: -2, scale: 1.6, size: 58, resources: ['clear ice', 'old coins', 'pearl', 'sunken tile'],
+  { id: 'glass', name: 'the ice island', theme: 'ice crust over water, with drowned ruins below', a: 2.2, r: 400, y: -2, scale: 1.6, size: 58, resources: ['clear ice', 'old coins', 'pearl', 'sunken tile'],
     spots: { pad: [0, -31], fishing: [9.5, -14.5, { does: 'ice fishing by the little hut', food: 'ice fish' }], ruins: [-12, 5, { does: 'drawing the drowned ruins', draw: 'the drowned ruins poking through the ice', find: 'old coins' }],
       spires: [15, 9, { does: 'chipping clear ice from the spires', find: 'clear ice' }], clams: [-14, -14, { does: 'looking for pearls in the clam beds', find: 'pearl' }],
       berries: [3, 18, { does: 'picking snow berries', food: 'snow berries' }], hole: [0, -6, { does: 'peering into the big hole in the ice', draw: 'the light under the ice', find: 'sunken tile' }] } },

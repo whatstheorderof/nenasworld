@@ -121,14 +121,14 @@ function draw() {
       blob(px, py, r, seed, 16); ctx.fillStyle = been ? '#d9c486' : 'rgba(0,0,0,0)'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.6; ctx.setLineDash(been ? [] : [3, 3]); ctx.stroke(); ctx.setLineDash([]);
     } else if (f.kind === 'town') {   // neighbouring towns: inked in, with little roofs
       const hole = f.id === 'hoop';
-      blob(px, py, r, seed, 24); ctx.fillStyle = '#c9cf8f'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+      blob(px, py, r, seed, 24); ctx.fillStyle = f.lone ? f.colour || '#c9cf8f' : '#c9cf8f'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
       if (hole) { ctx.beginPath(); ctx.arc(px, py, r * 0.52, 0, 7); ctx.fillStyle = '#e7d3a0'; ctx.fill(); ctx.stroke(); }
       if (f.id === 'fountain') { ctx.beginPath(); ctx.arc(px, py, r * 0.5, 0, 7); ctx.fillStyle = '#ead7a6'; ctx.fill(); ctx.beginPath(); ctx.arc(px, py, r * 0.16, 0, 7); ctx.fillStyle = '#8fb6c8'; ctx.fill(); ctx.stroke(); }
       if (f.id === 'snowcap') { ctx.beginPath(); ctx.arc(px, py - r * 0.15, r * 0.32, 0, 7); ctx.fillStyle = '#fbf8ee'; ctx.fill(); ctx.stroke(); }
       if (f.id === 'bloom') { ctx.fillStyle = '#9aa6e8'; blob(px, py, r * 0.95, seed, 24); ctx.fill(); ctx.strokeStyle = '#c9a43a'; ctx.lineWidth = Math.max(2, r * 0.12); ctx.beginPath(); ctx.moveTo(px - r * 0.9, py + r * 0.3); ctx.quadraticCurveTo(px, py - r * 0.4, px + r * 0.9, py - r * 0.2); ctx.stroke(); continue; }
       if (f.id === 'ruin') { const w = r * 1.1, h = r * 0.62; ctx.fillStyle = '#efe4cc'; ctx.fillRect(px - w / 2, py - h / 2, w, h); ctx.strokeStyle = INK; ctx.lineWidth = 1.6; ctx.strokeRect(px - w / 2, py - h / 2, w, h);
         ctx.fillStyle = '#8c8a30'; for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) if (!(i === 3 && j === 0)) ctx.fillRect(px - w / 2 + w * (0.08 + i * 0.23), py - h / 2 + h * (0.14 + j * 0.3), w * 0.14, h * 0.16); }
-      const n = f.id === 'ruin' ? 0 : f.id === 'gable' ? 3 : hole ? 8 : 6, rr = hole ? r * 0.76 : f.id === 'fountain' ? r * 0.72 : r * 0.5;
+      const n = f.lone ? 0 : f.id === 'gable' ? 3 : hole ? 8 : 6, rr = hole ? r * 0.76 : f.id === 'fountain' ? r * 0.72 : r * 0.5;
       for (let i = 0; i < n; i++) { const a = i / n * 6.28 + 0.4, hx = px + Math.cos(a) * rr, hy = py + Math.sin(a) * rr, w = Math.max(3, r * 0.14);
         ctx.fillStyle = '#d9412b'; ctx.beginPath(); ctx.moveTo(hx - w, hy + w * 0.6); ctx.lineTo(hx, hy - w * 0.7); ctx.lineTo(hx + w, hy + w * 0.6); ctx.closePath(); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.stroke(); }
     } else if ((state.info.far || []).includes(f.id)) {   // a big island she has been to: inked in properly
@@ -148,6 +148,18 @@ function draw() {
     ctx.strokeStyle = 'rgba(217,65,43,.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px, py, 9 * pulse, 0, 7); ctx.stroke();
     ctx.save(); ctx.translate(px, py); ctx.rotate(-(state.info.heading || 0) + Math.PI); ctx.fillStyle = '#ffd93b'; ctx.strokeStyle = INK; ctx.lineWidth = 1.8;
     ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(6.5, 7); ctx.lineTo(0, 3.5); ctx.lineTo(-6.5, 7); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
+  // the free camera, when you are roaming: a little flying camera with its view fanned out in front
+  if (state.info.cam) { const c = state.info.cam, [px, py] = toPx(c.x, c.z, v), L = Math.max(26, 70 / k);
+    const [ax, ay] = toPx(c.x + Math.sin(c.yaw - 0.45) * L, c.z + Math.cos(c.yaw - 0.45) * L, v), [bx, by] = toPx(c.x + Math.sin(c.yaw + 0.45) * L, c.z + Math.cos(c.yaw + 0.45) * L, v);
+    const g = ctx.createRadialGradient(px, py, 2, px, py, Math.hypot(ax - px, ay - py)); g.addColorStop(0, 'rgba(58,120,200,.45)'); g.addColorStop(1, 'rgba(58,120,200,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ax, ay); ctx.lineTo(bx, by); ctx.closePath(); ctx.fill();
+    const [fx, fy] = toPx(c.x + Math.sin(c.yaw), c.z + Math.cos(c.yaw), v), ang = Math.atan2(fy - py, fx - px), bob = Math.sin(t * 3) * 1.5;
+    ctx.save(); ctx.translate(px, py + bob); ctx.rotate(ang); ctx.strokeStyle = INK; ctx.lineWidth = 1.8;
+    ctx.fillStyle = '#f4eee2'; for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(-3, s * 10, 6, 3, s * 0.35, 0, 7); ctx.fill(); ctx.stroke(); }   // little wings
+    ctx.fillStyle = '#3a78c8'; ctx.beginPath(); ctx.roundRect(-9, -6.5, 14, 13, 3); ctx.fill(); ctx.stroke();                                          // body
+    ctx.fillStyle = '#2a2140'; ctx.beginPath(); ctx.roundRect(5, -4, 5, 8, 1.5); ctx.fill(); ctx.stroke();                                          // lens
+    ctx.fillStyle = '#ffd93b'; ctx.beginPath(); ctx.arc(-2, 0, 3, 0, 7); ctx.fill(); ctx.stroke(); ctx.restore();
+    ctx.font = 'italic 800 12px Nunito, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#3a78c8'; ctx.fillText('you', px, py + 22 + bob); }
   // corner brackets round the square under the pointer
   if (state.hover) { const [x, y] = toPx(state.hover.col * CELL - EXTENT / 2, state.hover.row * CELL - EXTENT / 2, v), w = CELL * k, b = Math.min(14, w * 0.25);
     ctx.strokeStyle = '#3a2a1a'; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
@@ -185,7 +197,7 @@ function stats() {
   const fs = features(), islets = fs.filter(f => f.kind === 'islet'), been = (state.info.islets || []).length, far = fs.filter(f => f.kind === 'sky');
   root.querySelector('#chart-stats').innerHTML = `<div><span>🏝️</span><b>${1 + been + fs.filter(f => f.kind === 'town').length + (state.info.far || []).length}</b><small>of ${fs.length} islands charted</small></div>
     <div><span>⛵</span><b>${been}/${islets.length}</b><small>islets rowed to</small></div>
-    <div><span>🏘️</span><b>${fs.filter(f => f.kind === 'town').length}</b><small>neighbouring towns</small></div>
+    <div><span>🏘️</span><b>${fs.filter(f => f.kind === 'town' && !f.lone).length}</b><small>neighbouring towns · ${fs.filter(f => f.lone).length} lone islands</small></div>
     <div><span>☁️</span><b>${far.length}</b><small>big islands (${(state.info.far || []).length} visited)</small></div>`;
 }
 function loop() { state.t += 1 / 60; draw(); state.raf = requestAnimationFrame(loop); }
@@ -194,7 +206,7 @@ function loop() { state.t += 1 / 60; draw(); state.raf = requestAnimationFrame(l
 export function openChart(info = {}) {
   if (!root) build();
   state.info = info; root.hidden = false; document.body.classList.add('charting');
-  const sq = info.at && squareAt(info.at.x, info.at.z); if (sq) state.sel = sq;
+  const sq = (info.cam && squareAt(info.cam.x, info.cam.z)) || (info.at && squareAt(info.at.x, info.at.z)); if (sq) state.sel = sq;   // roaming: open where the camera is
   requestAnimationFrame(() => { size(); stats(); detail(); cancelAnimationFrame(state.raf); loop(); });
 }
 export function updateChart(info) { if (root && !root.hidden) { state.info = { ...state.info, ...info }; } }

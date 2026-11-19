@@ -70,12 +70,13 @@ export function buildFarIslands(scene) {
         float gap = smoothstep(0.0, 0.09, f.x) * smoothstep(1.0, 0.91, f.x) * smoothstep(0.0, 0.13, f.y) * smoothstep(1.0, 0.87, f.y);
         diffuseColor.rgb *= (0.78 + 0.34 * h) * mix(0.42, 1.0, gap);`); }; return m; };
   const bloomPool = waterMaterial({ deep: 0x123c40, mid: 0x2a6a6a, foam: 0xcfe8e2, scale: 2.4, speed: 0.12, flow: [0.01, 0.0] });
-  const bloomRiver = waterMaterial({ deep: 0x2fbfb0, mid: 0xe9c25a, foam: 0xfff6dc, scale: 1.5, speed: 0.55, flow: [0.12, 0.04] });
-  whenKit(() => { const m = kitModel('IslandBloom', { bloom_flowers: speckled(0x5a6ae6), bloom_flowers_dark: speckled(0x4352c8), bloom_flowers_light: speckled(0x7f8cf2), bloom_river: bloomRiver, bloom_pool: bloomPool, bloom_wall: stony(0x8f8a80), bloom_cope: stony(0xb3aea3) }); if (m) bloom.add(m);
-    const pad = kitModel('Sky_Pad'); if (pad) { pad.scale.setScalar(0.7); pad.position.set(B.spots.pad[0], 0, -B.spots.pad[1]); bloom.add(pad); }
-    for (let i = 0; i < 5; i++) { const g = kitParts('Goat'); if (!g) break; g.scale.setScalar(0.85 + Math.random() * 0.3); const a = Math.random() * 6.28, r = Math.random() * 8;
+  const bloomRiver = waterMaterial({ deep: 0x1f9bb0, mid: 0x46c6c4, foam: 0xf2cf62, scale: 1.1, speed: 0.6, flow: [0.12, 0.04] });   // teal water, marbled with gold
+  const bloomFall = waterMaterial({ deep: 0x2aa9bc, mid: 0x6fd8cf, foam: 0xf3d77a, fall: 'world', scale: 4.5, speed: 0.9 });
+  whenKit(() => { const m = kitModel('IslandBloom', { bloom_flowers: speckled(0x5a6ae6), bloom_flowers_dark: speckled(0x4352c8), bloom_flowers_light: speckled(0x7f8cf2), bloom_river: bloomRiver, bloom_fall: bloomFall, bloom_pool: bloomPool, bloom_wall: stony(0x8f8a80), bloom_cope: stony(0xb3aea3) }); if (m) bloom.add(m);
+    const pad = kitModel('Sky_Pad'); if (pad) { pad.scale.setScalar(0.7 * 2.2 / B.scale); pad.position.set(B.spots.pad[0], 0, -B.spots.pad[1]); bloom.add(pad); }
+    for (let i = 0; i < 5; i++) { const g = kitParts('Goat'); if (!g) break; g.scale.setScalar((0.85 + Math.random() * 0.3) * 2.2 / B.scale); const a = Math.random() * 6.28, r = Math.random() * 8;
       g.position.set(Math.cos(a) * r, 0, -Math.sin(a) * r); g.userData.goat = { tx: g.position.x, tz: g.position.z, wait: Math.random() * 6, step: Math.random() * 6, legs: ['FL', 'FR', 'BL', 'BR'].map(k => g.getObjectByName(`GoatLeg${k}`)), head: g.getObjectByName('GoatHead') }; bloom.add(g); goats.push(g); } });
-  const goats = [];
+  const goats = [];   // (goats are scaled by 2.2 / B.scale so they stay goat-sized however big the island is drawn)
   // the Old Hotel, empty but for one lit window
   const ruin = new THREE.Group(), RU = RUIN_ISLE; ruin.position.set(Math.cos(RU.a) * RU.r, RU.y, Math.sin(RU.a) * RU.r); ruin.scale.setScalar(RU.scale); ruin.rotation.y = isleTurn(RU); scene.add(ruin);
   const ruinPond = waterMaterial({ deep: 0x2c5a63, mid: 0x4f8790, foam: 0xdfeee9, scale: 2.0, speed: 0.15, flow: [0.02, 0.0] });
