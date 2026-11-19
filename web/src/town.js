@@ -8,6 +8,7 @@ import { drawPicture } from './art.js';
 import { pastel } from './palette.js';
 import { waterMaterial } from './water.js';
 import { buildRim, buildPromenade } from './rim.js';
+import { buildRoots, tickRoots } from './roots.js';
 import { makeTree, makeBush, setTreeSeason, tickTrees } from './trees.js';
 import { whenKit, kitModel, kitParts, kitGeometry, kitBuilding } from './kit.js';
 import { HOUSE_LOOKS, FLAGS } from '../../shared/data.js';
@@ -43,6 +44,7 @@ export function buildTown() {
   mesh(new THREE.CylinderGeometry(R, R - 1.5, 0.6, 48), grassMat, 0, -0.3, 0);
   mesh(new THREE.CylinderGeometry(R - 1.2, R - 6, 3.2, 28), flat(0x9a6e52), 0, -2.2, 0);   // brown earth under the grass, like the reference rim
   mesh(new THREE.CylinderGeometry(R - 6.5, R - 16, 5, 9), flat(P.rockDark), 0, -6.2, 0);
+  buildRoots(town, { top: -8.6, bottomR: R - 17, sideY: -4.3, sideR: R - 8.5 });   // roots hanging from underneath
   const inBeach = (x, z) => { const a = Math.atan2(z, x); return a > BEACH.from - 0.08 && a < BEACH.to + 0.08 && Math.hypot(x, z) > BEACH.inner - 1; };
   const nearRiver = (x, z, pad) => riverBand(x, z, pad) || RIVER.some(([rx, rz]) => Math.hypot(rx - x, rz - z) < pad);
   for (let i = 0; i < 44; i++) {
@@ -383,7 +385,7 @@ export function buildTown() {
   function setWind(w, t) {
     blades.material.uniforms.uWind.value += (w - blades.material.uniforms.uWind.value) * 0.05;   // grass leans more in a breeze
     tickPetals(t, Math.min(0.1, t - (bigTree.lastT ?? t)), w); bigTree.lastT = t;
-    tickTrees(t, w);
+    tickTrees(t, w); tickRoots(t, w);
     for (const g of swayers) { g.rotation.z = Math.sin(t * 1.6 + g.id) * 0.04 * w + 0.05 * w; g.rotation.x = Math.cos(t * 1.3 + g.id) * 0.03 * w; }
     const f = town.userData.flagCloth; if (f) { f.rotation.y = Math.sin(t * (2 + w * 6)) * (0.25 + w * 0.35); f.rotation.z = -0.15 * (1 - w); }
   }
