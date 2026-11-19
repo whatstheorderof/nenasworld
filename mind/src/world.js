@@ -2,7 +2,7 @@
 // things that turn up on the island. Pure code, no model. It ticks 20 times a second
 // and decides what is possible; the brain only chooses among what the world offers.
 // (No Node imports here, so the browser can run it too.)
-import { PLACES, NEEDS, NEIGHBOURS, BEACH, ISLETS, SKY_ISLANDS, WORLD, route, blocked, freeSpot } from '../../shared/world.js';
+import { PLACES, NEEDS, NEIGHBOURS, BEACH, ISLETS, SKY_ISLANDS, TRIP_ISLES, WORLD, route, blocked, freeSpot } from '../../shared/world.js';
 import { ACTIONS, calendar, currentEvent, painterIn, SEASON_WEATHER, STORM_SAFE } from '../../shared/data.js';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
@@ -94,7 +94,7 @@ export class World {
     else { for (let i = 0; i < 20; i++) { const ang = Math.random() * Math.PI * 2, r = 4 + Math.random() * (WORLD.radius - 14); target = { x: Math.cos(ang) * r, z: Math.sin(ang) * r }; if (!blocked(target.x, target.z, 1.5)) break; } }
     if (action === 'boat_trip') a.islet = Math.floor(Math.random() * ISLETS.length);
     if (action === 'voyage') {   // which big island, and the spots she will visit there (one at least for food)
-      const seen = this.life?.s?.farVisited || {}, isl = [...SKY_ISLANDS].sort((x, y) => (seen[x.id] || 0) - (seen[y.id] || 0) + (Math.random() - 0.5) * 0.8)[0];
+      const seen = this.life?.s?.farVisited || {}, isl = [...TRIP_ISLES].sort((x, y) => (seen[x.id] || 0) - (seen[y.id] || 0) + (Math.random() - 0.5) * 0.8)[0];
       const keys = Object.keys(isl.spots).filter(k => k !== 'pad'), food = keys.filter(k => isl.spots[k][2]?.food), rest = keys.filter(k => !food.includes(k)).sort(() => Math.random() - 0.5);
       const first = food[Math.floor(Math.random() * food.length)]; a.isle = isl.id; a.route = [first, ...rest.slice(0, 3)].sort(() => Math.random() - 0.5);
       a.label = `flying the balloon to ${isl.name}`; }

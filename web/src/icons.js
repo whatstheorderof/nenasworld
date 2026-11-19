@@ -131,6 +131,11 @@ const I = {
   pencil: () => path('M10 38 L12 30 L32 10 L38 16 L18 36 Z', '#ffd24a') + path('M10 38 L12 30 L18 36 Z', '#f3dc9b') + path('M32 10 L38 16 L40 14 C41 12 36 7 34 8 Z', '#ff9dbb'), tent: () => path('M6 40 L24 8 L42 40 Z', '#2f9a7f') + path('M24 8 L24 40 L18 40 Z', '#1f7a62') + line('M24 8 L28 3', 2.2),
   dish: () => plate(ell(24, 26, 9, 4, '#ff9a5a') + dot(20, 25, 1.6, '#e8584a') + dot(27, 25, 1.6, '#7cc15a')), cake: () => plate(path('M14 26 L34 26 L34 18 L14 18 Z', '#f3dc9b') + path('M14 18 L34 18 Q30 12 24 12 Q18 12 14 18 Z', '#ff9dbb') + circ(24, 10, 2.6, '#e8452c')),
   soup: () => path('M8 22 L40 22 C40 34 32 40 24 40 C16 40 8 34 8 22 Z', '#7fd3c8') + ell(24, 22, 16, 4, '#ff9a5a') + line('M18 14 Q20 10 18 6 M26 14 Q28 10 26 6', 2, '#b4bcc8'),
+  bluebells: () => line('M16 42 Q18 26 14 12 M26 42 Q26 26 28 14 M34 42 Q32 30 36 20', 2.2, '#4fae52') + [[14, 12], [16, 20], [28, 14], [27, 23], [36, 20], [34, 28]].map(([x, y]) => path(`M${x - 4} ${y} Q${x} ${y - 7} ${x + 4} ${y} L${x + 3} ${y + 3} L${x} ${y + 1} L${x - 3} ${y + 3} Z`, '#6a7ce8')).join(''),
+  'goat wool': () => circ(18, 26, 9, '#f6eedd') + circ(29, 22, 10, '#fbf5e8') + circ(30, 32, 8, '#ece0c6') + line('M10 36 Q24 40 38 34', 1.4, '#c9b89a'),
+  'goat cheese': () => path('M8 32 L24 14 L40 32 L40 38 L8 38 Z', '#fff1c8') + path('M8 32 L40 32', 'none') + circ(18, 33, 2.4, '#f3dc9b') + circ(30, 30, 1.8, '#f3dc9b') + circ(25, 24, 1.6, '#f3dc9b'),
+  goat: () => ell(26, 28, 13, 9, '#f4ecdc') + circ(12, 20, 7, '#f4ecdc') + line('M10 14 Q6 6 12 4 M15 14 Q14 6 20 5', 2.4, '#5a4a3e') + dot(10, 19, 1.6) + line('M18 36 L18 44 M24 37 L24 44 M30 37 L30 44 M36 35 L36 43', 2.6),
+  bloom_isle: () => ell(24, 32, 20, 9, '#5a6ae6') + circ(14, 28, 7, '#7f8cf2') + circ(32, 27, 8, '#4352c8') + line('M6 33 Q20 26 30 32 T44 30', 3, '#e9c25a') + dot(12, 26, 1.2, '#fff') + dot(30, 24, 1.2, '#fff') + dot(20, 31, 1.2, '#fff'),
   unknown: () => path('M8 32 C6 20 18 12 28 14 C38 16 44 26 40 34 C36 40 12 40 8 32 Z', '#e6dcc4') + `<text x="24" y="33" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="900" font-size="18" fill="${L}">?</text>`,
 };
 // hats and glasses come in many names; draw them from their colour words

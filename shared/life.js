@@ -2,7 +2,7 @@
 // what she has built and where she put it, her house, her scarves, her friendships.
 // Pure logic with an injected store, so the same code runs on the server and in the browser.
 import { SPECIES, MATERIAL_VALUE, RECIPES, SHOP, SCARVES, HOUSE_LOOKS, HOUSE_LOAN, SEASON_FIND, SONGS, STAMPS, FLAGS, BLOOMS, HATS, CLOTHES_PRICE, SKY, SKY_RARE, GLASSES, crossBloom, catchOne, calendar } from './data.js';
-import { NEIGHBOURS, CAMPERS, ISLETS, SKY_ISLANDS, FORAGE, WORLD, K, LAYOUT_K, SQUARE, freeSpot, freeNear, blocked } from './world.js';
+import { NEIGHBOURS, CAMPERS, ISLETS, SKY_ISLANDS, TRIP_ISLES, FORAGE, WORLD, K, LAYOUT_K, SQUARE, freeSpot, freeNear, blocked } from './world.js';
 
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
@@ -134,7 +134,7 @@ export class Life {
       case 'plant_tree': { if (!a.at) return null; this.add('sapling', -1); this.place('tree', a.at, day); return { text: 'planted a tree. it will take a few days', remember: `i planted a tree on day ${day}` }; }
       case 'cook': { const wild = FORAGE.filter(k => this.count(k) > 0);
         if (wild.length && Math.random() < 0.7) { const k = pick(wild); this.add(k, -1);
-          const dish = { dates: 'sticky date cakes', 'cactus fruit': 'pink prickly-pear jam on toast', 'wild berries': 'a wild berry crumble', honeycomb: 'honey pancakes', mushroom: 'mushrooms on toast', 'ice fish': 'crispy ice fish', 'snow berries': 'snow berry tea and a tart' }[k] || k;
+          const dish = { dates: 'sticky date cakes', 'cactus fruit': 'pink prickly-pear jam on toast', 'wild berries': 'a wild berry crumble', honeycomb: 'honey pancakes', mushroom: 'mushrooms on toast', 'ice fish': 'crispy ice fish', 'snow berries': 'snow berry tea and a tart', 'goat cheese': 'goat cheese on toast with a bluebell on top' }[k] || k;
           return { text: `made ${dish} with what she brought back from the far islands`, lift: 0.15 }; }
         const fish = Object.keys(s.items).find(k => SPECIES[k]?.cat === 'fish' && (this.has(k) || s.items[k] > 1)) || Object.keys(s.items).find(k => SPECIES[k]?.cat === 'fish');
         if (this.count('veg') && (fish || this.count('fruit'))) { this.add('veg', -1); if (fish) this.add(fish, -1); else this.add('fruit', -1); return { text: fish ? `made ${fish} and vegetable stew` : 'made a vegetable and fruit pie', lift: 0.15 }; }
@@ -189,7 +189,7 @@ export class Life {
       case 'design_flag': { s.look.flag = ((s.look.flag || 0) + rint(1, FLAGS.length - 1)) % FLAGS.length; s.look.flagDay = day; return { text: 'designed a new flag for the square', say: 'that is our flag now.', lift: 0.2 }; }
       case 'compose_tune': { const syl = ['do', 'la', 'pip', 'bo', 'su', 'mi', 'na', 'ne', 'fa', 'lo']; s.tune = Array.from({ length: 6 }, () => pick(syl)).join('-'); s.tuneDay = day; return { text: `made up a new island tune: ${s.tune}`, remember: `the island tune goes ${s.tune}` }; }
       case 'voyage': {   // a day out on a big island: wild food, rare finds, and things to draw later
-        const isl = SKY_ISLANDS.find(x => x.id === a.isle) || SKY_ISLANDS[0], seen = (s.farVisited ||= {}); s.voyDay = day; seen[isl.id] = (seen[isl.id] || 0) + 1;
+        const isl = TRIP_ISLES.find(x => x.id === a.isle) || SKY_ISLANDS[0], seen = (s.farVisited ||= {}); s.voyDay = day; seen[isl.id] = (seen[isl.id] || 0) + 1;
         const got = [], did = [];
         for (const k of a.route || []) { const sp = isl.spots[k]?.[2]; if (!sp) continue; did.push(sp.does);
           if (sp.food) { const n = rint(2, 3); this.add(sp.food, n); got.push(`${n} ${sp.food}`); }

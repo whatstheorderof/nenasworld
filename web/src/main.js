@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, site } from '../../shared/world.js';
+import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, TRIP_ISLES, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, site } from '../../shared/world.js';
 import { kitModel as kitM, whenKit as whenK } from './kit.js';
 import { icon } from './icons.js';
 import { WEATHER_WORDS, FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
@@ -413,7 +413,7 @@ async function show(name) {
           ${l.tune ? `<h3>Island tune</h3><div class="card-row">${icon('record')} ${esc(l.tune)}</div>` : ''}`;
       } else if (tab === 'travels') {
         const far = l.farVisited || {};
-        html = `<h3>Big islands <span class="dim">${Object.keys(far).length}/${SKY_ISLANDS.length}</span></h3><div class="travel">${SKY_ISLANDS.map(isl => `<div class="${far[isl.id] ? 'been' : ''}"><span>${icon({ ember: 'ember', wood: 'wood_isle', glass: 'glass' }[isl.id])}</span><b>${esc(cap(isl.name))}</b><small>${far[isl.id] ? `visited ${far[isl.id]} time${far[isl.id] > 1 ? 's' : ''}` : 'not yet'}</small></div>`).join('')}</div>
+        html = `<h3>By balloon <span class="dim">${TRIP_ISLES.filter(i => far[i.id]).length}/${TRIP_ISLES.length}</span></h3><div class="travel">${TRIP_ISLES.map(isl => `<div class="${far[isl.id] ? 'been' : ''}"><span>${icon({ ember: 'ember', wood: 'wood_isle', glass: 'glass', bloom: 'bloom_isle' }[isl.id])}</span><b>${esc(cap(isl.name))}</b><small>${far[isl.id] ? `visited ${far[isl.id]} time${far[isl.id] > 1 ? 's' : ''}` : 'not yet'}</small></div>`).join('')}</div>
           <h3>Islets <span class="dim">${l.islets.length}/${ISLETS.length}</span></h3><div class="travel">${ISLETS.map(isl => `<div class="${l.islets.includes(isl.name) ? 'been' : ''}"><span>${icon('islet')}</span><b>${esc(isl.name)}</b><small>${l.islets.includes(isl.name) ? 'rowed to' : 'not yet'}</small></div>`).join('')}</div>
           <h3>Travellers met <span class="dim">${l.metCampers.length}/${CAMPERS.length}</span></h3><div class="travel">${CAMPERS.map(c => { const met = l.metCampers.includes(c.name), home = TOWN_ISLANDS.find(t => t.id === c.home); return `<div class="${met ? 'been' : ''}"><span>${icon(c.kind)}</span><b>${met ? esc(c.name) : '?'}</b><small>${met ? `the ${esc(c.kind)}, from ${esc(home?.name || 'far off')}` : 'not met yet'}</small></div>`; }).join('')}</div>
           ${l.camper ? `<div class="banner">${icon('tent')} ${esc(l.camper.name)} the ${esc(l.camper.kind)} is at the campsite today${l.camper.from ? `, over from ${esc(l.camper.from)}` : ''}.</div>` : ''}
@@ -622,7 +622,7 @@ whenK(() => { const b = kitM('SkyBalloon', { glow_flame: new THREE.MeshBasicMate
 // where she and the balloon are during a trip: flying out (first 10%), walking from spot to spot, flying home (last 10%)
 const V3 = THREE.Vector3;
 function voyagePose(act) {
-  const isl = SKY_ISLANDS.find(i => i.id === act.isle); if (!isl) return null;
+  const isl = TRIP_ISLES.find(i => i.id === act.isle); if (!isl) return null;
   const p = act.progress || 0, home = new V3(BALLOON.x, 0.45, BALLOON.z), padP = isleSpot(isl, 'pad'), land = new V3(padP.x, padP.y, padP.z);
   if (p < 0.1 || p > 0.9) {
     const u = p < 0.1 ? p / 0.1 : 1 - (p - 0.9) / 0.1, e = u * u * (3 - 2 * u), b = home.clone().lerp(land, e); b.y += Math.sin(e * Math.PI) * 45;
@@ -701,7 +701,7 @@ function frame() {
   const dt = Math.min(0.1, clock.getDelta()); elapsed += dt;
   const act = now?.activity || { phase: 'idle', action: 'idle', anim: 'stand' };
   if (qs.has('ride')) { act.phase = 'walking'; act.ride = true; }   // preview her on the robot
-  if (qs.has('voyage')) { const [id, pr] = qs.get('voyage').split(':'), isl = SKY_ISLANDS.find(i => i.id === id) || SKY_ISLANDS[0]; Object.assign(act, { action: 'voyage', anim: 'voyage', phase: 'doing', isle: isl.id, route: Object.keys(isl.spots).filter(k => k !== 'pad').slice(0, 4), progress: window.__world?.vp ?? Number(pr || 0.5) }); }   // preview a trip: ?voyage=wood:0.5
+  if (qs.has('voyage')) { const [id, pr] = qs.get('voyage').split(':'), isl = TRIP_ISLES.find(i => i.id === id) || SKY_ISLANDS[0]; Object.assign(act, { action: 'voyage', anim: 'voyage', phase: 'doing', isle: isl.id, route: Object.keys(isl.spots).filter(k => k !== 'pad').slice(0, 4), progress: window.__world?.vp ?? Number(pr || 0.5) }); }   // preview a trip: ?voyage=wood:0.5
   if (qs.has('at')) { const [ax, az] = qs.get('at').split(',').map(Number); target.set(ax, 0, az); if (!qs.has('ride')) { act.phase = 'idle'; act.anim = 'stand'; } }   // preview: stand her somewhere
   const pos = nena.root.position, k = 1 - Math.exp(-dt * 6), doing = act.phase === 'doing';
 

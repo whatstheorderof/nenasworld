@@ -32,8 +32,9 @@ export function drawPicture(canvas, title, seed) {
   g.globalAlpha = 0.35; g.fillStyle = night ? '#2a3263' : pick(['#bfe8ff', '#cdf3ff', '#ffe3c2']); g.fillRect(4 * u, 4 * u, 92 * u, (top - 8) * u * 0.62); g.globalAlpha = 1;
   const groundY = top * 0.66;
   const water = has('pond', 'sea', 'river', 'water', 'boat', 'fish', 'whale', 'wave', 'lighthouse');
+  const bloom = has('goat', 'bluebell', 'gold river', 'terraces');
   const sand = has('volcano', 'hut', 'huts', 'sand', 'desert', 'oasis', 'cactus', 'dune'), ice = has('ice', 'ruin', 'snow', 'frozen'), wood = has('giant tree', 'fairy', 'forest', 'toadstool');
-  const [gl, gf] = ice ? ['#7fb8d8', '#e6f6ff'] : sand ? ['#c98a3a', '#f4d48e'] : water && !wood ? ['#2f7f9a', '#9fd6f0'] : wood ? ['#3f8f4f', '#8fcf6a'] : ['#4fae52', '#b4dc5a'];
+  const [gl, gf] = bloom ? ['#3a48b8', '#6a7ce8'] : ice ? ['#7fb8d8', '#e6f6ff'] : sand ? ['#c98a3a', '#f4d48e'] : water && !wood ? ['#2f7f9a', '#9fd6f0'] : wood ? ['#3f8f4f', '#8fcf6a'] : ['#4fae52', '#b4dc5a'];
   stroke([[4, groundY], [30, groundY - 2], [60, groundY + 1], [96, groundY - 1], [96, top - 4], [4, top - 4]], gl, 1.2, true, gf);
 
   // something in the sky
@@ -66,6 +67,12 @@ export function drawPicture(canvas, title, seed) {
       stroke([[x - 3.5, groundY + 4], [x - 3.5, groundY + 4 - h], [x + 3.5, groundY + 4 - h + (broke ? 3 : 0)], [x + 3.5, groundY + 4]], '#8f8a80', 1.3, true, '#e8e4dc');
       stroke([[x - 1.2, groundY + 3], [x - 1.2, groundY + 6 - h]], '#c9c2b4', 0.7); stroke([[x + 1.2, groundY + 3], [x + 1.2, groundY + 6 - h]], '#c9c2b4', 0.7); }
     stroke([[cx - 26, groundY + 4], [cx + 26, groundY + 4]], '#7fb8d8', 1.4); for (let i = 0; i < 3; i++) stroke([[cx - 20 + i * 15, groundY + 12], [cx - 14 + i * 15, groundY + 10]], '#3fa56a', 1.1); }
+  if (bloom) { drew = true; blob(cx - 18, groundY + 2, 16, 6, '#3a48b8', '#7f8cf2', 14); blob(cx + 20, groundY + 1, 18, 7, '#3a48b8', '#5a6ae6', 14);
+    stroke([[4, groundY + 12], [30, groundY + 7], [52, groundY + 10], [96, groundY + 5]], '#c9a43a', 3.4); stroke([[4, groundY + 12], [30, groundY + 7], [52, groundY + 10], [96, groundY + 5]], '#5fd6c4', 1.2);
+    for (let i = 0; i < 26; i++) blob(8 + r() * 84, groundY - 2 + r() * 16, 0.6, 0.6, '#fff', r() < 0.5 ? '#fff' : '#c9c2ff', 5);
+    if (has('goat')) for (const [gx, gy, k] of [[cx - 12, groundY + 2, 1], [cx + 14, groundY - 1, 0.8]]) {
+      blob(gx, gy - 5 * k, 6 * k, 3.6 * k, '#8a7a66', '#f4ecdc', 10); blob(gx - 6 * k, gy - 8.5 * k, 2.6 * k, 2.4 * k, '#8a7a66', '#f4ecdc', 8);
+      stroke([[gx - 7 * k, gy - 10.5 * k], [gx - 9 * k, gy - 14 * k], [gx - 6.5 * k, gy - 15 * k]], '#5a4a3e', 1.3); for (const lx of [-3.5, -1, 2, 4]) stroke([[gx + lx * k, gy - 2.5 * k], [gx + lx * k, gy + 1.5 * k]], '#8a7a66', 1.2); } }
   if (has('under the ice', 'light under')) { drew = true; blob(cx, groundY + 9, 18, 5, '#1f4f8a', '#2f6fb0'); blob(cx, groundY + 9, 9, 2.6, '#7fe6ff', '#bff6ff');
     for (let i = -2; i <= 2; i++) stroke([[cx + i * 3, groundY + 7], [cx + i * 7, groundY - 20]], '#9cf6ff', 1.2);
     for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283; stroke([[cx + Math.cos(a) * 21, groundY + 9 + Math.sin(a) * 6], [cx + Math.cos(a) * 25, groundY + 9 + Math.sin(a) * 7]], '#7fb8d8', 2.4); } }
