@@ -380,6 +380,7 @@ export function buildTown() {
     for (const f of torches) { f.scale.y = 1 + Math.sin(t * 11 + f.id) * 0.12 * night; f.material.emissiveIntensity = night * (1.4 + Math.sin(t * 7 + f.id) * 0.4); }
     bulbs.forEach((b, i) => { const k = night > 0.25 ? 0.55 + 0.45 * Math.max(0, Math.sin(t * 1.7 + b.ph)) * night + night * 0.45 : 0.55; fairyMesh.setColorAt(i, tmpC.copy(b.c).multiplyScalar(night > 0.25 ? k * 1.6 : 0.55)); });
     fairyMesh.instanceColor.needsUpdate = true;
+    if (bigTree.flies) { const n = Math.max(0, Math.min(1, (night - 0.15) / 0.5)); bigTree.flies.uniforms.uNight.value = n; bigTree.flies.uniforms.uTime.value = t; bigTree.glow.intensity = n * 40 * (0.85 + 0.15 * Math.sin(t * 0.7)); }
   }
   // wind: trees lean and sway, the flag streams out
   function setWind(w, t) {
@@ -714,14 +715,39 @@ export function buildTown() {
   const bigTree = { leaves: null, mats: [0xf2a0b4, 0xf7c2cf, 0xe58aa2].map(c => new THREE.MeshLambertMaterial({ color: c, flatShading: true })), petals: null };
   { const g = at('bigtree'); g.scale.setScalar(1.5);   // a landmark: towers over the pines
     mesh(new THREE.CylinderGeometry(0.5, 0.9, 6.5, 7), flat(0x9c6b5a), 0, 3.2, -1, g); mesh(new THREE.DodecahedronGeometry(4.2, 0), bigTree.mats[0], 0, 8.5, -1.5, g);
-    building(g, 'BigTree', { bigtree_leaf: bigTree.mats[0], bigtree_leaf2: bigTree.mats[1], bigtree_leaf3: bigTree.mats[2] }, null, [0, 0], {}, 'none', b => { bigTree.leaves = b.parts.LiveLeaves || null; if (bigTree.leaves) bigTree.leaves.visible = bigTree.petals.visible; });
+    building(g, 'BigTree', { bigtree_leaf: bigTree.mats[0], bigtree_leaf2: bigTree.mats[1], bigtree_leaf3: bigTree.mats[2] }, null, [0, 0], {}, 'none', b => { bigTree.leaves = b.parts.LiveLeaves || null; if (bigTree.leaves && bigTree.flies) { g.updateWorldMatrix(true, true); const bx = new THREE.Box3().setFromObject(bigTree.leaves), c = bx.getCenter(new THREE.Vector3()), sz = bx.getSize(new THREE.Vector3()); g.worldToLocal(c); const k = 1 / g.scale.x; bigTree.flies.uniforms.uC.value.copy(c); bigTree.flies.uniforms.uR.value.set(sz.x * k * 0.5, sz.y * k * 0.5, sz.z * k * 0.5); bigTree.glow.position.copy(c); } if (bigTree.leaves) bigTree.leaves.visible = bigTree.petals.visible; });
     // petals: little flat pieces that fall from the canopy, drift on the wind and start again at the top
     const N = 160, geo = new THREE.BufferGeometry(), pos = new Float32Array(N * 3), seeds = [];
     for (let i = 0; i < N; i++) { const p = [(rand() - 0.5) * 9, 2 + rand() * 8, -1 - rand() * 4 + (rand() - 0.5) * 3]; pos.set(p, i * 3); seeds.push({ x: p[0], z: p[2], sp: 0.45 + rand() * 0.6, ph: rand() * 6.28, top: 7 + rand() * 3.5 }); }
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const pm = new THREE.PointsMaterial({ color: 0xf7b8c8, size: 0.16, transparent: true, opacity: 0.95, depthWrite: false });
-    bigTree.petals = new THREE.Points(geo, pm); bigTree.petals.frustumCulled = false; g.add(bigTree.petals); bigTree.seeds = seeds;
-    town.userData.bigTree = g; }
+    bigTree.petals = new THREE.Points(geo, pm); bigTree.petals.frustumCulled = false; bigTree.petals.userData.keep = true; g.add(bigTree.petals); bigTree.seeds = seeds;   // keep: the model swap clears everything else
+    town.userData.bigTree = g;
+    // fireflies: the big tree is where they gather. At dusk they come out in the canopy and round the trunk,
+    // drifting and twinkling, so the tree looks strung with fairy lights.
+    const NF = 380, fgeo = new THREE.BufferGeometry(), home = new Float32Array(NF * 3), seed = new Float32Array(NF * 4);
+    for (let i = 0; i < NF; i++) { const kind = rand(), a = rand() * 6.283, u = rand() * 2 - 1, sq = Math.sqrt(1 - u * u);
+      let p;
+      if (kind < 0.62) { const r = 0.8 + rand() * 0.35; p = [Math.cos(a) * sq * r, u * r * 0.8, Math.sin(a) * sq * r]; }               // in and just outside the canopy
+      else if (kind < 0.86) { const r = 0.12 + rand() * 0.22; p = [Math.cos(a) * r, -1.15 - rand() * 1.1, Math.sin(a) * r]; }          // round the trunk, down to the grass
+      else { const r = 1.2 + rand() * 0.7; p = [Math.cos(a) * r, -1.6 + rand() * 1.9, Math.sin(a) * r]; }                                 // a few out wandering
+      home.set(p, i * 3); seed.set([rand() * 6.283, 0.35 + rand() * 0.7, 0.25 + rand() * 0.6, rand()], i * 4); }
+    fgeo.setAttribute('position', new THREE.BufferAttribute(home, 3)); fgeo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 4));
+    bigTree.flies = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uC: { value: new THREE.Vector3(0, 8.5, -1.5) }, uR: { value: new THREE.Vector3(5, 3.2, 5) } },
+      vertexShader: `uniform float uTime, uNight; uniform vec3 uC, uR; attribute vec4 aSeed; varying float vA; varying vec3 vCol;
+        void main() { float t = uTime * aSeed.y, ph = aSeed.x, amp = aSeed.z;
+          vec3 p = uC + position * uR + vec3(sin(t + ph) * amp, sin(t * 0.7 + ph * 2.0) * amp * 0.5, cos(t * 0.83 + ph * 1.3) * amp);
+          vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv;
+          float tw = 0.5 + 0.5 * sin(uTime * (1.2 + aSeed.y * 2.0) + ph * 3.0); vA = uNight * (0.35 + 0.65 * tw * tw);
+          vCol = aSeed.w < 0.55 ? vec3(1.0, 0.86, 0.45) : aSeed.w < 0.85 ? vec3(1.0, 0.95, 0.75) : vec3(0.78, 1.0, 0.5);   // warm gold, warm white, a few green
+          gl_PointSize = (4.0 + 5.0 * tw) * 70.0 / max(1.0, -mv.z) * (uNight > 0.01 ? 1.0 : 0.0); }`,
+      fragmentShader: `varying float vA; varying vec3 vCol;
+        void main() { float d = length(gl_PointCoord - 0.5); float halo = smoothstep(0.5, 0.0, d); halo *= halo; float core = smoothstep(0.16, 0.0, d);
+          gl_FragColor = vec4(vCol * (0.8 + 1.6 * core), (halo * 0.7 + core) * vA); }` });
+    bigTree.fly = new THREE.Points(fgeo, bigTree.flies); bigTree.fly.frustumCulled = false; bigTree.fly.userData.keep = true; g.add(bigTree.fly);
+    bigTree.glow = new THREE.PointLight(0xffd88a, 0, 22, 2); bigTree.glow.position.set(0, 7.5, -1.5); bigTree.glow.userData.keep = true; g.add(bigTree.glow);   // a soft warm wash on the tree at night
+  }
   function tickPetals(t, dt, wind) {
     const p = bigTree.petals; if (!p || !p.visible) return;
     const a = p.geometry.attributes.position, arr = a.array;
