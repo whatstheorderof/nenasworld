@@ -199,3 +199,56 @@ body.charting #nav, body.charting #status, body.charting #tools { visibility: hi
   .chart-btns { grid-column: 1 / -1; } #chart-stats { display: none; } .chart-detail { max-height: 22vh; } .compass { width: 74px; height: 74px; }
   .chart-banner b { font-size: 15px; }
 }
+
+/* ---- Belongings and Creations -------------------------------------------------------- */
+.panel-head { display: flex; align-items: center; gap: 10px; padding-right: 30px; } .panel-head h2 { margin-bottom: 10px; }
+.purse { margin: 0 0 10px auto; background: #fff1d6; border: 2.5px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: 14px; font-weight: 800; }
+.tabs { display: flex; gap: 5px; overflow-x: auto; margin: 2px -4px 12px; padding: 2px 4px 6px; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { flex: 0 0 auto; background: #fff; border: 2.5px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 800; box-shadow: 0 2px 0 var(--line); }
+.tabs button.on { background: var(--orange); color: #fff; }
+.tab-body { animation: tab-in .2s ease-out; } @keyframes tab-in { from { opacity: 0; transform: translateY(4px); } }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.tiles.small { grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.tiles.wide { grid-template-columns: repeat(3, 1fr); }
+.tile { position: relative; display: grid; justify-items: center; align-content: start; gap: 2px; padding: 8px 4px 6px; background: #fff; border: 2.5px solid var(--line); border-radius: 12px; text-align: center; min-height: 74px; font: inherit; color: inherit; }
+button.tile { cursor: pointer; } button.tile:hover { background: #fff6e0; }
+.tile span { font-size: 24px; line-height: 1.1; }
+.tiles.small .tile { min-height: 58px; padding: 6px 2px 4px; } .tiles.small .tile span { font-size: 18px; }
+.tile b { position: absolute; top: -7px; right: -6px; min-width: 22px; padding: 0 5px; background: var(--orange); color: #fff; border: 2px solid var(--line); border-radius: 999px; font-size: 11px; line-height: 17px; }
+.tiles.wide .tile b { position: static; background: none; color: inherit; border: 0; font-size: 18px; }
+.tile small { font-size: 10px; font-weight: 800; line-height: 1.15; opacity: .75; overflow-wrap: anywhere; }
+.tile.unknown { background: #1d25450a; border-style: dashed; } .tile.unknown span { font-size: 18px; opacity: .35; font-weight: 900; }
+.tile.rare { background: linear-gradient(#fff, #fff4cf); border-color: #c99a1d; }
+.tile.worn { border-color: #e2a81c; box-shadow: 0 0 0 3px #ffd95a; }
+.banner { background: #fff1d6; border: 2.5px solid var(--line); border-radius: 12px; padding: 8px 12px; font-size: 13px; font-weight: 700; margin: 4px 0 10px; }
+.card-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #fff; border: 2.5px solid var(--line); border-radius: 12px; padding: 9px 12px; font-size: 14px; }
+.card-row.big { justify-content: space-between; font-size: 16px; font-weight: 800; margin-bottom: 6px; } .card-row.big b { font-size: 20px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 12px; font-weight: 700; }
+.swatches span { display: inline-flex; align-items: center; gap: 4px; }
+.swatches i { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--line); background: #1d254510; display: inline-block; }
+.swatches span.on i { box-shadow: 0 0 0 3px #ffd95a; }
+.chips-list { display: flex; flex-wrap: wrap; gap: 5px; } .chips-list span { background: #fff; border: 2px solid var(--line); border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 700; }
+.home-card { display: grid; gap: 5px; justify-items: center; text-align: center; background: linear-gradient(#e9f7ff, #fff); border: 2.5px solid var(--line); border-radius: 14px; padding: 12px; }
+.home-card .meter { width: 100%; } .home-card small { font-size: 12px; opacity: .7; font-weight: 700; }
+.house-lv { display: flex; gap: 8px; font-size: 30px; } .house-lv i { font-style: normal; filter: grayscale(1); opacity: .3; } .house-lv i.on { filter: none; opacity: 1; }
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 10px; }
+.stat-grid div { display: grid; justify-items: center; background: #fff; border: 2.5px solid var(--line); border-radius: 12px; padding: 8px 4px; text-align: center; }
+.stat-grid span { font-size: 20px; } .stat-grid b { font-size: 18px; font-weight: 900; } .stat-grid small { font-size: 10px; font-weight: 800; opacity: .7; }
+.travel { display: grid; gap: 6px; }
+.travel div { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center; background: #1d25450a; border: 2.5px dashed #1d254540; border-radius: 12px; padding: 6px 10px; }
+.travel div.been { background: #fff; border: 2.5px solid var(--line); }
+.travel span { grid-row: span 2; font-size: 24px; text-align: center; } .travel div:not(.been) span { filter: grayscale(1); opacity: .45; }
+.travel b { font-size: 14px; } .travel small { font-size: 11px; font-weight: 700; opacity: .7; }
+.friend { display: flex; justify-content: space-between; align-items: center; background: #fff; border: 2.5px solid var(--line); border-radius: 12px; padding: 8px 12px; margin-bottom: 6px; }
+.hearts { color: #ff5f8f; font-size: 16px; letter-spacing: 1px; } .hearts i { color: #1d254522; font-style: normal; }
+.gallery.framed figure { background: #fff; border: 2.5px solid var(--line); border-radius: 10px; padding: 6px; cursor: pointer; transition: transform .15s; }
+.gallery.framed figure:hover { transform: rotate(-1deg) scale(1.02); }
+.gallery.framed canvas { width: 100%; height: auto; border-radius: 4px; display: block; }
+.gallery.framed figcaption { display: grid; font-size: 12px; font-weight: 800; margin-top: 4px; line-height: 1.2; } .gallery.framed figcaption .dim { font-size: 10px; }
+.gallery.framed figure.big { grid-column: 1 / -1; transform: none; }
+.empty { text-align: center; padding: 22px 10px; background: #1d25450a; border: 2.5px dashed #1d254540; border-radius: 14px; font-weight: 700; }
+.dish { display: flex; align-items: center; gap: 10px; background: #fff; border: 2.5px solid var(--line); border-radius: 12px; padding: 7px 10px; margin-bottom: 6px; }
+.dish span { font-size: 24px; } .dish div { display: grid; } .dish b { font-size: 13px; } .dish small { font-size: 11px; opacity: .65; font-weight: 700; }
+.flag-card { display: flex; align-items: center; gap: 12px; } .flag { width: 70px; height: 44px; border: 3px solid var(--line); border-radius: 4px 10px 10px 4px; box-shadow: inset -8px 0 0 #00000014; }
+#panel { position: fixed; }
