@@ -86,6 +86,16 @@ const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xff
     }
   }
   clouds.add(inst); }
+// a second, far ring of big clouds round the horizon; not fogged (they are past the fog), tinted into the haze instead
+const farCloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5, flatShading: true, fog: false });
+{ const puff = new THREE.IcosahedronGeometry(1, 1), N = 70, PER = 8, inst = new THREE.InstancedMesh(puff, farCloudMat, N * PER), m = new THREE.Object3D();
+  let seed = 41; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (let c = 0, k = 0; c < N; c++) {
+    const a = c / N * 6.283 + rnd() * 0.08, r = 300 + rnd() * 230, y = -70 + rnd() * 95, size = 14 + rnd() * 18, cx = Math.cos(a) * r, cz = Math.sin(a) * r;
+    for (let i = 0; i < PER; i++, k++) { const s = size * (0.5 + rnd() * 0.55) * (i === 0 ? 1.35 : 1);
+      m.position.set(cx + (rnd() - 0.5) * size * 2.8 * Math.abs(Math.sin(a)) + (rnd() - 0.5) * size * 0.8, y + rnd() * size * 0.3, cz + (rnd() - 0.5) * size * 2.8 * Math.abs(Math.cos(a)) + (rnd() - 0.5) * size * 0.8);
+      m.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); m.scale.set(s, s * 0.55, s); m.updateMatrix(); inst.setMatrixAt(k, m.matrix); } }
+  inst.frustumCulled = false; clouds.add(inst); }
 const CLOUD = { day: new THREE.Color(0xffffff), dusk: new THREE.Color(0xffc2b0), night: new THREE.Color(0x2a3263) };
 
 // snow, and sparks used for both shooting stars and fireworks
@@ -144,7 +154,7 @@ function setSky(hour, weather, dt, show) {
   for (const key of Object.keys(wx)) wx[key] += ((weather === key ? 1 : 0) - wx[key]) * k;
   if (wx.mist > 0.01) sky.lerp(new THREE.Color(d > 0.5 ? 0xd8eef5 : 0x232a45), wx.mist * 0.6);
   scene.background = sky; scene.fog.color.copy(sky);
-  scene.fog.near = 130 - wx.mist * 118; scene.fog.far = 320 - wx.mist * 240;
+  scene.fog.near = 130 - wx.mist * 98; scene.fog.far = 320 - wx.mist * 195;   // misty, but she and the town stay in view
   hemi.intensity = 0.28 + d * 1.25; hemi.color.set(d > 0.5 ? 0xffffff : 0x8fa8ff); hemi.groundColor.set(d > 0.5 ? 0x9fd27a : 0x1d2545);
   sun.intensity = d * 2.0 + n * 0.25; sun.color.set(d > 0.5 ? 0xfff2d8 : 0x9bb4ff);
   stars.visible = false;   // the sky dome draws the stars now
@@ -152,6 +162,7 @@ function setSky(hour, weather, dt, show) {
   snow.material.opacity = wx.snow * 0.9;
   cloudMat.color.copy(CLOUD.night).lerp(CLOUD.day, d).lerp(CLOUD.dusk, 4 * d * (1 - d) * 0.6); if (wx.mist > 0.01) cloudMat.color.lerp(sky, wx.mist * 0.5); cloudMat.emissive.copy(cloudMat.color);
   clouds.rotation.y += dt * 0.004;
+  farCloudMat.color.copy(cloudMat.color).lerp(sky, 0.3 + wx.mist * 0.4); farCloudMat.emissive.copy(farCloudMat.color);
   bloom.strength = settings.quality === 'low' ? 0 : n * 0.45; bloom.enabled = settings.quality !== 'low';
   setWeatherFx(dt, d, n, performance.now() / 1000);
 
@@ -205,10 +216,11 @@ function setWeatherFx(dt, d, n, t) {
   if (fl > 0) sky.lerp(WHITE, fl * 0.45);
   scene.background = sky; scene.fog.color.copy(sky); document.body.style.background = `#${sky.getHexString()}`;
   skyDome.update(skyHour, d, sky, { grey, mist: wx.mist, flash: fl, meteors: wx.meteors }, dt, camera);
-  scene.fog.near -= wet * 70; scene.fog.far -= wet * 150;
+  scene.fog.near -= wet * 55; scene.fog.far -= wet * 110;
   hemi.intensity = hemi.intensity * (1 - grey * 0.45) + fl * 2.5 + wx.heat * 0.2 * d;
   sun.intensity = sun.intensity * (1 - grey * 0.75) + wx.heat * 0.6 * d;
   cloudMat.color.lerp(d > 0.5 ? new THREE.Color(0x7e8a99) : new THREE.Color(0x10142a), grey * 0.7); cloudMat.emissive.copy(cloudMat.color);
+  farCloudMat.color.copy(cloudMat.color).lerp(sky, 0.3 + wx.mist * 0.4); farCloudMat.emissive.copy(farCloudMat.color);
   clouds.rotation.y += dt * wx.wind * 0.03;
   // rain falls around wherever the camera is looking
   const wind = wx.wind * 6 + wx.storm * 4;
