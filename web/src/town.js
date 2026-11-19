@@ -63,7 +63,15 @@ export function buildTown() {
     for (const sd of [-1, 1]) { for (let i = 0; i <= 4; i++) { const u = i / 4 - 0.5; box(0.13, 0.95, 0.13, P.woodDark, u * len, 0.62 + Math.cos(u * Math.PI) * 0.32, sd * (wide / 2 - 0.05), g); }
       for (let i = 0; i < 4; i++) { const u0 = i / 4 - 0.5, u1 = u0 + 0.25, y0 = 1.1 + Math.cos(u0 * Math.PI) * 0.32, y1 = 1.1 + Math.cos(u1 * Math.PI) * 0.32, rl = box(len / 4 + 0.05, 0.11, 0.11, P.wood, (u0 + 0.125) * len, (y0 + y1) / 2, sd * (wide / 2 - 0.05), g); rl.rotation.z = Math.atan2(y1 - y0, len / 4); } }
     return g; };
-  const bridges = [];
+  const bridges = [], boardwalks = [];
+  // a wooden boardwalk across the sand from (x, z) along angle a, out past the edge to the sea, on little posts at the end
+  const boardwalk = ({ x, z, a }) => { const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = -a; town.add(g);
+    let L = 0; while (Math.hypot(x + Math.cos(a) * L, z + Math.sin(a) * L) < R + 3.2) L += 0.5;
+    const tones = [0xb88a5a, 0xa8784c, 0xc49866, 0x9e7046];
+    for (let u = 0.25, k = 0; u < L; u += 0.5, k++) { const out = Math.hypot(x + Math.cos(a) * u, z + Math.sin(a) * u) - R, y = out > 0 ? 0.05 : 0.12; box(0.42, 0.09, 2.0 + (rand() - 0.5) * 0.12, tones[k % 4], u, y, (rand() - 0.5) * 0.06, g); }
+    for (const sd of [-1, 1]) box(L, 0.1, 0.16, 0x7a5236, L / 2, 0.02, sd * 0.78, g);
+    for (let u = L - 4.2; u < L; u += 1.4) for (const sd of [-1, 1]) if (Math.hypot(x + Math.cos(a) * u, z + Math.sin(a) * u) > R - 0.5) box(0.2, 2.0, 0.2, 0x6a4a30, u, -0.95, sd * 0.85, g);
+    return g; };
 
   // pebble paths: a gravel bed with stones pressed into it, and a round pebble square in the middle
   { const bed = flat(0xe6dcc4), stones = [];
@@ -72,14 +80,17 @@ export function buildTown() {
     disc(0, 0, SQUARE + 0.1, 0.05);
     for (let ring = 0.45; ring < SQUARE - 0.2; ring += 0.36) { const n = Math.floor(ring * 2 * Math.PI / 0.36); for (let i = 0; i < n; i++) { const a = i / n * 6.283 + ring; lay(Math.cos(a) * ring, Math.sin(a) * ring); } }
     for (const line of PATHS) for (let i = 0; i < line.length - 1; i++) {
-      const a = line[i], b = line[i + 1], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz); if (len < 0.05) continue;
-      const strip = mesh(new THREE.PlaneGeometry(1.6, len), bed, (a.x + b.x) / 2, 0.052, (a.z + b.z) / 2); strip.rotation.x = -Math.PI / 2; strip.rotation.z = Math.atan2(dx, dz);
-      disc(a.x, a.z, 0.8, 0.051); if (i === line.length - 2) disc(b.x, b.z, 0.8, 0.051);   // round off the bends and ends
-      const nx = -dz / len, nz = dx / len;
-      for (let t = 0.1; t < len; t += 0.3) for (const off of [-0.54, -0.18, 0.18, 0.54]) { const j = rand() - 0.5, k = (rand() - 0.5) * 0.12, x = a.x + dx / len * (t + k) + nx * (off + j * 0.1), z = a.z + dz / len * (t + k) + nz * (off + j * 0.1); if (Math.hypot(x, z) > SQUARE - 0.3 && !inWater(x, z, 0.9)) lay(x, z); }
+      const a = line[i], b = line[i + 1], dx = b.x - a.x, dz = b.z - a.z, full = Math.hypot(dx, dz); if (full < 0.05) continue;
+      // where a path runs onto the beach, the pebbles stop at the sand and a boardwalk carries on to the water
+      let len = full; for (let t = 0; t <= full; t += 0.2) if (inBeach(a.x + dx / full * t, a.z + dz / full * t)) { len = t; if (!boardwalks.some(w => Math.hypot(w.x - a.x - dx / full * t, w.z - a.z - dz / full * t) < 3)) boardwalks.push({ x: a.x + dx / full * t, z: a.z + dz / full * t, a: Math.atan2(dz, dx) }); break; }
+      if (len < 0.05) continue;
+      const strip = mesh(new THREE.PlaneGeometry(1.6, len), bed, a.x + dx / full * len / 2, 0.052, a.z + dz / full * len / 2); strip.rotation.x = -Math.PI / 2; strip.rotation.z = Math.atan2(dx, dz);
+      disc(a.x, a.z, 0.8, 0.051); if (i === line.length - 2 && len === full) disc(b.x, b.z, 0.8, 0.051);   // round off the bends and ends
+      const nx = -dz / full, nz = dx / full;
+      for (let t = 0.1; t < len; t += 0.3) for (const off of [-0.54, -0.18, 0.18, 0.54]) { const j = rand() - 0.5, k = (rand() - 0.5) * 0.12, x = a.x + dx / full * (t + k) + nx * (off + j * 0.1), z = a.z + dz / full * (t + k) + nz * (off + j * 0.1); if (Math.hypot(x, z) > SQUARE - 0.3 && !inWater(x, z, 0.9)) lay(x, z); }
       let wet = null;   // where this stretch of path crosses water: put a bridge over it
-      for (let t = 0; t <= len; t += 0.25) { const x = a.x + dx / len * t, z = a.z + dz / len * t, w = inWater(x, z, 0.9);
-        if (w && wet == null) wet = t; if ((!w || t + 0.25 > len) && wet != null) { const t0 = wet, t1 = t, mx = a.x + dx / len * (t0 + t1) / 2, mz = a.z + dz / len * (t0 + t1) / 2; wet = null;
+      for (let t = 0; t <= len; t += 0.25) { const x = a.x + dx / full * t, z = a.z + dz / full * t, w = inWater(x, z, 0.9);
+        if (w && wet == null) wet = t; if ((!w || t + 0.25 > len) && wet != null) { const t0 = wet, t1 = t, mx = a.x + dx / full * (t0 + t1) / 2, mz = a.z + dz / full * (t0 + t1) / 2; wet = null;
           if (t1 - t0 > 0.6 && !bridges.some(b => Math.hypot(b.x - mx, b.z - mz) < 3)) bridges.push({ x: mx, z: mz, a: Math.atan2(dz, dx), len: t1 - t0 + 1.6 }); } }
     }
     const inst = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.2, 0), new THREE.MeshLambertMaterial({ flatShading: true }), stones.length), m = new THREE.Object3D(), c = new THREE.Color();
@@ -531,6 +542,7 @@ export function buildTown() {
     // the bridge Suvi sings by, plus one wherever a path crosses the water
     { const p = curve.getPoint(0.62), t = curve.getTangent(0.62); if (!bridges.some(b => Math.hypot(b.x - p.x, b.z - p.z) < 6)) bridges.push({ x: p.x, z: p.z, a: Math.atan2(t.x, -t.z), len: water.river.w0 * widen(0.62) + 2.6 }); }
     for (const b of bridges) bridge(b.x, b.z, b.a, b.len);
+    for (const w of boardwalks) boardwalk(w);
     // jetty and rod where she fishes
     { const p = PLACES.river; box(1.4, 0.16, 3.6, P.wood, p.x, 0.2, p.z + 2.1); for (const s of [-1, 1]) box(0.16, 0.6, 0.16, P.woodDark, p.x + s * 0.6, 0.1, p.z + 3.7);
       const rod = box(0.07, 2.4, 0.07, P.woodDark, p.x + 1.0, 1.2, p.z + 1.8); rod.rotation.x = 0.7; box(0.5, 0.4, 0.5, 0x2f7f9a, p.x - 1.1, 0.2, p.z + 0.3); } }
