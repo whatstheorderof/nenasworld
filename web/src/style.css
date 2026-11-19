@@ -252,3 +252,24 @@ button.tile { cursor: pointer; } button.tile:hover { background: #fff6e0; }
 .dish span { font-size: 24px; } .dish div { display: grid; } .dish b { font-size: 13px; } .dish small { font-size: 11px; opacity: .65; font-weight: 700; }
 .flag-card { display: flex; align-items: center; gap: 12px; } .flag { width: 70px; height: 44px; border: 3px solid var(--line); border-radius: 4px 10px 10px 4px; box-shadow: inset -8px 0 0 #00000014; }
 #panel { position: fixed; }
+
+/* ---- speech and thought bubbles ---------------------------------------------------- */
+#bubbles { position: fixed; inset: 0; pointer-events: none; z-index: 3; overflow: hidden; }
+.bub-at { position: absolute; left: 0; top: 0; transform-origin: 0 0; transition: opacity .3s; }
+.bub-at.out { opacity: 0; }
+.bub { position: absolute; left: 0; bottom: 16px; transform: translateX(-50%); transform-origin: 50% 100%; width: max-content; max-width: 250px; padding: 10px 14px 11px; background: #fff; color: var(--ink);
+  border: 3px solid var(--line); border-radius: 18px; box-shadow: 0 4px 0 rgba(29, 37, 69, .2); font-weight: 800; font-size: 15px; line-height: 1.28; text-align: left; }
+.bub .who { position: absolute; top: -13px; left: 12px; background: var(--who, #f2792e); color: #fff; border: 2.5px solid var(--line); border-radius: 999px; padding: 0 8px; font-size: 11px; line-height: 18px; font-weight: 900; letter-spacing: .2px; white-space: nowrap; }
+.bub .txt { display: block; margin-top: 2px; }
+.bub.pop { animation: bub-pop .38s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes bub-pop { from { transform: translateX(-50%) scale(.4); opacity: 0; } }
+/* speech: a solid tail pointing down at whoever is talking */
+.bub.say::before, .bub.say::after { content: ''; position: absolute; left: calc(50% + var(--tx, 0px)); width: 0; height: 0; border-style: solid; transform: translateX(-50%); }
+.bub.say::before { bottom: -16px; border-width: 15px 11px 0 11px; border-color: var(--line) transparent transparent transparent; }
+.bub.say::after { bottom: -10px; border-width: 10px 7px 0 7px; border-color: #fff transparent transparent transparent; }
+/* thought: a soft cloud with little bubbles trailing down to their head */
+.bub.think { background: #f3f1ff; border-radius: 28px; font-style: italic; font-weight: 700; color: #3b3f6b; bottom: 30px; box-shadow: 0 4px 0 rgba(29, 37, 69, .14), inset 0 -4px 0 rgba(106, 47, 196, .06); }
+.bub.think::before, .bub.think::after { content: ''; position: absolute; border-radius: 50%; background: #f3f1ff; border: 2.5px solid var(--line); left: calc(50% + var(--tx, 0px)); transform: translateX(-50%); }
+.bub.think::before { width: 14px; height: 12px; bottom: -19px; margin-left: -6px; }
+.bub.think::after { width: 8px; height: 7px; bottom: -31px; margin-left: -1px; }
+@media (max-width: 700px) { .bub { max-width: 190px; font-size: 13px; padding: 8px 11px 9px; } }

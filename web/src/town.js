@@ -3,7 +3,7 @@
 // Blender (kit.js) replace them as soon as they load. Positions come from shared/world.js
 // so the mind and the picture agree.
 import * as THREE from 'three';
-import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, SQUARE_SEATS, BOARD, RING, OBSTACLES, BALLOON, onPath, nearRiver as riverBand } from '../../shared/world.js';
+import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, SQUARE_SEATS, BOARD, RING, OBSTACLES, BALLOON, onPath, STREAM, STREAM_A, nearRiver as riverBand } from '../../shared/world.js';
 import { drawPicture } from './art.js';
 import { pastel } from './palette.js';
 import { waterMaterial } from './water.js';
@@ -52,6 +52,19 @@ export function buildTown() {
   }
   // snowfield around the igloo
   { const s = site('igloo'); ground(new THREE.CircleGeometry(7.5, 9), P.snow, s.x + 2, s.z, 0.03); ground(new THREE.CircleGeometry(4, 7), P.snowShade, s.x + 6, s.z + 3, 0.035); }
+  // the water: the river (pond -> falls, wider toward the falls) and the stream (lagoon -> pond), as sampled centre lines
+  const water = (() => { const pd = site('pond');
+    const mk = (pts, w0, widen) => { const c = new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, 0, z))); return { c, w0, widen, samp: c.getPoints(200).map((q, i) => ({ x: q.x, z: q.z, hw: w0 * widen(i / 200) / 2 })) }; };
+    return { river: mk([[pd.x - PLACES.pond.r + 1.5, pd.z], ...RIVER], 4.6, u => 1 + Math.max(0, (u - 0.5) / 0.5) ** 1.5 * 1.15), stream: mk(STREAM, 2.6, u => 0.85 + u * 0.3) }; })();
+  const inWater = (x, z, pad = 0) => [water.river, water.stream].some(L => L.samp.some(q => Math.hypot(q.x - x, q.z - z) < q.hw + pad));
+  // a plank bridge: centred at (x, z), running along angle a (world xz), long enough to clear the banks
+  const bridge = (x, z, a, len, wide = 2.0) => { const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = -a; town.add(g);
+    const n = Math.ceil(len / 0.62); for (let i = 0; i < n; i++) { const u = (i + 0.5) / n - 0.5, lx = u * len; box(0.58, 0.14, wide, i % 2 ? P.wood : P.woodDark, lx, 0.22 + Math.cos(u * Math.PI) * 0.32, 0, g); }
+    for (const sd of [-1, 1]) { for (let i = 0; i <= 4; i++) { const u = i / 4 - 0.5; box(0.13, 0.95, 0.13, P.woodDark, u * len, 0.62 + Math.cos(u * Math.PI) * 0.32, sd * (wide / 2 - 0.05), g); }
+      for (let i = 0; i < 4; i++) { const u0 = i / 4 - 0.5, u1 = u0 + 0.25, y0 = 1.1 + Math.cos(u0 * Math.PI) * 0.32, y1 = 1.1 + Math.cos(u1 * Math.PI) * 0.32, rl = box(len / 4 + 0.05, 0.11, 0.11, P.wood, (u0 + 0.125) * len, (y0 + y1) / 2, sd * (wide / 2 - 0.05), g); rl.rotation.z = Math.atan2(y1 - y0, len / 4); } }
+    return g; };
+  const bridges = [];
+
   // pebble paths: a gravel bed with stones pressed into it, and a round pebble square in the middle
   { const bed = flat(0xe6dcc4), stones = [];
     const disc = (x, z, r, y) => ground(new THREE.CircleGeometry(r, 14), 0xe6dcc4, x, z, y);
@@ -63,7 +76,11 @@ export function buildTown() {
       const strip = mesh(new THREE.PlaneGeometry(1.6, len), bed, (a.x + b.x) / 2, 0.052, (a.z + b.z) / 2); strip.rotation.x = -Math.PI / 2; strip.rotation.z = Math.atan2(dx, dz);
       disc(a.x, a.z, 0.8, 0.051); if (i === line.length - 2) disc(b.x, b.z, 0.8, 0.051);   // round off the bends and ends
       const nx = -dz / len, nz = dx / len;
-      for (let t = 0.1; t < len; t += 0.3) for (const off of [-0.54, -0.18, 0.18, 0.54]) { const j = rand() - 0.5, k = (rand() - 0.5) * 0.12, x = a.x + dx / len * (t + k) + nx * (off + j * 0.1), z = a.z + dz / len * (t + k) + nz * (off + j * 0.1); if (Math.hypot(x, z) > SQUARE - 0.3) lay(x, z); }
+      for (let t = 0.1; t < len; t += 0.3) for (const off of [-0.54, -0.18, 0.18, 0.54]) { const j = rand() - 0.5, k = (rand() - 0.5) * 0.12, x = a.x + dx / len * (t + k) + nx * (off + j * 0.1), z = a.z + dz / len * (t + k) + nz * (off + j * 0.1); if (Math.hypot(x, z) > SQUARE - 0.3 && !inWater(x, z, 0.9)) lay(x, z); }
+      let wet = null;   // where this stretch of path crosses water: put a bridge over it
+      for (let t = 0; t <= len; t += 0.25) { const x = a.x + dx / len * t, z = a.z + dz / len * t, w = inWater(x, z, 0.9);
+        if (w && wet == null) wet = t; if ((!w || t + 0.25 > len) && wet != null) { const t0 = wet, t1 = t, mx = a.x + dx / len * (t0 + t1) / 2, mz = a.z + dz / len * (t0 + t1) / 2; wet = null;
+          if (t1 - t0 > 0.6 && !bridges.some(b => Math.hypot(b.x - mx, b.z - mz) < 3)) bridges.push({ x: mx, z: mz, a: Math.atan2(dz, dx), len: t1 - t0 + 1.6 }); } }
     }
     const inst = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.2, 0), new THREE.MeshLambertMaterial({ flatShading: true }), stones.length), m = new THREE.Object3D(), c = new THREE.Color();
     const tones = [0xc9c2b4, 0xb4bfcb, 0xd9d0bf, 0xa9b2bc, 0xe4dccd, 0xcdc1ab, 0xbcc6cf];
@@ -497,9 +514,7 @@ export function buildTown() {
     for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283 + 0.3; if (Math.cos(a) < -0.6) continue; rock(pond.x + Math.cos(a) * (R0 + 0.4), pond.z + Math.sin(a) * (R0 + 0.4), 0.35 + rand() * 0.35); } }
 
   // ---- river: pond -> waterfall on the west rim ------------------------------------
-  { const pts = [[pond.x - PLACES.pond.r + 1.5, pond.z], ...RIVER].map(([x, z]) => new THREE.Vector3(x, 0, z));
-    const curve = new THREE.CatmullRomCurve3(pts);
-    const widen = u => 1 + Math.max(0, (u - 0.5) / 0.5) ** 1.5 * 1.1;   // the river spreads out as it nears the falls
+  { const curve = water.river.c, pts = curve.points, widen = water.river.widen;
     const ribbon = (width0, color, y, material) => {
       const N = 60, pos = [], idx = [];
       for (let i = 0; i <= N; i++) { const p = curve.getPoint(i / N), t = curve.getTangent(i / N), nx = -t.z, nz = t.x, width = width0 * widen(i / N);
@@ -508,18 +523,32 @@ export function buildTown() {
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
       const m = new THREE.Mesh(geo, material || new THREE.MeshLambertMaterial({ color: pastel(color), side: THREE.DoubleSide })); town.add(m); return m;
     };
-    ribbon(4.2, P.sandDark, 0.06); ribbon(3.0, P.river, 0.09, waterMaterial({ scale: 1.6, speed: 0.8, flow: [0.25, 0.18] }));
+    ribbon(water.river.w0 + 1.8, P.sandDark, 0.06); ribbon(water.river.w0, P.river, 0.09, waterMaterial({ scale: 1.6, speed: 0.8, flow: [0.25, 0.18] }));
     const end = pts[pts.length - 1], a = Math.atan2(end.z, end.x);
-    const fw = 3.0 * widen(1) + 0.4, fall = box(fw, 7, 0.5, P.river, Math.cos(a) * (R + 0.1), -3.4, Math.sin(a) * (R + 0.1)); fall.rotation.y = -a + Math.PI / 2; fall.material = waterMaterial({ fall: true, edge: 0.09 });
+    const fw = water.river.w0 * widen(1) + 0.4, fall = box(fw, 7, 0.5, P.river, Math.cos(a) * (R + 0.1), -3.4, Math.sin(a) * (R + 0.1)); fall.rotation.y = -a + Math.PI / 2; fall.material = waterMaterial({ fall: true, edge: 0.09 });
     const lip = box(fw, 0.2, 1.0, P.river, Math.cos(a) * (R - 0.3), 0.0, Math.sin(a) * (R - 0.3)); lip.rotation.y = -a + Math.PI / 2; lip.material = waterMaterial({ scale: 1.6, speed: 0.8, flow: [0.25, 0.18] });
-    for (let i = 0; i < 7; i++) { const p = curve.getPoint(0.08 + i * 0.13), s = i % 2 ? 1 : -1; rock(p.x + s * 0.2, p.z + s * 2.3, 0.45 + rand() * 0.4); }
-    // little bridge
-    { const p = curve.getPoint(0.62), t = curve.getTangent(0.62), g = new THREE.Group(); g.position.set(p.x, 0, p.z); g.rotation.y = Math.atan2(t.x, t.z); town.add(g);
-      for (let i = 0; i < 7; i++) box(0.6, 0.14, 1.8, i % 2 ? P.wood : P.woodDark, -2.1 + i * 0.7, 0.42 - Math.abs(i - 3) * 0.07, 0, g);
-      for (const s of [-1, 1]) box(4.8, 0.12, 0.12, P.woodDark, 0, 1.0, s * 0.85, g); for (const s of [-1, 1]) for (const e of [-1, 1]) box(0.14, 1.0, 0.14, P.woodDark, e * 2.3, 0.5, s * 0.85, g); }
+    for (let i = 0; i < 7; i++) { const u = 0.08 + i * 0.13, p = curve.getPoint(u), s = i % 2 ? 1 : -1; rock(p.x + s * 0.2, p.z + s * (water.river.w0 * widen(u) / 2 + 1.2), 0.45 + rand() * 0.4); }
+    // the bridge Suvi sings by, plus one wherever a path crosses the water
+    { const p = curve.getPoint(0.62), t = curve.getTangent(0.62); if (!bridges.some(b => Math.hypot(b.x - p.x, b.z - p.z) < 6)) bridges.push({ x: p.x, z: p.z, a: Math.atan2(t.x, -t.z), len: water.river.w0 * widen(0.62) + 2.6 }); }
+    for (const b of bridges) bridge(b.x, b.z, b.a, b.len);
     // jetty and rod where she fishes
-    { const p = PLACES.river; box(1.4, 0.16, 2.6, P.wood, p.x, 0.2, p.z + 1.6); for (const s of [-1, 1]) box(0.16, 0.6, 0.16, P.woodDark, p.x + s * 0.6, 0.1, p.z + 2.7);
+    { const p = PLACES.river; box(1.4, 0.16, 3.6, P.wood, p.x, 0.2, p.z + 2.1); for (const s of [-1, 1]) box(0.16, 0.6, 0.16, P.woodDark, p.x + s * 0.6, 0.1, p.z + 3.7);
       const rod = box(0.07, 2.4, 0.07, P.woodDark, p.x + 1.0, 1.2, p.z + 1.8); rod.rotation.x = 0.7; box(0.5, 0.4, 0.5, 0x2f7f9a, p.x - 1.1, 0.2, p.z + 0.3); } }
+
+  // ---- the stream: in from the lagoon through the rim, down into the pond ---------------
+  { const L = water.stream, curve = L.c;
+    const strip = (w0, y, material, color) => { const N = 40, pos = [], idx = [];
+      for (let i = 0; i <= N; i++) { const u = i / N, q = curve.getPoint(u), t = curve.getTangent(u), w = w0 * L.widen(u); pos.push(q.x - t.z * w / 2, y, q.z + t.x * w / 2, q.x + t.z * w / 2, y, q.z - t.x * w / 2); if (i < N) idx.push(i * 2, i * 2 + 2, i * 2 + 1, i * 2 + 1, i * 2 + 2, i * 2 + 3); }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+      town.add(new THREE.Mesh(geo, material || new THREE.MeshLambertMaterial({ color: pastel(color), side: THREE.DoubleSide }))); };
+    strip(L.w0 + 1.6, 0.061, null, P.sandDark); strip(L.w0, 0.092, waterMaterial({ scale: 1.4, speed: 0.9, flow: [-0.05, -0.3] }));
+    for (let i = 0; i < 10; i++) { const u = 0.12 + i * 0.085, q = curve.getPoint(u), t = curve.getTangent(u), sd = i % 2 ? 1 : -1, off = L.w0 * L.widen(u) / 2 + 1.0; rock(q.x - t.z * off * sd, q.z + t.x * off * sd, 0.35 + rand() * 0.35); }
+    // where it comes in under the rim: two stone posts either side
+    const m = curve.getPoint(0.04), t0 = curve.getTangent(0.04);
+    for (const sd of [-1, 1]) { const x = m.x - t0.z * sd * 1.9, z = m.z + t0.x * sd * 1.9; mesh(new THREE.CylinderGeometry(0.5, 0.6, 1.5, 6), flat(0xbab4a8), x, 0.75, z); mesh(new THREE.SphereGeometry(0.42, 6, 4), flat(0xc9c3b6), x, 1.6, z); }
+    // a footbridge where the promenade crosses it
+    { let best = 0, bd = 1e9; for (let i = 0; i <= 60; i++) { const q = curve.getPoint(i / 60), d = Math.abs(Math.hypot(q.x, q.z) - (R - 2.4)); if (d < bd) { bd = d; best = i / 60; } }
+      const q = curve.getPoint(best), tt = curve.getTangent(best); bridge(q.x, q.z, Math.atan2(tt.x, -tt.z), L.w0 + 2.2, 1.7); } }
 
   const beachBoat = new THREE.Group();
   // ---- beach: sand sector on the rim, sea beyond it ---------------------------------
@@ -635,7 +664,7 @@ export function buildTown() {
   // the rim: stone coping with a wooden fence on top, lanterns, a promenade inside it and vines trailing over the edge;
   // open along the beach and at the waterfall
   { const end = RIVER[RIVER.length - 1], fallA = Math.atan2(end[1], end[0]);
-    const gap = a => (a > BEACH.from - 0.05 && a < BEACH.to + 0.05) || Math.abs(Math.atan2(Math.sin(a - fallA), Math.cos(a - fallA))) < 0.15;
+    const gap = a => (a > BEACH.from - 0.05 && a < BEACH.to + 0.05) || Math.abs(Math.atan2(Math.sin(a - fallA), Math.cos(a - fallA))) < 0.19 || Math.abs(Math.atan2(Math.sin(a - STREAM_A), Math.cos(a - STREAM_A))) < 0.055;
     const runs = [], rr = R - 0.75, N = 900; let cur = null;
     for (let i = 0; i <= N; i++) { const a = -Math.PI + i / N * Math.PI * 2; if (gap(a)) { if (cur && cur.length > 1) runs.push(cur); cur = null; continue; } (cur ||= []).push([Math.cos(a) * rr, Math.sin(a) * rr]); }
     if (cur && cur.length > 1) runs.push(cur);

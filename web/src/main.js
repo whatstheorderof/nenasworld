@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, isletPos, isleSpot, site } from '../../shared/world.js';
+import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, site } from '../../shared/world.js';
 import { kitModel as kitM, whenKit as whenK } from './kit.js';
 import { WEATHER_WORDS, FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
 import { buildNena, buildRobot } from './nena.js';
@@ -629,6 +629,64 @@ function voyagePose(act) {
     text: walk ? (sp ? `on ${isl.name}, heading off ${sp.food ? 'to find food' : 'exploring'}` : `on ${isl.name}, back to the balloon`) : sp ? `on ${isl.name}: ${sp.does}` : `on ${isl.name}, packing up the balloon` };
 }
 
+// ---- speech and thought bubbles: one crisp layer over the scene for everyone who talks or thinks ----
+const bubbleLayer = document.createElement('div'); bubbleLayer.id = 'bubbles'; document.body.appendChild(bubbleLayer);
+const bubbles = new Map(), chatter = new Map();
+let lastThought = '', thoughtUntil = 0;
+const THINKS = { lie: ['so warm.', 'mm. sun.', 'five more minutes.'], sit: ['nice and quiet here.', 'i wonder what nena is up to.', 'hm.'], jog: ['left, right, left.', 'one more lap!', 'puff puff.'], jump: ['and up!', 'nine... ten...'],
+  peck: ['ooh, a good one.', 'what is this?', 'that one is mine.'], sing: ['♪ la la laaa ♪', '♪ hm hm hmm ♪'] };
+const NPC_COLOR = { Bo: '#7f8fa6', Pip: '#3a3f6b', Suvi: '#e8743a' };
+const pickOf = a => a[Math.floor(Math.random() * a.length)];
+// who is saying or thinking something right now: Nena, visitors' gulls, the neighbours and the camper
+function talkers(pos) {
+  const list = [], t = Date.now();
+  const thought = qs.get('think') || now?.thought, says = qs.get('say') || now?.say;   // ?say= / ?think= preview a bubble
+  if (thought && thought !== lastThought) { lastThought = thought; thoughtUntil = qs.has('think') ? Infinity : t + 9000; }
+  const nenaAt = new THREE.Vector3(pos.x, pos.y + 2.5, pos.z);
+  if (says) list.push({ key: 'nena', name: 'Nena', text: says, kind: 'say', pos: nenaAt, color: '#f2792e', main: true });
+  else if (t < thoughtUntil && lastThought) list.push({ key: 'nena', name: 'Nena', text: lastThought, kind: 'think', pos: nenaAt, color: '#f2792e', main: true });
+  list.push(...dyn.talkers());
+  // the neighbours say something when she is close, and think to themselves now and then
+  for (const n of now?.npcs || []) {
+    const at = dyn.npcAt(n.name); if (!at || !n.out) continue;
+    let c = chatter.get(n.name); if (!c) { c = { next: t + 4000 + Math.random() * 20000 }; chatter.set(n.name, c); }
+    if (qs.has('chatter') && !c.text) c.next = 0;
+    if (t > c.next && !n.moving) { const near = Math.hypot(at.x - pos.x, at.z - pos.z) < 6, info = NEIGHBOURS.find(x => x.name === n.name);
+      if (near && info?.says) Object.assign(c, { text: pickOf(info.says), kind: 'say', until: t + 7000 });
+      else if (Math.random() < 0.55 && THINKS[n.anim]) Object.assign(c, { text: pickOf(THINKS[n.anim]), kind: 'think', until: t + 5500 });
+      c.next = t + 18000 + Math.random() * 30000; }
+    if (c.until > t) list.push({ key: `n:${n.name}`, name: n.name, text: c.text, kind: c.kind, pos: at.clone().setY(at.y + 2.1), color: NPC_COLOR[n.name] || '#6a6f94' });
+  }
+  const camp = now?.camper && dyn.camperAt();
+  if (camp) { const info = CAMPERS.find(x => x.name === now.camper.name); let c = chatter.get('camper'); if (!c) { c = { next: t + 8000 }; chatter.set('camper', c); }
+    if (t > c.next && info) { const near = Math.hypot(camp.x - pos.x, camp.z - pos.z) < 7; Object.assign(c, near ? { text: info.says, kind: 'say', until: t + 8000 } : { text: pickOf(['nice island.', 'my tent is very straight today.', `i miss ${TOWN_ISLANDS.find(x => x.id === info.home)?.name || 'home'} a little.`]), kind: 'think', until: t + 5500 }); c.next = t + 25000 + Math.random() * 30000; }
+    if (c.until > t) list.push({ key: 'camper', name: info?.name || 'camper', text: c.text, kind: c.kind, pos: camp.clone().setY(camp.y + 2.2), color: '#2f9a7f' }); }
+  return list;
+}
+const scr = new THREE.Vector3();
+function placeBubbles(list) {
+  const seen = new Set(), rects = [], W = innerWidth, H = innerHeight;
+  const items = list.map(it => { scr.copy(it.pos).project(camera); return { ...it, sx: (scr.x * 0.5 + 0.5) * W, sy: (-scr.y * 0.5 + 0.5) * H, behind: scr.z > 1, d: camera.position.distanceTo(it.pos) }; })
+    .filter(it => !it.behind && it.d < (it.main ? 220 : 95)).sort((a, b) => (b.main ? 1 : 0) - (a.main ? 1 : 0) || a.d - b.d);
+  for (const it of items) {
+    let b = bubbles.get(it.key);
+    if (!b) { const el = document.createElement('div'); el.className = 'bub-at'; el.innerHTML = '<div class="bub"><b class="who"></b><span class="txt"></span></div>'; bubbleLayer.appendChild(el); b = { el, inner: el.firstChild }; bubbles.set(it.key, b); }
+    if (b.text !== it.text || b.kind !== it.kind) {
+      b.text = it.text; b.kind = it.kind; b.inner.className = `bub ${it.kind}`; b.inner.style.setProperty('--who', it.color);
+      b.inner.querySelector('.who').textContent = it.kind === 'think' ? `${it.name} thinks` : it.name; b.inner.querySelector('.txt').textContent = it.text;
+      b.inner.classList.remove('pop'); void b.inner.offsetWidth; b.inner.classList.add('pop'); b.w = b.inner.offsetWidth; b.h = b.inner.offsetHeight + (it.kind === 'think' ? 30 : 16);
+    }
+    seen.add(it.key); b.el.classList.remove('out');
+    const s = it.main ? Math.max(0.8, Math.min(1.05, 1.2 - it.d / 120)) : Math.max(0.62, Math.min(1, 1.15 - it.d / 80)), w = b.w * s, h = b.h * s;
+    let x = Math.max(w / 2 + 8, Math.min(W - w / 2 - 8, it.sx)), y = it.sy;
+    for (let k = 0; k < 4; k++) { const hit = rects.find(r => x - w / 2 < r.x + r.w && x + w / 2 > r.x && y - h < r.y + r.h && y > r.y); if (!hit) break; y = hit.y - 4; }
+    y = Math.max(h + 8, y); rects.push({ x: x - w / 2, y: y - h, w, h });
+    b.inner.style.setProperty('--tx', `${Math.max(-b.w / 2 + 22, Math.min(b.w / 2 - 22, (it.sx - x) / s))}px`);
+    b.el.style.transform = `translate(${x}px, ${y}px) scale(${s})`;
+  }
+  for (const [k, b] of bubbles) if (!seen.has(k) && !b.el.classList.contains('out')) { b.el.classList.add('out'); setTimeout(() => { if (b.el.classList.contains('out')) { b.el.remove(); bubbles.delete(k); } }, 300); }
+}
+
 // ---- frame loop ----------------------------------------------------------------
 const clock = new THREE.Clock(), bubble = $('bubble'), head = new THREE.Vector3();
 let swimT = 0, heading = 0, elapsed = 0, lastSay = null, talkUntil = 0;
@@ -693,11 +751,8 @@ function frame() {
   controls.update();
   composer.render();
 
-  if (now?.say && settings.bubbles) {
-    head.set(pos.x, pos.y + 2.6, pos.z).project(camera);
-    bubble.hidden = head.z > 1; bubble.textContent = now.say;
-    bubble.style.left = `${(head.x * 0.5 + 0.5) * innerWidth}px`; bubble.style.top = `${(-head.y * 0.5 + 0.5) * innerHeight}px`;
-  } else bubble.hidden = true;
+  bubble.hidden = true;
+  placeBubbles(settings.bubbles ? talkers(pos) : []);
   requestAnimationFrame(frame);
 }
 frame();

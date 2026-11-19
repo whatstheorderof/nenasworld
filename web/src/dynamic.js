@@ -136,7 +136,9 @@ export function buildDynamic(scene) {
     for (const [id, m] of spots) if (!seen.has(id)) { spotG.remove(m); spots.delete(id); }
     for (const s of list) if (!spots.has(s.id)) { const m = spotModel(s.kind); m.position.set(s.x, 0, s.z); spotG.add(m); spots.set(s.id, m); }
   }
+  const talkList = [];
   function update(dt, t, npcList, night) {
+    talkList.length = 0;
     if (camperMesh) { const cl = camperMesh.getObjectByName('label'); if (cl) cl.visible = display.labels; }
     for (const m of glows) m.emissiveIntensity = 0.3 + night * 1.6;
     for (const m of spots.values()) { const f = m.getObjectByName('float'); if (f) { f.position.y = Math.sin(t * 1.2) * 0.4; f.rotation.y = t * 0.4; } const pu = m.getObjectByName('pulse'); if (pu) pu.scale.setScalar(1 + Math.sin(t * 3) * 0.2); }
@@ -181,10 +183,10 @@ export function buildDynamic(scene) {
       b.position.y = flying ? 2.6 + Math.sin(t * 3 + v.id) * 0.2 : 0.35 + (waving ? Math.abs(Math.sin(t * 9)) * 0.5 : 0);
       m.userData.wings.forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * (flying || waving ? Math.sin(t * 14) * 0.7 : -0.9); });
       const lab = m.getObjectByName('label'); lab.position.y = b.position.y + 1.0; lab.visible = display.labels;
-      const talking = v.say && Date.now() - v.sayAt < 9000; let say = m.getObjectByName('say');
-      if (talking && (!say || say.userData.text !== v.say)) { if (say) m.remove(say); say = bubbleSprite(v.say); say.userData.text = v.say; m.add(say); }
-      if (say) { say.visible = !!talking && display.bubbles; say.position.y = b.position.y + 1.6 + say.scale.y / 2; }
+      const talking = v.say && Date.now() - v.sayAt < 9000;   // drawn by the bubble layer in main.js
+      if (talking) talkList.push({ key: `v${v.id}`, name: v.name, text: v.say, kind: 'say', pos: m.position.clone().setY(b.position.y + 1.3), color: '#9aa7b8' });
     }
   }
-  return { setDecor, setSpots, setCamper, setVisitors, update };
+  const npcAt = name => npcs.get(name)?.position || null, camperAt = () => camperMesh?.position || null;
+  return { setDecor, setSpots, setCamper, setVisitors, update, talkers: () => talkList, npcAt, camperAt };
 }

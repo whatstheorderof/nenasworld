@@ -146,7 +146,13 @@ export const RIVER = [[-4.5, 19.2], [-9, 18.6], [-14, 19.6], [-19, 19.0], [-23.4
 // The beach is the sandy sector of the rim between these angles (atan2(z, x)).
 export const BEACH = { from: 0.55, to: 1.35, inner: 21 * K };
 export const inBeach = (x, z) => { const a = Math.atan2(z, x); return a > BEACH.from && a < BEACH.to && Math.hypot(x, z) > BEACH.inner; };
-export const nearRiver = (x, z, pad) => z > 19 + DZ - pad - 1 && z < 19 + DZ + pad + 1 && x < -4 && x > -WORLD.radius;
+// The stream: water comes in from the lagoon through a gap in the rim and runs down into the pond.
+export const STREAM = [[-9.0, 61.0], [-7.2, 55.0], [-3.6, 49.5], [-4.2, 43.5], [-2.2, 38.4]];
+export const STREAM_A = Math.atan2(STREAM[0][1], STREAM[0][0]);   // where it comes through the rim
+const segDist = (x, z, [ax, az], [bx, bz]) => { const vx = bx - ax, vz = bz - az, u = Math.max(0, Math.min(1, ((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz || 1))); return Math.hypot(ax + vx * u - x, az + vz * u - z); };
+// close to the river (wider now, and wider still near the falls) or the stream
+export const nearRiver = (x, z, pad) => (z > 19 + DZ - pad - (x < -36 ? 4.6 : 3.1) && z < 19 + DZ + pad + (x < -36 ? 4.6 : 3.1) && x < -4 && x > -WORLD.radius)
+  || STREAM.some((p, i) => i && segDist(x, z, STREAM[i - 1], p) < pad + 1.9);
 
 export const NEEDS = ['fullness', 'energy', 'wonder', 'joy', 'calm'];
 
