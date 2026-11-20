@@ -730,7 +730,7 @@ export function buildTown() {
   for (let i = 0; i < 6000 && placed < 175; i++) {
     const a = rand() * 6.28, r = R * 0.5 + rand() * (R * 0.39), x = Math.cos(a) * r, z = Math.sin(a) * r;
     const kind = placed % 5, roll = rand(), stage = roll < 0.2 ? 0 : roll < 0.5 ? 1 : roll < 0.85 ? 2 : 3;
-    const size = kind === 0 ? 1.4 + rand() * 1.5 : kind === 1 ? 0.7 + rand() * 1.1 : kind === 2 ? 0.9 + rand() * 0.7 : kind === 3 ? 0.85 + rand() * 0.9 : 0.8 + rand() * 0.3;
+    const size = kind === 0 ? 0.95 + rand() * 0.75 : kind === 1 ? 0.7 + rand() * 1.1 : kind === 2 ? 0.9 + rand() * 0.7 : kind === 3 ? 0.85 + rand() * 0.9 : 0.8 + rand() * 0.3;
     const foot = kind === 0 ? 0.5 + size * 0.45 : kind === 1 ? size * 1.1 : kind === 2 ? size * 1.3 : kind === 3 ? size * 1.25 : TREE_R[stage] * size;
     if (!clear(x, z, kind === 4 ? 1.2 + foot : 1.2 + foot * 0.6) || !roomFor(x, z, foot)) continue;
     if (kind === 0) flower(x, z, size, P.petals[Math.floor(rand() * 4)]);
@@ -850,7 +850,7 @@ export function buildTown() {
   const blades = (() => {
     const tuft = new THREE.BufferGeometry(), pos = [], hgt = [];
     for (let k = 0; k < 4; k++) {   // four blades fanned round a tuft, each a thin bent triangle
-      const a = k / 4 * Math.PI * 2 + 0.4, ox = Math.cos(a) * 0.07, oz = Math.sin(a) * 0.07, h = 0.34 + (k % 2) * 0.14, lean = 0.1;
+      const a = k / 4 * Math.PI * 2 + 0.4, ox = Math.cos(a) * 0.07, oz = Math.sin(a) * 0.07, h = 0.24 + (k % 2) * 0.1, lean = 0.08;   // grass: kept short
       const px = -Math.sin(a) * 0.035, pz = Math.cos(a) * 0.035;
       pos.push(ox - px, 0, oz - pz, ox + px, 0, oz + pz, ox * 1.8 + Math.cos(a) * lean, h, oz * 1.8 + Math.sin(a) * lean); hgt.push(0, 0, 1);
     }

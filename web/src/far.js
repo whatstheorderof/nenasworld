@@ -67,7 +67,9 @@ export function buildFarIslands(scene) {
       // roots hanging underneath, a lighter version of her island's, fitted to the model
       g.updateWorldMatrix(true, true); const box = new THREE.Box3().setFromObject(m), bottom = (box.min.y - g.position.y) / t.scale, R = (box.max.x - box.min.x) / 2 / t.scale, k = R / 60;
       const rg = new THREE.Group(); rg.scale.setScalar(k); g.add(rg);
-      buildRoots(rg, { top: (bottom + 0.4) / k, bottomR: t.id === 'hoop' ? 50 : 26, sideY: bottom * 0.45 / k, sideR: 46, seed: 11 + t.a * 7, count: 34, segs: 8, radial: 4, thick: 10, innerR: t.id === 'hoop' ? 7.6 / k : 0 }); });   // Hoopstead: none in its hole
+      const rimY = -1.6 / k, botY = bottom / k, RR = R / k;   // the underside tapers from the rim (r = R) down to its lowest point (r = 0)
+      const under = r => botY + (rimY - botY) * Math.min(1, r / RR) ** 1.4;
+      buildRoots(rg, { top: botY, bottomR: RR * 0.8, sideY: rimY, sideR: RR * 0.82, seed: 11 + t.a * 7, count: 18, segs: 8, radial: 4, thick: 8, innerR: t.id === 'hoop' ? 7.6 / k : 0, under, lenK: 0.6 }); });   // Hoopstead: none in its hole
   }
 
   // Bluebell Isle: rolling blue flower hills, a marbled gold-and-teal river, and goats wandering about
