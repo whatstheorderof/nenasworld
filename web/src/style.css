@@ -348,3 +348,7 @@ details.advanced[open] > summary::before { transform: rotate(90deg); }
 #guide .g-next { background: var(--orange); color: #fff; }
 #guide button:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--line); }
 @media (prefers-reduced-motion: reduce) { #guide .g-ring, #guide .g-card { transition: none; } }
+.postcards { display: grid; gap: 8px; }
+.postcard { display: flex; align-items: center; gap: 10px; background: #fff; border: 2.5px solid var(--line); border-radius: 12px; padding: 8px 10px; font-size: 14px; }
+.postcard .ico { width: 34px; height: 34px; flex: none; }
+.postcard small { display: block; opacity: .65; font-size: 12px; }

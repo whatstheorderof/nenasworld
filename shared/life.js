@@ -53,7 +53,10 @@ export class Life {
   patches() { return this.s.decor.filter(d => d.kind === 'flowers'); }
   ripe(day) { return this.s.decor.find(d => d.kind === 'coin tree' && day - d.day >= 3) || null; }
   newDay(day) { this.s.turnipPrice = rint(45, 190); this.s.hot = pick(['shell', 'fruit', 'ore', 'clay', 'veg', 'mushroom', 'sea glass']);
-    const last = this.s.camper?.name; this.s.camper = Math.random() < 0.6 ? pick(CAMPERS.filter(c => c.name !== last)) : null; if (calendar(day).weekday === 0 && this.s.turnips.n) { this.s.turnips = { n: 0, paid: 0 }; } this.save(); }
+    const gone = this.s.camper, last = gone?.name;
+    if (gone && this.s.campDay != null && this.s.campDay >= (this.s.campSince ?? 0)) {   // a traveller she sat with leaves her a postcard
+      const pc = (this.s.postcards ||= []); if (!pc.some(p => p.name === gone.name)) pc.push({ name: gone.name, kind: gone.kind, from: gone.from.split(',')[0], day }); this.add('postcard'); }
+    this.s.camper = Math.random() < 0.6 ? pick(CAMPERS.filter(c => c.name !== last)) : null; if (this.s.camper) this.s.campSince = day; if (calendar(day).weekday === 0 && this.s.turnips.n) { this.s.turnips = { n: 0, paid: 0 }; } this.save(); }
   place(kind, at, day, color) { this.s.decor.push({ kind, x: at.x, z: at.z, day, ...(color ? { color } : {}) }); if (this.s.decor.length > 45) this.s.decor.shift(); }
 
   // ---- what comes of an action. Returns { text, say?, remember?, lift? } or null -----------
@@ -240,7 +243,7 @@ export class Life {
 
   summary() {
     const s = this.s;
-    return { coins: s.coins, items: s.items, museum: s.museum, total: Object.keys(SPECIES).length, decor: s.decor.length, house: s.house, loan: HOUSE_LOAN[s.house.level] || null, friends: s.friends, turnips: s.turnips, turnipPrice: s.turnipPrice, photos: s.photos, shaken: s.shaken, songs: s.songs, stamps: s.stamps, cosy: s.cosy, tune: s.tune, hot: s.hot, golden: s.golden, rides: s.rides, blooms: s.blooms, camper: s.camper, metCampers: s.metCampers, islets: s.islets, farVisited: s.farVisited || {}, inspo: s.inspo || [], sky: s.sky || [], hats: s.look.hats || [0], glasses: s.look.glasses_owned || [0], stampDays: s.stampDays || {}, drawings: s.drawings || [], photoLog: s.photoLog || [], dishes: s.dishes || [], flag: s.look.flag || 0 };
+    return { coins: s.coins, items: s.items, museum: s.museum, total: Object.keys(SPECIES).length, decor: s.decor.length, house: s.house, loan: HOUSE_LOAN[s.house.level] || null, friends: s.friends, turnips: s.turnips, turnipPrice: s.turnipPrice, photos: s.photos, shaken: s.shaken, songs: s.songs, stamps: s.stamps, cosy: s.cosy, tune: s.tune, hot: s.hot, golden: s.golden, rides: s.rides, blooms: s.blooms, camper: s.camper, metCampers: s.metCampers, islets: s.islets, farVisited: s.farVisited || {}, inspo: s.inspo || [], sky: s.sky || [], hats: s.look.hats || [0], glasses: s.look.glasses_owned || [0], stampDays: s.stampDays || {}, drawings: s.drawings || [], photoLog: s.photoLog || [], dishes: s.dishes || [], flag: s.look.flag || 0, postcards: s.postcards || [] };
   }
   freeSpot() { return freeSpot(this.s.decor); }
 }

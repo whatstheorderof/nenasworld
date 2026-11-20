@@ -471,7 +471,8 @@ async function show(name) {
           ${l.camper ? `<div class="banner">${icon('tent')} ${esc(l.camper.name)} the ${esc(l.camper.kind)} is at the campsite today${l.camper.from ? `, over from ${esc(l.camper.from)}` : ''}.</div>` : ''}
           ${l.inspo?.length ? `<h3>Things she wants to draw</h3><div class="chips-list">${l.inspo.map(x => `<span>${icon('pencil')} ${esc(x)}</span>`).join('')}</div>` : ''}`;
       } else if (tab === 'friends') {
-        html = `<p class="dim">How close she is to each neighbour.</p>${Object.entries(l.friends).map(([k, v]) => `<div class="friend"><b>${esc(k)}</b><span class="hearts">${'♥'.repeat(Math.round(v / 2))}<i>${'♥'.repeat(5 - Math.round(v / 2))}</i></span></div>`).join('')}`;
+        html = `<p class="dim">How close she is to each neighbour.</p>${Object.entries(l.friends).map(([k, v]) => `<div class="friend"><b>${esc(k)}</b><span class="hearts">${'♥'.repeat(Math.round(v / 2))}<i>${'♥'.repeat(5 - Math.round(v / 2))}</i></span></div>`).join('')}`
+          + `<h3>Postcards from travellers</h3>${(l.postcards || []).length ? `<div class="postcards">${l.postcards.map(p => `<div class="postcard">${icon('postcard')}<span><b>${esc(p.name)}</b> the ${esc(p.kind)}<small>from ${esc(p.from)}, day ${p.day}</small></span></div>`).join('')}</div>` : '<p class="dim">Travellers she sits with at the campsite send one when they leave.</p>'}`;
       }
       body.innerHTML = `<div class="panel-head"><h2>Belongings</h2><div class="purse">${icon('coin')} <b>${l.coins.toLocaleString()}</b></div></div>${tabs('things', [['pockets', 'Pockets'], ['collections', 'Collections'], ['wardrobe', 'Wardrobe'], ['home', 'Home'], ['travels', 'Travels'], ['friends', 'Friends']])}<div class="tab-body">${html}</div>`;
       wireTabs('things'); if ($('to-stamps')) $('to-stamps').onclick = () => show('stamps');
@@ -725,9 +726,20 @@ function voyagePose(act) {
 // ---- speech and thought bubbles: one crisp layer over the scene for everyone who talks or thinks ----
 const bubbleLayer = document.createElement('div'); bubbleLayer.id = 'bubbles'; document.body.appendChild(bubbleLayer);
 const bubbles = new Map(), chatter = new Map();
-let lastThought = '', thoughtUntil = 0;
+let lastThought = '', thoughtUntil = 0, curAct = null;
 const THINKS = { lie: ['so warm.', 'mm. sun.', 'five more minutes.'], sit: ['nice and quiet here.', 'i wonder what nena is up to.', 'hm.'], jog: ['left, right, left.', 'one more lap!', 'puff puff.'], jump: ['and up!', 'nine... ten...'],
   peck: ['ooh, a good one.', 'what is this?', 'that one is mine.'], dig: ['dig dig dig.', 'nearly there.', 'the ground is soft here.'], chop: ['timber!', 'one more swing.', 'hup!'], sing: ['♪ la la laaa ♪', '♪ hm hm hmm ♪'] };
+// what Nena and a traveller say to each other at the campsite
+function visitScript(c, met) {
+  if (!c) return [];
+  const home = c.from.split(',')[0];
+  const first = [['camper', `oh, hello! i'm ${c.name}.`], ['nena', `hello ${c.name}! i'm nena. is that your tent?`], ['camper', `it is. i came all the way from ${home}.`],
+    ['nena', pickOf([`what is it like there?`, `is it far?`, `i have never been to ${home}.`])], ['camper', c.says], ['nena', pickOf(['i would like to see that.', 'that sounds nice.', 'oh! i will remember that.'])],
+    ['camper', pickOf(['you have a lovely island.', 'your fire is very warm.', 'stay a bit, if you like.'])]];
+  const again = [['nena', `${c.name}! you are still here.`], ['camper', pickOf(['the island grows on you.', 'i like the quiet here.', 'one more night, i think.'])],
+    ['nena', pickOf(['have you seen the pond yet?', 'did you sleep well?', 'want to sit by the fire?'])], ['camper', c.says], ['nena', pickOf(['ha. i like that.', 'mm.', 'i will tell my diary.'])]];
+  return met ? again : first;
+}
 const NPC_COLOR = { Bo: '#7f8fa6', Pip: '#3a3f6b', Suvi: '#e8743a' };
 const pickOf = a => a[Math.floor(Math.random() * a.length)];
 // who is saying or thinking something right now: Nena, visitors' gulls, the neighbours and the camper
@@ -750,8 +762,19 @@ function talkers(pos) {
       c.next = t + 18000 + Math.random() * 30000; }
     if (c.until > t) list.push({ key: `n:${n.name}`, name: n.name, text: c.text, kind: c.kind, pos: at.clone().setY(at.y + 2.1), color: NPC_COLOR[n.name] || '#6a6f94' });
   }
-  const camp = now?.camper && dyn.camperAt();
-  if (camp) { const info = CAMPERS.find(x => x.name === now.camper.name); let c = chatter.get('camper'); if (!c) { c = { next: t + 8000 }; chatter.set('camper', c); }
+  const camp = dyn.camperAt(), who = dyn.camperWho();
+  // a proper visit: when Nena goes to the campsite they talk, taking turns, and the traveller turns to face her
+  const visiting = camp && curAct?.action === 'visit_camper' && curAct.phase === 'doing' && Math.hypot(camp.x - pos.x, camp.z - pos.z) < 7;
+  dyn.camperTalk(visiting ? pos : null);
+  if (visiting) { const info = CAMPERS.find(x => x.name === who);
+    let v = chatter.get('visit'); if (!v || v.who !== info?.name) { v = { who: info?.name, lines: visitScript(info, (lifeData?.metCampers || []).includes(info?.name)), i: 0, next: t + 600 }; chatter.set('visit', v); }
+    if (t > v.next && v.i < v.lines.length) { v.cur = v.lines[v.i++]; v.until = t + 4200; v.next = t + 4600; }
+    if (v.cur && v.until > t) { const [who, text] = v.cur;
+      if (who === 'nena') { for (let i = list.length - 1; i >= 0; i--) if (list[i].key === 'nena') list.splice(i, 1); list.push({ key: 'nena', name: 'Nena', text, kind: 'say', pos: nenaAt, color: '#f2792e', main: true }); }
+      else list.push({ key: 'camper', name: info?.name || 'camper', text, kind: 'say', pos: camp.clone().setY(camp.y + 2.2), color: '#2f9a7f' }); }
+    return list; }
+  else chatter.delete('visit');
+  if (camp) { const info = CAMPERS.find(x => x.name === who); let c = chatter.get('camper'); if (!c) { c = { next: t + 8000 }; chatter.set('camper', c); }
     if (t > c.next && info) { const near = Math.hypot(camp.x - pos.x, camp.z - pos.z) < 7; Object.assign(c, near ? { text: info.says, kind: 'say', until: t + 8000 } : { text: pickOf(['nice island.', 'my tent is very straight today.', `i miss ${TOWN_ISLANDS.find(x => x.id === info.home)?.name || 'home'} a little.`]), kind: 'think', until: t + 5500 }); c.next = t + 25000 + Math.random() * 30000; }
     if (c.until > t) list.push({ key: 'camper', name: info?.name || 'camper', text: c.text, kind: c.kind, pos: camp.clone().setY(camp.y + 2.2), color: '#2f9a7f' }); }
   return list;
@@ -790,6 +813,7 @@ function frame() {
   if (qs.has('ride')) { act.phase = 'walking'; act.ride = true; }   // preview her on the robot
   if (qs.has('voyage')) { const [id, pr] = qs.get('voyage').split(':'), isl = TRIP_ISLES.find(i => i.id === id) || SKY_ISLANDS[0]; Object.assign(act, { action: 'voyage', anim: 'voyage', phase: 'doing', isle: isl.id, route: Object.keys(isl.spots).filter(k => k !== 'pad').slice(0, 4), progress: window.__world?.vp ?? Number(pr || 0.5) }); }   // preview a trip: ?voyage=wood:0.5
   if (qs.has('act')) { const [a, pr] = qs.get('act').split(':'); if (ACTIONS[a]) Object.assign(act, { action: a, anim: ACTIONS[a].anim, phase: 'doing', progress: Number(pr ?? 0.5), label: ACTIONS[a].label }); }   // preview: doing something
+  curAct = act;
   if (qs.has('at')) { const [ax, az] = qs.get('at').split(',').map(Number); target.set(ax, 0, az); if (!qs.has('ride') && !qs.has('act')) { act.phase = 'idle'; act.anim = 'stand'; } }   // preview: stand her somewhere
   const pos = nena.root.position, k = 1 - Math.exp(-dt * 6), doing = act.phase === 'doing';
 

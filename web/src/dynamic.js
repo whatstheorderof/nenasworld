@@ -147,7 +147,9 @@ export function buildDynamic(scene) {
       if (c.mode === 'walk') { const dx = c.tx - c.x, dz = c.tz - c.z, d = Math.hypot(dx, dz);
         if (d < 0.05) { c.mode = c.next; c.wait = c.mode === 'sit' ? (night > 0.5 ? 40 : 8 + Math.random() * 14) : 3 + Math.random() * 5; }
         else { const v = Math.min(d, 0.9 * step); c.x += dx / d * v; c.z += dz / d * v; c.face = Math.atan2(dx, dz); } }
-      else { c.wait -= step; c.face = Math.atan2(FIRE[0] - c.x, FIRE[1] - c.z);
+      if (talkTo && c.mode !== 'walk') { if (c.mode === 'sit') c.mode = 'warm';   // stand up to say hello
+        const [wx0, wz0] = c.toW(c.x, c.z), wa = Math.atan2(talkTo.x - wx0, talkTo.z - wz0); c.face = wa - c.ry; c.wait = Math.max(c.wait, 2); }
+      else if (c.mode !== 'walk') { c.wait -= step; c.face = Math.atan2(FIRE[0] - c.x, FIRE[1] - c.z);
         if (c.wait <= 0) { if (c.mode === 'sit' || Math.random() < 0.35) { const a = 0.2 + Math.random() * 2.7, r = 1.5 + Math.random() * 0.7; c.tx = FIRE[0] + Math.cos(a) * r * (Math.random() < 0.5 ? 1 : -1); c.tz = FIRE[1] + Math.sin(a) * r; c.next = 'warm'; }
           else { c.tx = SEAT[0]; c.tz = SEAT[1]; c.next = 'sit'; } c.mode = 'walk'; } }
       const [wx, wz] = c.toW(c.x, c.z); camperMesh.position.x = wx; camperMesh.position.z = wz;
@@ -179,7 +181,7 @@ export function buildDynamic(scene) {
     }
   }
   // whoever is at the campsite today
-  let camperKey = '', camperMesh = null;
+  let camperKey = '', camperMesh = null, talkTo = null;
   function setCamper(c) {
     const key = c ? c.name : ''; if (key === camperKey) return; camperKey = key;
     if (camperMesh) { scene.remove(camperMesh); camperMesh = null; }
@@ -204,5 +206,6 @@ export function buildDynamic(scene) {
     }
   }
   const npcAt = name => npcs.get(name)?.position || null, camperAt = () => camperMesh?.position || null;
-  return { setDecor, setSpots, setCamper, setVisitors, update, talkers: () => talkList, npcAt, camperAt };
+  const camperTalk = p => { talkTo = p ? { x: p.x, z: p.z } : null; }, camperWho = () => camperMesh ? camperKey : '';
+  return { setDecor, setSpots, setCamper, setVisitors, update, talkers: () => talkList, npcAt, camperAt, camperTalk, camperWho };
 }
