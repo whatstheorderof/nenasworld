@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { SKY_ISLANDS, TOWN_ISLANDS, BLOOM_ISLE, RUIN_ISLE, townPos, islePos, isleTurn } from '../../shared/world.js';
 import { waterMaterial } from './water.js';
-import { kitParts } from './kit.js';
+import { kitParts, kitBoxes } from './kit.js';
 import { buildRoots } from './roots.js';
 import { whenKit, kitModel } from './kit.js';
 
@@ -51,10 +51,19 @@ export function buildFarIslands(scene) {
   // neighbouring islands with towns on them: proper models, near enough to make out, windows lit at night
   const towns = new THREE.Group(); scene.add(towns);
   let sails = null;
+  // chimney smoke: a few puffs drifting up off the roofs of some of the town houses
+  const SMOKE_PER = 7, SMOKE_MAX = 200, smokeEm = [];
+  const chimney = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshLambertMaterial({ color: 0xf4f2ee, transparent: true, opacity: 0.72, flatShading: true, depthWrite: false }), SMOKE_MAX);
+  chimney.count = 0; chimney.frustumCulled = false; scene.add(chimney);
   for (const t of TOWN_ISLANDS) {
     const g = new THREE.Group(), p = townPos(t); g.position.set(p.x, t.y, p.z); g.scale.setScalar(t.scale); g.rotation.y = -t.a - Math.PI / 2 + 0.5; g.userData.isl = t; towns.add(g);
-    whenKit(() => { const m = kitModel(t.model, { glow_farwin: winMat, tn_water: townWater, tn_fall: townFall, tn_ice: townIce }); if (!m) return; g.add(m);
+    whenKit(() => { const m = kitModel(t.model, { glow_farwin: winMat, tn_water: townWater, tn_fall: townFall, tn_ice: townIce }, ['GableSails']); if (!m) return; g.add(m);
       sails = sails || m.getObjectByName('GableSails');
+      g.updateWorldMatrix(true, true);
+      const hs = kitBoxes(t.model, /_H\d+$/);
+      hs.filter((o, i) => hs.length < 4 || i % 2 === 0).slice(0, 4).forEach(lb => {
+        const b = lb.clone().applyMatrix4(m.matrixWorld), c = b.getCenter(new THREE.Vector3());
+        smokeEm.push({ x: c.x + (b.max.x - c.x) * 0.4, y: b.max.y - 0.3 * t.scale, z: c.z + (b.max.z - c.z) * 0.3, s: t.scale, ph: Math.random() }); });
       // roots hanging underneath, a lighter version of her island's, fitted to the model
       g.updateWorldMatrix(true, true); const box = new THREE.Box3().setFromObject(m), bottom = (box.min.y - g.position.y) / t.scale, R = (box.max.x - box.min.x) / 2 / t.scale, k = R / 60;
       const rg = new THREE.Group(); rg.scale.setScalar(k); g.add(rg);
@@ -87,6 +96,13 @@ export function buildFarIslands(scene) {
     const pad = kitModel('Sky_Pad'); if (pad) { pad.scale.setScalar(0.7 * 2.2 / B.scale); pad.position.set(B.spots.pad[0], 0, -B.spots.pad[1]); bloom.add(pad); }
     for (let i = 0; i < 5; i++) { const g = kitParts('Goat'); if (!g) break; g.scale.setScalar((0.85 + Math.random() * 0.3) * 2.2 / B.scale); const a = Math.random() * 6.28, r = Math.random() * 8;
       g.position.set(Math.cos(a) * r, 0, -Math.sin(a) * r); g.userData.goat = { tx: g.position.x, tz: g.position.z, wait: Math.random() * 6, step: Math.random() * 6, legs: ['FL', 'FR', 'BL', 'BR'].map(k => g.getObjectByName(`GoatLeg${k}`)), head: g.getObjectByName('GoatHead') }; bloom.add(g); goats.push(g); } });
+  // gulls wheeling round the Old Hotel
+  const gulls = [], gullMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide, flatShading: true });
+  const wingGeo = new THREE.BufferGeometry(); wingGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, -0.3, 0, 0, 0.3, 1.5, 0.15, -0.05], 3)); wingGeo.computeVertexNormals();
+  const gullBody = new THREE.IcosahedronGeometry(0.28, 0);
+  for (let i = 0; i < 7; i++) { const b = new THREE.Group(), body = new THREE.Mesh(gullBody, gullMat); body.scale.set(0.6, 0.55, 1.5); b.add(body);
+    const L = new THREE.Mesh(wingGeo, gullMat), R = new THREE.Mesh(wingGeo, gullMat); R.scale.x = -1; b.add(L, R); b.scale.setScalar(2.6); scene.add(b);
+    gulls.push({ b, L, R, r: 16 + Math.random() * 18, h: 26 + Math.random() * 14, w: (0.18 + Math.random() * 0.14) * (i % 3 ? 1 : -1), a: Math.random() * 6.28, ph: Math.random() * 6.28 }); }
   const goats = [];   // (goats are scaled by 2.2 / B.scale so they stay goat-sized however big the island is drawn)
   // the Old Hotel, empty but for one lit window
   const ruin = new THREE.Group(), RU = RUIN_ISLE; ruin.position.set(Math.cos(RU.a) * RU.r, RU.y, Math.sin(RU.a) * RU.r); ruin.scale.setScalar(RU.scale); ruin.rotation.y = isleTurn(RU); scene.add(ruin);
@@ -97,23 +113,36 @@ export function buildFarIslands(scene) {
   const T = B.terraces, terH = (x, z) => { const d = Math.hypot(x - T.c[0], -z - T.c[1]); let h = 0;
     for (let i = 0; i < T.n; i++) { const r = T.r0 - i * T.dr; h = Math.max(h, (i + 1) * T.h * Math.min(1, Math.max(0, (r - d) / 0.18))); } return h; };
   const hillH = (x, z) => { let h = terH(x, z); for (const [hx, hy, rx, ry, top] of B.hills) { const dx = (x - hx) / rx, dy = (-z - hy) / ry, k = 1 - dx * dx - dy * dy; if (k > 0) { const zc = -ry * 0.1; h = Math.max(h, zc + (top - zc) * Math.sqrt(k)); } } return h; };
+  const blocked = (x, z, pad) => (B.props || []).some(([px, py, r]) => Math.hypot(x - px, z + py) < r + pad);   // goat space is model x, -y
   function tickGoats(dt) {
     for (const g of goats) { const s = g.userData.goat;
-      if (s.wait > 0) { s.wait -= dt; if (s.head) s.head.rotation.x = s.graze ? -0.55 + Math.sin(performance.now() / 300) * 0.08 : 0; s.legs.forEach(l => l && (l.rotation.x = 0)); if (s.wait <= 0) { let tries = 0; do { const a = Math.random() * 6.28, r = Math.sqrt(Math.random()) * 9.5; s.tx = Math.cos(a) * r; s.tz = Math.sin(a) * r; } while (++tries < 4 && terH(s.tx, s.tz) > 0); } continue; }
+      if (s.wait > 0) { s.wait -= dt; if (s.head) s.head.rotation.x = s.graze ? -0.55 + Math.sin(performance.now() / 300) * 0.08 : 0; s.legs.forEach(l => l && (l.rotation.x = 0)); if (s.wait <= 0) { let tries = 0; do { const a = Math.random() * 6.28, r = Math.sqrt(Math.random()) * 9.5; s.tx = Math.cos(a) * r; s.tz = Math.sin(a) * r; } while (++tries < 8 && (terH(s.tx, s.tz) > 0 || blocked(s.tx, s.tz, 0.5))); } continue; }
       const dx = s.tx - g.position.x, dz = s.tz - g.position.z, d = Math.hypot(dx, dz);
       if (d < 0.1) { s.wait = 3 + Math.random() * 9; s.graze = Math.random() < 0.7; continue; }
-      const sp = 0.55 * dt; g.position.x += dx / d * Math.min(sp, d); g.position.z += dz / d * Math.min(sp, d);
+      const sp = 0.55 * dt, nx = g.position.x + dx / d * Math.min(sp, d), nz = g.position.z + dz / d * Math.min(sp, d);
+      if (blocked(nx, nz, 0.35)) { s.wait = 0.4 + Math.random(); s.graze = false; continue; }   // something in the way: stop, then pick somewhere else
+      g.position.x = nx; g.position.z = nz;
       const want = Math.atan2(dx, dz); let turn = want - g.rotation.y; turn = Math.atan2(Math.sin(turn), Math.cos(turn)); g.rotation.y += turn * Math.min(1, dt * 4);
       g.position.y = hillH(g.position.x, g.position.z); s.step += dt * 7;
       s.legs.forEach((l, i) => l && (l.rotation.x = Math.sin(s.step + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.45)); if (s.head) s.head.rotation.x = Math.sin(s.step * 2) * 0.04; } }
 
-  const tmp = new THREE.Color();
+  const tmp = new THREE.Color(), tickM4 = new THREE.Matrix4(), tickQ = new THREE.Quaternion(), tickV = new THREE.Vector3(), tickV2 = new THREE.Vector3();
   function update(t, night, dayTint) {
     for (const [m, c] of mats) m.color.copy(tmp.set(c).lerp(dayTint, 0.25).multiplyScalar(1 - night * 0.55));
     glows.forEach(m => { m.opacity = 0.25 + night * 0.65; });
     towns.children.forEach((g, i) => { g.position.y = g.userData.isl.y + Math.sin(t * 0.1 + i * 1.7) * 1.2; });
     winMat.emissiveIntensity = night * 1.4;
     if (sails) sails.rotation.z = t * 0.6;   // the windmill on Little Gable turns
+    { let n = 0; const M4 = tickM4, sc = tickV2;
+      for (const e of smokeEm) for (let i = 0; i < SMOKE_PER && n < SMOKE_MAX; i++) {
+        const u = (t * 0.06 + e.ph + i / SMOKE_PER) % 1, k = Math.sin(Math.PI * Math.min(1, u * 1.08)) * (0.14 + u * 0.62) * e.s, w = Math.sin(u * 5 + e.ph * 9 + t * 0.4) * 0.5 * u;
+        tickV.set(e.x + (u * u * 4.5 + w) * e.s, e.y + u * 6.5 * e.s, e.z + (u * 1.6 + w * 0.6) * e.s); sc.setScalar(Math.max(0.001, k)); M4.compose(tickV, tickQ, sc); chimney.setMatrixAt(n++, M4); }   // rises, leans with the wind, wavers
+      chimney.count = n; chimney.instanceMatrix.needsUpdate = true; }
+    { const cx = Math.cos(RUIN_ISLE.a) * RUIN_ISLE.r, cz = Math.sin(RUIN_ISLE.a) * RUIN_ISLE.r;
+      for (const g of gulls) { const a = g.a + t * g.w, f = Math.sin(t * 7 + g.ph);
+        g.b.position.set(cx + Math.cos(a) * g.r, RUIN_ISLE.y + g.h + Math.sin(t * 0.5 + g.ph) * 2, cz + Math.sin(a) * g.r);
+        g.b.rotation.set(0, -a + (g.w > 0 ? 0 : Math.PI), (g.w > 0 ? -0.25 : 0.25));
+        const flap = f > 0.3 ? 0.15 : f * 0.55; g.L.rotation.z = flap; g.R.rotation.z = -flap; } }
     tickGoats(Math.min(0.1, t - (update.last ?? t))); update.last = t;
     for (const m of Object.values(farLit)) m.emissiveIntensity = 0.4 + night * 1.1;
     sparks.forEach(m => { m.opacity = night * (0.6 + Math.sin(t * 2) * 0.25); });

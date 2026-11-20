@@ -37,18 +37,33 @@ function material(src) {
 
 // A merged copy of an asset: a Group holding one mesh per material.
 // `swap` maps Blender material names to materials (e.g. the orchard's seasonal leaves).
-export function kitModel(name, swap = {}) {
+// `keep`: names of parts left out of the merge and added as their own objects (so code can move them, e.g. windmill sails)
+export function kitModel(name, swap = {}, keep = []) {
   const root = roots?.[name]; if (!root) return null;
+  const kept = o => { for (let a = o; a && a !== root; a = a.parent) if (keep.includes(a.name)) return true; return false; };
   if (!merged[name]) {
     const inv = root.matrixWorld.clone().invert(), byMat = {};
-    root.traverse(o => { if (!o.isMesh) return;
+    root.traverse(o => { if (!o.isMesh || kept(o)) return;
       const g = plain(o.geometry); g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
       (byMat[o.material.name] ||= { src: o.material, geos: [] }).geos.push(g); });
     merged[name] = Object.values(byMat).map(({ src, geos }) => ({ src, geo: mergeGeometries(geos) }));
   }
   const g = new THREE.Group();
   for (const { src, geo } of merged[name]) g.add(new THREE.Mesh(geo, swap[src.name] || material(src)));
+  const inv = root.matrixWorld.clone().invert();
+  for (const k of keep) { const n = root.getObjectByName(k); if (!n) continue;
+    const c = n.clone(true); new THREE.Matrix4().multiplyMatrices(inv, n.matrixWorld).decompose(c.position, c.quaternion, c.scale);
+    c.traverse(o => { if (o.isMesh) o.material = swap[o.material.name] || material(o.material); }); g.add(c); }
   return g;
+}
+
+// Boxes (in the asset's own space) round the parts of an asset whose names match `re`: where things are,
+// after kitModel has merged the names away.
+export function kitBoxes(name, re) {
+  const root = roots?.[name]; if (!root) return [];
+  const inv = root.matrixWorld.clone().invert(), out = [];
+  root.traverse(o => { if (re.test(o.name)) out.push(new THREE.Box3().setFromObject(o).applyMatrix4(inv)); });
+  return out;
 }
 
 // A full copy of an asset's parts with its own names and children, for things the code

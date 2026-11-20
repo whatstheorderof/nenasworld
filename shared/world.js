@@ -81,7 +81,9 @@ export const BLOOM_ISLE = { id: 'bloom', name: 'Bluebell Isle', a: 5.6, r: 180, 
     terraces: [-1.28, 6.3, { does: 'sitting by the pool under the bluebell terraces', draw: 'the stone terraces of bluebells and the snowy pines' }] },
   hills: [[-7.84,5.35,1.92,1.76,0.56],[-2.93,7.07,1.53,1.4,0.45],[-0.96,-2.76,1.54,1.41,0.45],[2.34,-5.34,1.86,1.7,0.54],[-2.46,3.78,1.32,1.21,0.39],[-2.82,-3.38,2.0,1.83,0.59],[9.37,-3.26,2.19,2.0,0.64],[-2.5,9.42,2.41,2.21,0.71],[-0.64,-7.15,1.33,1.22,0.39],[-2.61,-6.49,2.13,1.95,0.62],[-7.45,-5.89,2.36,2.16,0.69],[-4.71,3.12,1.82,1.66,0.53],[6.53,-6.65,2.56,2.34,0.75],[-0.48,-5.01,1.49,1.36,0.44],[1.9,-3.03,1.39,1.27,0.41],[-4.93,-4.9,1.79,1.63,0.52],[2.76,-9.72,1.93,1.77,0.57],[4.45,-4.09,1.61,1.47,0.47]],
   // the bluebell terraces: dry-stone steps round a centre; step i reaches out to r0 - i*dr and stands (i+1)*h high. Snowy pines on top, a still pool at the foot.
-  terraces: { c: [5.0, 8.0], r0: 6.0, dr: 0.95, h: 0.5, n: 6 } };
+  terraces: { c: [5.0, 8.0], r0: 6.0, dr: 0.95, h: 0.5, n: 6 },
+  // things the goats walk round (model x, y, radius): the shepherd's hut, the goat shelter, the cairn, the bench
+  props: [[9.4, 3.9, 1.7], [-8.6, 2.7, 1.6], [-3.2, -8.3, 0.7], [-5.4, -7.1, 0.9]] };
 export const townPos = t => ({ x: Math.cos(t.a) * t.r, z: Math.sin(t.a) * t.r });
 // Little islands out past the foam that she rows to.
 export const ISLETS = [
