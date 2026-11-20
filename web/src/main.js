@@ -8,7 +8,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, TRIP_ISLES, LONE_ISLES, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, site } from '../../shared/world.js';
 import { kitModel as kitM, whenKit as whenK } from './kit.js';
 import { icon } from './icons.js';
-import { WEATHER_WORDS, FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, todaysEvent } from '../../shared/data.js';
+import { WEATHER_WORDS, FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, ACTIONS, todaysEvent } from '../../shared/data.js';
 import { buildNena, buildRobot } from './nena.js';
 import { buildTown } from './town.js';
 import { buildDynamic, display } from './dynamic.js';
@@ -668,7 +668,7 @@ const bubbleLayer = document.createElement('div'); bubbleLayer.id = 'bubbles'; d
 const bubbles = new Map(), chatter = new Map();
 let lastThought = '', thoughtUntil = 0;
 const THINKS = { lie: ['so warm.', 'mm. sun.', 'five more minutes.'], sit: ['nice and quiet here.', 'i wonder what nena is up to.', 'hm.'], jog: ['left, right, left.', 'one more lap!', 'puff puff.'], jump: ['and up!', 'nine... ten...'],
-  peck: ['ooh, a good one.', 'what is this?', 'that one is mine.'], sing: ['♪ la la laaa ♪', '♪ hm hm hmm ♪'] };
+  peck: ['ooh, a good one.', 'what is this?', 'that one is mine.'], dig: ['dig dig dig.', 'nearly there.', 'the ground is soft here.'], chop: ['timber!', 'one more swing.', 'hup!'], sing: ['♪ la la laaa ♪', '♪ hm hm hmm ♪'] };
 const NPC_COLOR = { Bo: '#7f8fa6', Pip: '#3a3f6b', Suvi: '#e8743a' };
 const pickOf = a => a[Math.floor(Math.random() * a.length)];
 // who is saying or thinking something right now: Nena, visitors' gulls, the neighbours and the camper
@@ -724,12 +724,14 @@ function placeBubbles(list) {
 // ---- frame loop ----------------------------------------------------------------
 const clock = new THREE.Clock(), bubble = $('bubble'), head = new THREE.Vector3();
 let swimT = 0, heading = 0, elapsed = 0, lastSay = null, talkUntil = 0;
+let chopT = null, chopping = null;   // the woodlot tree she is chopping, and how far she got
 function frame() {
   const dt = Math.min(0.1, clock.getDelta()); elapsed += dt;
   const act = now?.activity || { phase: 'idle', action: 'idle', anim: 'stand' };
   if (qs.has('ride')) { act.phase = 'walking'; act.ride = true; }   // preview her on the robot
   if (qs.has('voyage')) { const [id, pr] = qs.get('voyage').split(':'), isl = TRIP_ISLES.find(i => i.id === id) || SKY_ISLANDS[0]; Object.assign(act, { action: 'voyage', anim: 'voyage', phase: 'doing', isle: isl.id, route: Object.keys(isl.spots).filter(k => k !== 'pad').slice(0, 4), progress: window.__world?.vp ?? Number(pr || 0.5) }); }   // preview a trip: ?voyage=wood:0.5
-  if (qs.has('at')) { const [ax, az] = qs.get('at').split(',').map(Number); target.set(ax, 0, az); if (!qs.has('ride')) { act.phase = 'idle'; act.anim = 'stand'; } }   // preview: stand her somewhere
+  if (qs.has('act')) { const [a, pr] = qs.get('act').split(':'); if (ACTIONS[a]) Object.assign(act, { action: a, anim: ACTIONS[a].anim, phase: 'doing', progress: Number(pr ?? 0.5), label: ACTIONS[a].label }); }   // preview: doing something
+  if (qs.has('at')) { const [ax, az] = qs.get('at').split(',').map(Number); target.set(ax, 0, az); if (!qs.has('ride') && !qs.has('act')) { act.phase = 'idle'; act.anim = 'stand'; } }   // preview: stand her somewhere
   const pos = nena.root.position, k = 1 - Math.exp(-dt * 6), doing = act.phase === 'doing';
 
   const goal = target.clone(); let voy = null;
@@ -737,6 +739,9 @@ function frame() {
   else if (doing && act.anim === 'dive') { swimT += dt * 0.5; const l = Math.hypot(target.x, target.z); goal.set(target.x / l * (WORLD.radius + 3.5) + Math.cos(swimT) * 2, 0, target.z / l * (WORLD.radius + 3.5) + Math.sin(swimT) * 2); heading = -swimT; }   // out in the sea
   else if (doing && act.anim === 'voyage' && (voy = voyagePose(act))) { goal.copy(voy.pos); heading = voy.heading; if (voy.flying || pos.distanceTo(goal) > 6) pos.copy(goal); }   // out on a big island
   else if (doing && act.anim === 'sail') { swimT += dt * 0.5; const ip = isletPos(act.islet ?? 0); goal.set(ip.x + Math.cos(swimT) * 1.6, 0.35, ip.z + Math.sin(swimT) * 1.6); heading = -swimT; if (pos.distanceTo(goal) > 12) pos.copy(goal); }   // ashore on a little island
+  else if (doing && act.anim === 'chop' && (chopT = chopT && town.woodlot.standing().includes(chopT) ? chopT : town.woodlot.standing().sort((a, b) => Math.hypot(a.x - target.x, a.z - target.z) - Math.hypot(b.x - target.x, b.z - target.z))[0] || null)) {
+    // walk up to a standing woodlot tree and face it
+    const dx = target.x - chopT.x, dz = target.z - chopT.z, d = Math.hypot(dx, dz) || 1; goal.set(chopT.x + dx / d * 1.3, 0, chopT.z + dz / d * 1.3); heading = Math.atan2(chopT.x - goal.x, chopT.z - goal.z); }
   else if (doing && act.anim === 'inside' && act.place) { const s = site(act.place); goal.set(s.x, 0, s.z); heading = 0; }                                           // indoors
   else if (doing && ['read', 'sit', 'lie'].includes(act.anim) || (doing && act.place === 'beach' && act.anim !== 'fish')) heading = Math.atan2(-target.x, -target.z);   // back to the wall / the sea
   else if (doing && act.anim === 'fish') heading = act.place === 'river' ? 0 : Math.atan2(target.x, target.z);                                                       // facing the water
@@ -749,7 +754,11 @@ function frame() {
   if (now?.say !== lastSay) { lastSay = now?.say; if (lastSay) talkUntil = elapsed + Math.min(2.5, 0.6 + lastSay.length * 0.04); }
   const f = feelings.compute(now && { ...now, weather: qs.get('weather') || now.weather }, elapsed, qs.get('feel') || window.__world?.feel);
   f.talk = elapsed < talkUntil; nena.setFeeling(f);
-  nena.animate(dt, voy ? voy.act : act);
+  const tool = nena.animate(dt, voy ? voy.act : act);
+  // chopping: each blow shakes the tree; when she finishes, the tree comes down, away from her
+  if (doing && act.anim === 'chop' && chopT) { if (tool?.hit) town.woodlot.hit(chopT); chopping = { t: chopT, p: act.progress ?? 0 }; }
+  else if (chopping) { if (chopping.p > 0.7 || qs.has('act')) town.woodlot.fell(chopping.t, Math.atan2(chopping.t.x - pos.x, chopping.t.z - pos.z), now?.day ?? 0); chopping = null; chopT = null; }
+  town.woodlot.tick(dt, now?.day ?? 0, elapsed);
   if (voy) { balloon.position.copy(voy.balloon); } else balloon.position.set(BALLOON.x, 0.45 + Math.sin(elapsed * 0.8) * 0.05, BALLOON.z);   // waiting at the lookout, tugging gently at its rope
 
   const hour = qs.has('hour') ? Number(qs.get('hour')) : now ? now.hour : 12;

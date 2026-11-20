@@ -157,6 +157,67 @@ export function buildNena() {
     loaded = true;
   }, undefined, err => console.warn('[nena] model did not load, keeping the stand-in', err));
   let loaded = false, scarfHex = null;
+
+  // ---- tools: a shovel for digging, an axe for chopping. Held out in front, on her right.
+  const toolMat = c => new THREE.MeshLambertMaterial({ color: c, flatShading: true });
+  const handleM = toolMat(0x9a6a44), metalM = toolMat(0xb9c2cc), dirtM = toolMat(0x6b4a33), chipM = toolMat(0xe3c48e);
+  const shovel = new THREE.Group(); shovel.visible = false; root.add(shovel);
+  { const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.25, 6), handleM); shaft.position.y = -0.45; shovel.add(shaft);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.05, 0.05), handleM); grip.position.y = 0.18; shovel.add(grip);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.36, 0.04), metalM); blade.position.y = -1.18; shovel.add(blade);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.12, 4), metalM); tip.rotation.z = Math.PI; tip.rotation.y = Math.PI / 4; tip.scale.z = 0.25; tip.position.y = -1.4; shovel.add(tip); }
+  const axe = new THREE.Group(); axe.visible = false; root.add(axe);
+  { const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 1.0, 6), handleM); shaft.rotation.x = Math.PI / 2; shaft.position.z = 0.45; axe.add(shaft);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.22, 0.2), metalM); head.position.set(0, 0, 0.9); axe.add(head);
+    const edge = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.34, 0.12), metalM); edge.position.set(-0.07, 0, 0.92); axe.add(edge); }
+  const bits = new THREE.Group(); root.add(bits);   // dirt clods and wood chips flying off
+  const clods = Array.from({ length: 5 }, (_, i) => { const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.06 + (i % 2) * 0.03, 0), dirtM); m.visible = false; bits.add(m); return m; });
+  const chips = Array.from({ length: 6 }, (_, i) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.05), chipM); m.visible = false; bits.add(m); return m; });
+  // the hole she digs stays put in the world while she works, and fills back in after she goes
+  const hole = new THREE.Group(); hole.visible = false;
+  const pit = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.04, 10), toolMat(0x3b2a20)); pit.position.y = 0.03; hole.add(pit);
+  const mound = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 0), dirtM); mound.scale.set(1, 0.45, 1); hole.add(mound);
+  let holeLife = 0, digging = false;
+  const ease = x => x * x * (3 - 2 * x), seg = (u, a, b) => Math.min(1, Math.max(0, (u - a) / (b - a)));
+  function tools(dt, act, state) {
+    let hit = false, pose = null;
+    shovel.visible = act === 'dig'; axe.visible = act === 'chop';
+    if (act === 'dig') {
+      const P = 1.7, u = (t % P) / P;
+      let lean = 0.35, lift = 0.32, toss = 0;   // raised; then the thrust down, the lever back and the toss
+      if (u < 0.3) { lean = 0.35 + 0.2 * ease(seg(u, 0, 0.3)); lift = 0.32 - 0.1 * seg(u, 0, 0.3); }
+      else if (u < 0.42) { lean = 0.55; lift = 0.22 - 0.32 * ease(seg(u, 0.3, 0.42)); }
+      else if (u < 0.72) { const k = ease(seg(u, 0.42, 0.72)); lean = 0.55 - 0.35 * k; lift = -0.1 + 0.45 * k; toss = k; }
+      else { const k = ease(seg(u, 0.72, 1)); lean = 0.2 + 0.15 * k; lift = 0.35 - 0.03 * k; toss = 1 - k; }
+      shovel.position.set(0.38, 0.95 + lift, 0.32); shovel.rotation.set(-lean, 0, -toss * 0.6);
+      const tc = ((u - 0.72 + 1) % 1) * P;   // seconds since the last toss
+      clods.forEach((c, i) => { const vx = 1.2 + i * 0.25, vy = 2.2 + (i % 3) * 0.4, vz = 0.2 * (i - 2);
+        c.visible = tc < 0.75; c.position.set(0.55 + vx * tc, 0.35 + vy * tc - 4.9 * tc * tc, 0.95 + vz * tc); if (c.position.y < 0.03) c.visible = false; c.rotation.x = tc * 9 + i; });
+      pose = { pitch: (lean - 0.3) * 0.5, flap: 0.55 };
+      // the hole: put down where she started, opening up as she goes
+      if (root.parent) { digging = true; if (!hole.parent) root.parent.add(hole); hole.position.copy(root.localToWorld(new THREE.Vector3(0.05, 0, 1.0))); hole.position.y = 0.05; hole.rotation.y = root.rotation.y; hole.visible = true; }   // she stands still while digging, so it stays put
+      holeLife = 1; const pr = Math.min(1, (state.progress ?? 0.5) + 0.15);
+      pit.scale.set(0.12 + 0.36 * pr, 1, 0.12 + 0.36 * pr);
+    } else {
+      clods.forEach(c => c.visible = false);
+      if (digging) digging = false;
+      if (hole.visible) { holeLife -= dt / 4; const k = Math.max(0, holeLife); pit.scale.multiplyScalar(1); mound.scale.set(k * 0.4, k * 0.2, k * 0.4); pit.scale.set(Math.max(0.01, pit.scale.x * (0.99)), 1, Math.max(0.01, pit.scale.z * 0.99)); if (holeLife <= 0) hole.visible = false; }
+    }
+    if (act === 'dig') { const pr = Math.min(1, (state.progress ?? 0.5) + 0.15); mound.position.set(0.6, 0, 0.1); mound.scale.set(0.14 + 0.28 * pr, 0.08 + 0.16 * pr, 0.14 + 0.28 * pr); }
+    if (act === 'chop') {
+      const P = 1.3, u = (t % P) / P, prev = ((t - dt) % P) / P;
+      let swing;   // wind up slowly over her shoulder, then a fast swing into the trunk
+      if (u < 0.55) swing = 0.15 + 1.75 * ease(seg(u, 0, 0.55));
+      else if (u < 0.66) swing = 1.9 - 1.75 * seg(u, 0.55, 0.66) ** 2;
+      else swing = 0.15;
+      axe.position.set(0.42, 0.9, 0.12); axe.rotation.set(-0.15 - (1.9 - swing) * 0.05, swing, 0);
+      if (prev < 0.66 && u >= 0.66) hit = true;
+      const tc = ((u - 0.66 + 1) % 1) * P;
+      chips.forEach((c, i) => { const a = -0.6 + i * 0.25; c.visible = tc < 0.5; c.position.set(0.35 + Math.sin(a) * 1.6 * tc, 0.95 + 1.4 * tc - 4.9 * tc * tc, 1.1 + Math.cos(a) * 1.2 * tc); c.rotation.set(tc * 14 + i, tc * 9, 0); if (c.position.y < 0.03) c.visible = false; });
+      pose = { roll: (swing - 1) * 0.1, flap: 0.6, pitch: swing < 0.4 ? 0.12 : 0 };
+    } else chips.forEach(c => c.visible = false);
+    return { hit, pose };
+  }
   // state: { phase:'walking'|'doing'|'idle', action }
   function animate(dt, state) {
     t += dt;
@@ -181,7 +242,10 @@ export function buildNena() {
     else if (act === 'lie') { pitch = -1.4; y = -0.38; flap = 1.3; }
     else if (act === 'sit') { y = -0.08; roll = Math.sin(t * 1.2) * 0.03; }
     else if (act === 'fish') { pitch = 0.12; y = Math.sin(t * 1.5) * 0.02; flap = 0.9; }
+    else if (act === 'dig' || act === 'chop') { /* set by the tool below */ }
     else { roll = Math.sin(t * 1.5) * 0.04; y = Math.sin(t * 2.2) * 0.012; }
+    const tool = tools(dt, walking ? null : act, state);
+    if (tool.pose) { roll = tool.pose.roll ?? 0; pitch = tool.pose.pitch ?? 0; flap = tool.pose.flap ?? flap; }
 
     // ease her feelings towards what she is given
     const kf = 1 - Math.exp(-dt * 5);
@@ -223,6 +287,7 @@ export function buildNena() {
       const p = (t * 0.35 + i / 3) % 1;
       z.position.set(0.6 + p * 0.8, 3.4 + p * 2.2, 0); z.scale.setScalar(0.5 + p * 0.6); z.material.opacity = 1 - p;
     });
+    return tool;
   }
 
   const setScarf = hex => { scarfHex = hex; for (const m of scarfMats) m.color.set(hex); };

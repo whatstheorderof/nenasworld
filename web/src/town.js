@@ -3,7 +3,7 @@
 // Blender (kit.js) replace them as soon as they load. Positions come from shared/world.js
 // so the mind and the picture agree.
 import * as THREE from 'three';
-import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, SQUARE_SEATS, BOARD, RING, OBSTACLES, BALLOON, onPath, STREAM, STREAM_A, nearRiver as riverBand } from '../../shared/world.js';
+import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, WOODLOT, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, SQUARE_SEATS, BOARD, RING, OBSTACLES, BALLOON, onPath, STREAM, STREAM_A, nearRiver as riverBand } from '../../shared/world.js';
 import { drawPicture } from './art.js';
 import { pastel } from './palette.js';
 import { waterMaterial } from './water.js';
@@ -265,6 +265,42 @@ export function buildTown() {
     whenKit(() => { const m = kitModel('FruitTree', { isl_leaf: seasonLeaves }); if (!m) return; m.position.set(x, 0, z); m.rotation.y = turn; town.add(m); for (const o of old) town.remove(o); });
     for (let i = 0; i < 4; i++) { const a = i * 1.6 + rand(); fruit.push(mesh(new THREE.SphereGeometry(0.2, 6, 5), fruitMat, x + Math.cos(a) * 1.25, 2.3 + rand() * 0.8, z + Math.sin(a) * 1.25)); }
   }
+  // ---- the woodlot: the trees she chops for wood. Each axe blow shakes the tree; when she's done it topples
+  // away from her and is gone, leaving a stump, and a new one grows back from the stump over a few days.
+  const woodlot = (() => {
+    let saved = {}; try { saved = JSON.parse(localStorage.getItem('nena-woodlot') || '{}'); } catch { saved = {}; }
+    const save = () => { try { localStorage.setItem('nena-woodlot', JSON.stringify(saved)); } catch {} };
+    const trees = WOODLOT.map(([x, z], i) => {
+      const g = new THREE.Group(); g.position.set(x, 0, z); town.add(g);
+      const rig = new THREE.Group(), pivot = new THREE.Group(); g.add(rig); rig.add(pivot);
+      const tree = makeTree(2, 'oak'); tree.scale.setScalar(0.8 + (i % 2) * 0.12); tree.rotation.y = i * 1.7; pivot.add(tree);
+      const stump = new THREE.Group(); g.add(stump);
+      mesh(new THREE.CylinderGeometry(0.3, 0.38, 0.34, 8), flat(P.woodDark), 0, 0.17, 0, stump); mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.03, 8), flat(0xe3c48e), 0, 0.35, 0, stump);
+      return { i, x, z, g, rig, pivot, tree, stump, shake: 0, fall: -1 };
+    });
+    const show = (day = 0) => trees.forEach(t => { if (t.fall >= 0) return;
+      const d = saved[t.i]; let s = 1;
+      if (d != null) { const age = day - d; if (age >= 4) { delete saved[t.i]; save(); } else s = age < 1 ? 0 : 0.25 + 0.75 * (age - 1) / 3; }
+      t.tree.visible = s > 0; t.pivot.scale.setScalar(Math.max(0.001, s)); t.pivot.rotation.x = 0; t.pivot.position.y = 0; t.stump.visible = d != null && s < 0.6; });
+    show();
+    return {
+      trees,
+      standing: () => trees.filter(t => saved[t.i] == null && t.fall < 0),
+      hit(t) { t.shake = 1; },
+      fell(t, dir, day) { if (t.fall >= 0 || saved[t.i] != null) return; t.rig.rotation.y = dir; t.fall = 0; t.day = day; },
+      tick(dt, day, time) {
+        for (const t of trees) {
+          if (t.shake > 0) { t.shake = Math.max(0, t.shake - dt * 3); t.pivot.rotation.z = Math.sin(time * 45) * 0.06 * t.shake; }
+          if (t.fall >= 0) { t.fall += dt;
+            const k = Math.min(1, t.fall / 1.4); t.pivot.rotation.x = (k * k) * Math.PI / 2; t.stump.visible = true;   // topples, speeding up
+            if (t.fall > 1.6) { const f = Math.min(1, (t.fall - 1.6) / 0.8); t.pivot.position.y = -f * 1.2; t.pivot.scale.setScalar(Math.max(0.001, 1 - f)); }
+            if (t.fall > 2.4) { t.fall = -1; saved[t.i] = t.day; save(); show(day); } }
+        }
+        if ((this._day ?? -1) !== day) { this._day = day; show(day); }
+      },
+    };
+  })();
+
   // the big rock she chips at
   { const m = mesh(new THREE.DodecahedronGeometry(1.5, 0), flat(P.rockDark), BIG_ROCK.x, 0.9, BIG_ROCK.z); m.scale.y = 0.9;
     whenKit(() => { const k = kitModel('Rock1', { isl_rock_dark: new THREE.MeshLambertMaterial({ color: pastel(P.rockDark), flatShading: true }) }); if (!k) return; k.position.set(BIG_ROCK.x, 0, BIG_ROCK.z); k.scale.set(1.75, 1.6, 1.75); town.add(k); town.remove(m); }); mesh(new THREE.DodecahedronGeometry(0.35, 0), glow(0xffe08a, 0xffd93b), BIG_ROCK.x + 0.9, 1.5, BIG_ROCK.z + 0.6); }
@@ -640,7 +676,7 @@ export function buildTown() {
   for (let i = 0; i < 5; i++) { const a = BEACH.from + 0.08 + i / 4 * (BEACH.to - BEACH.from - 0.16), r = BEACH.inner + 2.5 + (i % 2) * 6; lamp(Math.cos(a) * r, Math.sin(a) * r, 'torch'); }
 
   // ---- decoration round the edge ------------------------------------------------------------
-  const extraObs = [site('cafe'), CLOCK, BIG_ROCK, BALLOON, ...NEIGHBOURS.flatMap(n => n.hobbies.filter(h => h.at).map(h => h.at)), ...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home)];
+  const extraObs = [site('cafe'), CLOCK, BIG_ROCK, BALLOON, ...NEIGHBOURS.flatMap(n => n.hobbies.filter(h => h.at).map(h => h.at)), ...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...WOODLOT.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home)];
   const clear = (x, z, pad) => !onPath(x, z, 1.8) && !inBeach(x, z) && !nearRiver(x, z, 3.2) && extraObs.every(o => Math.hypot(o.x - x, o.z - z) > 3.6) && Object.keys(PLACES).every(k => { const s = site(k); return Math.hypot(s.x - x, s.z - z) > (s.r || 2.5) + pad && Math.hypot(PLACES[k].x - x, PLACES[k].z - z) > 3; });
   // every decoration has a footprint (roughly its canopy or spread), and nothing goes down inside another's
   let placed = 0;
@@ -819,5 +855,5 @@ export function buildTown() {
   function setAway(islet) { isletBoats.forEach((b, i) => { b.visible = islet === i; }); beachBoat.visible = islet == null; }
   function setEvent(show) { festival.visible = !!show; lanternsG.visible = show === 'lanterns'; }
   setHouse(0, 1);
-  return { town, board, setEasel, setLights, setWind, setNight, setSeason, setHouse, setEvent, setIsland, setAway, setClock, setObservatory, pond, flag: town.userData.flag };
+  return { town, woodlot, board, setEasel, setLights, setWind, setNight, setSeason, setHouse, setEvent, setIsland, setAway, setClock, setObservatory, pond, flag: town.userData.flag };
 }

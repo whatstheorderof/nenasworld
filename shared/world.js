@@ -134,6 +134,8 @@ export function isleSpot(isl, key) {
 export const BALLOON = (() => { const l = PLACES.lookout, d = Math.hypot(l.x, l.z); return { x: Math.round(l.x / d * (d + 6.5) * 10) / 10, z: Math.round(l.z / d * (d + 6.5) * 10) / 10 }; })();
 export const isletPos = i => ({ x: Math.cos(ISLETS[i].a) * ISLETS[i].r, z: Math.sin(ISLETS[i].a) * ISLETS[i].r });
 export const ORCHARD_TREES = [[-0.6, 2.4], [2.2, -1.4], [-2.2, -2.4]].map(([x, z]) => [PLACES.orchard.x + x, PLACES.orchard.z + z]);
+// the woodlot by the orchard: the trees she chops for wood. A felled one leaves a stump and grows back.
+export const WOODLOT = [[4.6, 2.6], [-4.8, 1.0], [1.4, 5.6], [4.2, -4.6]].map(([x, z]) => [PLACES.orchard.x + x, PLACES.orchard.z + z]);
 export const BIG_ROCK = { x: PLACES.rock.x - 2, z: PLACES.rock.z };
 export const CLOCK = { x: 3.4, z: SQUARE + 2.6 };   // the clocktower, just off the square
 export const BOARD = { x: 9.2, z: 2.3 };            // the noticeboard, on the square
@@ -159,6 +161,7 @@ export const OBSTACLES = [
   { key: 'balloon', ...BALLOON, r: 4.4 },
   ...SQUARE_SEATS.map(q => ({ key: q.kind, x: q.x, z: q.z, r: 0.8 })),
   ...ORCHARD_TREES.map(([x, z]) => ({ key: 'tree', x, z, r: 0.9 })),
+  ...WOODLOT.map(([x, z]) => ({ key: 'tree', x, z, r: 0.8 })),
   ...NEIGHBOURS.map(n => ({ key: 'tent', x: n.home.x, z: n.home.z, r: 1.9 })),
 ];
 
