@@ -83,6 +83,9 @@ button.inline { background: var(--paper); border: 2px solid var(--line); border-
   #nav::-webkit-scrollbar { display: none; }
   #nav button { flex: 0 0 auto; white-space: nowrap; padding: 7px 12px; font-size: 14px; border-width: 2.5px; box-shadow: 0 3px 0 var(--line); scroll-snap-align: start; }
   #nav button:last-child { margin-right: 12px; }
+  #nav button.primary { order: -1; }   /* the main thing to do comes first on a phone, not hidden off the edge */
+  #nav { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+  #nav.end { -webkit-mask-image: none; mask-image: none; }
 
 
   #tools { top: calc(8px + env(safe-area-inset-top)); right: 8px; flex-direction: column; align-items: flex-end; gap: 6px; }

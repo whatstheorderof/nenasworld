@@ -161,7 +161,7 @@ dots.uniforms.cell.value = 5 * renderer.getPixelRatio();
 dots.enabled = settings.dots;
 composer.addPass(dots);
 composer.addPass(new OutputPass());
-function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
 
 // ---- sky by the hour -------------------------------------------------------
@@ -883,3 +883,8 @@ function frame() {
 }
 frame();
 window.__world = { renderer, dyn, scene, camera, controls, nena, sound, site, town, npcs: () => now?.npcs || [], camper: () => now?.camper, pos: () => now?.pos };   // handy in the console
+
+// Phone tab row scrolls sideways: fade the right edge until you reach the end, so it's clear there's more
+{ const nav = document.getElementById('nav');
+  const edge = () => nav.classList.toggle('end', nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 4);
+  nav.addEventListener('scroll', edge, { passive: true }); addEventListener('resize', edge); edge(); }
