@@ -75,6 +75,51 @@ function flutterMat(base) {
   flutMats.set(base, m); return m;
 }
 
+// Penguins that waddle. A colony is merged into a few meshes (bodies, bellies, beaks), so each loose piece is
+// matched to the nearest body and every vertex carries its penguin's feet (wadC: x, y, z, phase) and which way
+// is sideways (wadS). The vertex shader then rocks each penguin from foot to foot on its own beat, with pauses.
+const WADDLE = /_X_(penguin|belly|beak)$/;
+function pieces(g) {   // loose parts of a triangle soup: [{ tris: [index], c: centre, w: width }]
+  const pos = g.attributes.position, n = pos.count, key = i => `${pos.getX(i).toFixed(3)},${pos.getY(i).toFixed(3)},${pos.getZ(i).toFixed(3)}`;
+  const id = new Map(), par = []; const find = a => { while (par[a] !== a) a = par[a] = par[par[a]]; return a; };
+  const vk = new Int32Array(n); for (let i = 0; i < n; i++) { const k = key(i); if (!id.has(k)) { id.set(k, par.length); par.push(par.length); } vk[i] = id.get(k); }
+  for (let t = 0; t < n; t += 3) { const a = find(vk[t]); par[find(vk[t + 1])] = a; par[find(vk[t + 2])] = a; }
+  const groups = new Map(); for (let t = 0; t < n; t += 3) { const r = find(vk[t]); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(t); }
+  return [...groups.values()].map(tris => { const b = new THREE.Box3(); for (const t of tris) for (let k = 0; k < 3; k++) b.expandByPoint(new THREE.Vector3(pos.getX(t + k), pos.getY(t + k), pos.getZ(t + k)));
+    return { tris, c: b.getCenter(new THREE.Vector3()), lo: b.min.y, w: Math.max(b.max.x - b.min.x, b.max.z - b.min.z) }; });
+}
+function waddleCentres(list, byMat) {
+  const all = list.map(l => ({ ...l, parts: pieces(l.g) }));
+  const bodyParts = all.filter(l => l.body).flatMap(l => l.parts), lowest = Math.min(...bodyParts.map(p => p.lo));
+  const feet = bodyParts.filter(p => p.lo < lowest + 0.08).map((p, i) => ({ c: p.c, y: p.lo, ph: i * 2.39, side: null }));
+  const near = c => feet.reduce((a, f) => Math.hypot(f.c.x - c.x, f.c.z - c.z) < Math.hypot(a.c.x - c.x, a.c.z - c.z) ? f : a);
+  for (const p of bodyParts) if (p.w < 0.12) { const f = near(p.c); if (!f.side) f.side = new THREE.Vector2(p.c.x - f.c.x, p.c.z - f.c.z).normalize(); }   // a flipper points sideways
+  for (const l of all) { const pos = l.g.attributes.position, C = new Float32Array(pos.count * 4), S = new Float32Array(pos.count * 2);
+    for (const p of l.parts) { const f = near(p.c), sd = f.side || new THREE.Vector2(1, 0);
+      for (const t of p.tris) for (let k = t; k < t + 3; k++) { C.set([f.c.x, f.y, f.c.z, f.ph], k * 4); S.set([sd.x, sd.y], k * 2); } }
+    l.g.setAttribute('wadC', new THREE.BufferAttribute(C, 4)); l.g.setAttribute('wadS', new THREE.BufferAttribute(S, 2));
+    (byMat['^' + l.src.name] ||= { src: l.src, wd: true, geos: [] }).geos.push(l.g); }
+}
+const wadMats = new Map();
+function waddleMat(base) {
+  if (wadMats.has(base)) return wadMats.get(base);
+  const m = base.clone();
+  m.onBeforeCompile = sh => { sh.uniforms.uT = flutter.uT;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 wadC; attribute vec2 wadS; uniform float uT;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        float go = smoothstep(-0.2, 0.5, sin(uT * 0.37 + wadC.w * 1.7));          // sometimes they stop and stand
+        float sw = sin(uT * 5.5 + wadC.w);
+        float a = sw * 0.16 * go, ca = cos(a), sa = sin(a);
+        vec3 s = vec3(wadS.x, 0.0, wadS.y), p = transformed - wadC.xyz;
+        float ps = dot(p, s), py = p.y;
+        p += s * (ps * ca - py * sa - ps); p.y = ps * sa + py * ca;
+        float yw = sin(uT * 0.9 + wadC.w * 3.1) * 0.35 * go, cy = cos(yw), sy = sin(yw);   // and look about
+        p.xz = mat2(cy, sy, -sy, cy) * p.xz;
+        transformed = wadC.xyz + p + vec3(0.0, abs(sw) * 0.025 * go, 0.0);`); };
+  m.customProgramCacheKey = () => 'waddle';
+  wadMats.set(base, m); return m;
+}
+
 // A merged copy of an asset: a Group holding one mesh per material.
 // `swap` maps Blender material names to materials (e.g. the orchard's seasonal leaves).
 // `keep`: names of parts left out of the merge and added as their own objects (so code can move them, e.g. windmill sails)
@@ -83,15 +128,17 @@ export function kitModel(name, swap = {}, keep = []) {
   const kept = o => { for (let a = o; a && a !== root; a = a.parent) if (keep.includes(a.name)) return true; return false; };
   if (!merged[name]) {
     const inv = root.matrixWorld.clone().invert(), byMat = {};
-    const poles = []; root.traverse(o => { if (o.isMesh && /Pole/.test(o.name)) poles.push(new THREE.Box3().setFromObject(o).applyMatrix4(inv)); });
+    const poles = [], waddlers = []; root.traverse(o => { if (o.isMesh && /Pole/.test(o.name)) poles.push(new THREE.Box3().setFromObject(o).applyMatrix4(inv)); });
     root.traverse(o => { if (!o.isMesh || kept(o)) return;
       const g = plain(o.geometry); g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+      if (WADDLE.test(o.name)) { waddlers.push({ g, src: o.material, body: /penguin$/.test(o.name) }); return; }
       const fl = FLUTTER.test(o.name); if (fl) clothWeights(g, o.name, poles);
       (byMat[(fl ? '~' : '') + o.material.name] ||= { src: o.material, fl, geos: [] }).geos.push(g); });
-    merged[name] = Object.values(byMat).map(({ src, fl, geos }) => ({ src, fl, geo: mergeGeometries(geos) }));
+    if (waddlers.length) waddleCentres(waddlers, byMat);
+    merged[name] = Object.values(byMat).map(({ src, fl, wd, geos }) => ({ src, fl, wd, geo: mergeGeometries(geos) }));
   }
   const g = new THREE.Group();
-  for (const { src, fl, geo } of merged[name]) { const m = swap[src.name] || material(src); g.add(new THREE.Mesh(geo, fl ? flutterMat(m) : m)); }
+  for (const { src, fl, wd, geo } of merged[name]) { const m = swap[src.name] || material(src); g.add(new THREE.Mesh(geo, fl ? flutterMat(m) : wd ? waddleMat(m) : m)); }
   const inv = root.matrixWorld.clone().invert();
   for (const k of keep) { const n = root.getObjectByName(k); if (!n) continue;
     const c = n.clone(true); new THREE.Matrix4().multiplyMatrices(inv, n.matrixWorld).decompose(c.position, c.quaternion, c.scale);
