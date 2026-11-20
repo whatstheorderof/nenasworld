@@ -579,7 +579,22 @@ export function buildTown() {
     };
     ribbon(water.river.w0 + 1.8, P.sandDark, 0.06); ribbon(water.river.w0, P.river, 0.09, waterMaterial({ scale: 1.6, speed: 0.8, flow: [0.25, 0.18] }));
     const end = pts[pts.length - 1], a = Math.atan2(end.z, end.x);
-    const fw = water.river.w0 * widen(1) + 0.4, fall = box(fw, 7, 0.5, P.river, Math.cos(a) * (R + 0.1), -3.4, Math.sin(a) * (R + 0.1)); fall.rotation.y = -a + Math.PI / 2; fall.material = waterMaterial({ fall: true, edge: 0.09 });
+    const fw = water.river.w0 * widen(1) + 0.4;
+    // the waterfall: pours off the rim, curves out from the cliff as it drops, spreads and thins,
+    // and breaks up into mist far below the island
+    { const H = 78, NU = 6, NV = 28, pos = [], uv = [], idx = [], ox = Math.cos(a), oz = Math.sin(a), sx = -oz, sz = ox;
+      for (let j = 0; j <= NV; j++) { const v = j / NV, drop = v * H, out = R + 0.2 + 4.2 * Math.sqrt(v) + 2.5 * v, w = fw * (1 + 0.9 * v);
+        for (let i = 0; i <= NU; i++) { const u = i / NU - 0.5, wob = Math.sin(v * 9 + u * 4) * 0.35 * v;
+          pos.push(ox * (out + wob) + sx * u * w, 0.05 - drop, oz * (out + wob) + sz * u * w); uv.push(i / NU, 1 - v); } }
+      for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) { const k = j * (NU + 1) + i; idx.push(k, k + NU + 1, k + 1, k + 1, k + NU + 1, k + NU + 2); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+      const fall = new THREE.Mesh(g, waterMaterial({ fall: true, edge: 0.09, fade: 0.35 })); fall.renderOrder = 2; town.add(fall);
+      // spray at the lip and a cloud of mist where it gives out
+      const mist = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xdff4ff, emissiveIntensity: 0.75, transparent: true, opacity: 0.45, depthWrite: false, flatShading: true });
+      town.userData.fallMist = [];
+      for (let i = 0; i < 16; i++) { const v = 0.55 + Math.random() * 0.45, out = R + 0.2 + 4.2 * Math.sqrt(v) + 2.5 * v, u = (Math.random() - 0.5) * fw * 1.6;
+        const m = new THREE.Mesh(new THREE.IcosahedronGeometry(2.2 + Math.random() * 3.2, 1), mist); m.position.set(ox * out + sx * u, 0.05 - v * H, oz * out + sz * u); m.userData.base = m.position.clone(); m.userData.ph = Math.random() * 6.28; town.add(m); town.userData.fallMist.push(m); }
+      for (let i = 0; i < 5; i++) { const u = (i / 4 - 0.5) * fw, m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 0), mist); m.position.set(ox * (R + 0.6) + sx * u, -0.4, oz * (R + 0.6) + sz * u); town.add(m); } }
     const lip = box(fw, 0.2, 1.0, P.river, Math.cos(a) * (R - 0.3), 0.0, Math.sin(a) * (R - 0.3)); lip.rotation.y = -a + Math.PI / 2; lip.material = waterMaterial({ scale: 1.6, speed: 0.8, flow: [0.25, 0.18] });
     for (let i = 0; i < 7; i++) { const u = 0.08 + i * 0.13, p = curve.getPoint(u), s = i % 2 ? 1 : -1; rock(p.x + s * 0.2, p.z + s * (water.river.w0 * widen(u) / 2 + 1.2), 0.45 + rand() * 0.4); }
     // the bridge Suvi sings by, plus one wherever a path crosses the water
@@ -793,6 +808,7 @@ export function buildTown() {
     bigTree.glow = new THREE.PointLight(0xffd88a, 0, 22, 2); bigTree.glow.position.set(0, 7.5, -1.5); bigTree.glow.userData.keep = true; g.add(bigTree.glow);   // a soft warm wash on the tree at night
   }
   function tickPetals(t, dt, wind) {
+    for (const m of town.userData.fallMist || []) { const b = m.userData.base, ph = m.userData.ph; m.position.set(b.x + Math.sin(t * 0.3 + ph) * 1.2, b.y + Math.sin(t * 0.5 + ph) * 0.8, b.z + Math.cos(t * 0.27 + ph) * 1.2); m.scale.setScalar(1 + Math.sin(t * 0.6 + ph) * 0.12); }   // the mist billows
     const p = bigTree.petals; if (!p || !p.visible) return;
     const a = p.geometry.attributes.position, arr = a.array;
     for (let i = 0; i < bigTree.seeds.length; i++) { const sd = bigTree.seeds[i]; let y = arr[i * 3 + 1] - sd.sp * dt;
