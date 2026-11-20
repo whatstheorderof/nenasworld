@@ -2,7 +2,7 @@
 // each with one small sign of what lives there: smoke and a red glow on the
 // volcano, tiny lights in the forest, and light coming up through the hole in the ice.
 import * as THREE from 'three';
-import { SKY_ISLANDS, TOWN_ISLANDS, BLOOM_ISLE, RUIN_ISLE, POMPOM_ISLE, townPos, islePos, isleTurn } from '../../shared/world.js';
+import { SKY_ISLANDS, TOWN_ISLANDS, BLOOM_ISLE, RUIN_ISLE, POMPOM_ISLE, PAVILION_ISLE, townPos, islePos, isleTurn } from '../../shared/world.js';
 import { waterMaterial } from './water.js';
 import { kitParts, kitBoxes } from './kit.js';
 import { buildRoots } from './roots.js';
@@ -100,6 +100,12 @@ export function buildFarIslands(scene) {
   const pom = new THREE.Group(), PM = POMPOM_ISLE; pom.position.set(Math.cos(PM.a) * PM.r, PM.y, Math.sin(PM.a) * PM.r); pom.scale.setScalar(PM.scale); pom.rotation.y = isleTurn(PM); scene.add(pom);
   const pomLit = (c, e) => new THREE.MeshLambertMaterial({ color: c, emissive: e, emissiveIntensity: 0.55, flatShading: true, side: THREE.DoubleSide });
   whenKit(() => { const m = kitModel('IslandPompom', { pom_head: pomLit(0xb2e23a, 0x7aa82a), pom_tip: pomLit(0xf0fdc8, 0xd8f0a0), pom_core: pomLit(0x86b832, 0x4a7a1a) }); if (m) pom.add(m); });
+  // the Quarry House: see-through glass onto a warm orange room that glows, brighter at dusk and night
+  const pav = new THREE.Group(), PV = PAVILION_ISLE; pav.position.set(Math.cos(PV.a) * PV.r, PV.y, Math.sin(PV.a) * PV.r); pav.scale.setScalar(PV.scale); pav.rotation.y = isleTurn(PV); scene.add(pav);
+  const pavWarm = new THREE.MeshLambertMaterial({ color: 0xff6a22, emissive: 0xff5a14, emissiveIntensity: 0.35, flatShading: true, side: THREE.DoubleSide });
+  const pavBulb = new THREE.MeshBasicMaterial({ color: 0xfff1d0 });
+  const pavGlass = new THREE.MeshLambertMaterial({ color: 0xffd2a8, emissive: 0xff9a50, emissiveIntensity: 0.15, transparent: true, opacity: 0.18, depthWrite: false });
+  whenKit(() => { const m = kitModel('IslandPavilion', { glow_pav: pavWarm, glow_pavbulb: pavBulb, pav_glass: pavGlass }); if (m) pav.add(m); });
   // gulls wheeling round the Old Hotel
   const gulls = [], gullMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide, flatShading: true });
   const wingGeo = new THREE.BufferGeometry(); wingGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, -0.3, 0, 0, 0.3, 1.5, 0.15, -0.05], 3)); wingGeo.computeVertexNormals();
@@ -136,6 +142,7 @@ export function buildFarIslands(scene) {
     glows.forEach(m => { m.opacity = 0.25 + night * 0.65; });
     towns.children.forEach((g, i) => { g.position.y = g.userData.isl.y + Math.sin(t * 0.1 + i * 1.7) * 1.2; });
     winMat.emissiveIntensity = night * 1.4;
+    pavWarm.emissiveIntensity = 0.35 + night * 0.9;
     if (sails) sails.rotation.z = t * 0.6;   // the windmill on Little Gable turns
     { let n = 0; const M4 = tickM4, sc = tickV2;
       for (const e of smokeEm) for (let i = 0; i < SMOKE_PER && n < SMOKE_MAX; i++) {

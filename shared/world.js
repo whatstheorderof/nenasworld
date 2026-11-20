@@ -117,7 +117,10 @@ export const RUIN_ISLE = { id: 'ruin', name: 'the Old Hotel', a: 0.55, r: 230, y
 // A field of lime-green pom-pom flowers on tall ribbed stalks, one giant towering over them all. Model: IslandPompom (radius 12).
 export const POMPOM_ISLE = { id: 'pompom', name: 'Pompom Meadow', a: 2.5, r: 230, y: 2, scale: 2.4, size: 30,
   about: 'A meadow of fluffy lime-green pom-pom flowers on tall stalks, with one giant pom-pom towering over them all. The sun shines through them.' };
-export const LONE_ISLES = [{ ...BLOOM_ISLE, chart: '#9aa6e8' }, { ...RUIN_ISLE, chart: '#efe4cc' }, { ...POMPOM_ISLE, chart: '#b6e43c' }];
+// A quarry island with one building on it: a travertine box on slim columns, its whole front glass, glowing orange inside. Model: IslandPavilion (radius 12).
+export const PAVILION_ISLE = { id: 'pavilion', name: 'the Quarry House', a: 1.75, r: 245, y: -2, scale: 2.4, size: 30,
+  about: 'A quarry island with a single house: a pale stone box lifted on thin columns, its front all glass, glowing orange inside, with a round chair, a daybed and a lamp.' };
+export const LONE_ISLES = [{ ...BLOOM_ISLE, chart: '#9aa6e8' }, { ...RUIN_ISLE, chart: '#efe4cc' }, { ...POMPOM_ISLE, chart: '#b6e43c' }, { ...PAVILION_ISLE, chart: '#ff8a3a' }];
 export const SKY_ISLANDS = [
   { id: 'ember', name: 'the smoking island', theme: 'volcano and desert', a: 3.75, r: 405, y: -6, scale: 1.6, size: 58, resources: ['obsidian', 'fire opal', 'sand glass', 'cactus fruit'],
     spots: { pad: [0, -31], oasis: [12.5, -12, { does: 'picking dates by the oasis', food: 'dates' }], cactus: [-14, -12, { does: 'picking prickly pears (carefully)', food: 'cactus fruit' }],
