@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, TRIP_ISLES, LONE_ISLES, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, site } from '../../shared/world.js';
+import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, TRIP_ISLES, LONE_ISLES, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, islePos, townPos, site } from '../../shared/world.js';
 import { kitModel as kitM, whenKit as whenK } from './kit.js';
 import { icon } from './icons.js';
 import { WEATHER_WORDS, FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, ACTIONS, todaysEvent } from '../../shared/data.js';
@@ -330,7 +330,8 @@ function connect() {
 setTimeout(connect, 0);
 setInterval(() => { if (local) apply(local.now()); }, 200);
 $('status').onclick = () => $('status').classList.toggle('open');
-$('map-btn').onclick = () => (chartOpen() ? closeChart() : openChart({ islets: lifeData?.islets || [], far: Object.keys(lifeData?.farVisited || {}), at: (({ x, z }) => ({ x, z }))(nena.root.position), heading: now?.heading, cam: freeCam ? { x: camera.position.x, z: camera.position.z, yaw: 0 } : null }));
+const chartInfo = (extra = {}) => ({ islets: lifeData?.islets || [], far: Object.keys(lifeData?.farVisited || {}), at: (({ x, z }) => ({ x, z }))(nena.root.position), heading: now?.heading, cam: freeCam ? { x: camera.position.x, z: camera.position.z, yaw: 0 } : null, ...extra });
+$('map-btn').onclick = () => (chartOpen() ? closeChart() : openChart(chartInfo()));
 $('offline').onclick = () => { $('offline').hidden = true; };   // on phones the card starts small
 
 const NEED_COLORS = { fullness: '#f2792e', energy: '#ffd93b', wonder: '#6a2fc4', joy: '#ff7fa3', calm: '#2fc6b3' };
@@ -660,7 +661,35 @@ let downAt = null;
 canvas.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
 canvas.addEventListener('pointerup', e => { if (downAt && Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) < 6 && clickableAt(e) === 'board') show('board'); downAt = null; });
 let hoverT = 0;
-canvas.addEventListener('pointermove', e => { if (performance.now() - hoverT < 80) return; hoverT = performance.now(); canvas.style.cursor = clickableAt(e) ? 'pointer' : ''; });
+canvas.addEventListener('pointermove', e => { if (performance.now() - hoverT < 80) return; hoverT = performance.now(); canvas.style.cursor = clickableAt(e) || isleAt(e) ? 'pointer' : ''; });
+
+// ---- the other islands: tap one to see what it is ----------------------------------------
+const ISLES_INFO = [
+  ...TOWN_ISLANDS.map(t => { const p = townPos(t); return { id: t.id, name: t.name, about: t.about, kind: 'town', x: p.x, y: t.y - 4 * t.scale, z: p.z, r: (t.id === 'fountain' ? 16 : 13) * t.scale }; }),
+  ...TRIP_ISLES.map(i => { const c = islePos(i); return { id: i.id, name: i.name, about: i.about, kind: 'trip', x: c.x, y: c.y - 3 * (i.scale || 1), z: c.z, r: SKY_ISLANDS.includes(i) ? i.size + 4 : 12 * i.scale }; }),
+  ...ISLETS.map((il, i) => { const p = isletPos(i); return { id: 'islet' + i, name: il.name, about: `A little islet in the lagoon. She rows out here for ${il.gives.join(', ')}.`, kind: 'islet', x: p.x, y: -1, z: p.z, r: 7 }; })];
+function isleAt(e) {
+  ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); pickRay.setFromCamera(ptr, camera);
+  const o = pickRay.ray.origin, d = pickRay.ray.direction; let best = null;
+  for (const I of ISLES_INFO) { const t = (I.x - o.x) * d.x + (I.y - o.y) * d.y + (I.z - o.z) * d.z; if (t < 0) continue;
+    const dist = Math.hypot(o.x + d.x * t - I.x, o.y + d.y * t - I.y, o.z + d.z * t - I.z); if (dist < I.r && (!best || t < best.t)) best = { ...I, t }; }
+  return best; }
+function showIsle(I, e) {
+  let card = $('isle-card'); if (!card) { card = document.createElement('div'); card.id = 'isle-card'; document.body.append(card); }
+  const visits = lifeData?.farVisited?.[I.id] || 0, folk = CAMPERS.filter(c => c.home === I.id), met = lifeData?.metCampers || [];
+  const iconKey = { ember: 'ember', wood: 'wood_isle', glass: 'glass', bloom: 'bloom_isle', ruin: 'hotel_isle', pompom: 'pompom_isle', pavilion: 'quarry_isle' }[I.id] || 'island';
+  card.innerHTML = `<button class="x" aria-label="Close">×</button><div class="ic">${icon(iconKey)}</div><h3>${esc(I.name.replace(/^the /, 'The '))}</h3><p>${esc(I.about)}</p>
+    ${I.kind === 'trip' ? `<p class="dim">${visits ? `Nena has flown here ${visits} time${visits > 1 ? 's' : ''} by balloon.` : 'Nena hasn\'t flown here yet. One day, by balloon.'}</p>` : ''}
+    ${folk.length ? `<p class="dim">Travellers from here: ${folk.map(c => met.includes(c.name) ? `${esc(c.name)} the ${esc(c.kind)}` : 'someone she hasn\'t met yet').join(', ')}.</p>` : ''}
+    <button class="map">Show on the map</button>`;
+  card.style.left = Math.min(innerWidth - 300, Math.max(12, e.clientX - 140)) + 'px'; card.style.top = Math.min(innerHeight - 260, Math.max(70, e.clientY - 40)) + 'px'; card.hidden = false;
+  card.querySelector('.x').onclick = () => { card.hidden = true; };
+  card.querySelector('.map').onclick = () => { card.hidden = true; openChart(chartInfo({ focus: { x: I.x, z: I.z } })); };
+}
+canvas.addEventListener('pointerup', e => { if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 6) return; if (clickableAt(e)) return;
+  const I = isleAt(e), card = $('isle-card');
+  if (I) { const near = pickRay.intersectObject(town.town, true)[0]; if (!near || near.distance > I.t - I.r) { showIsle(I, e); return; } }   // her island in front wins
+  if (card) card.hidden = true; }, true);
 
 // ---- visitors: your gull ----------------------------------------------------------------
 const ray = new THREE.Raycaster(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);

@@ -206,7 +206,7 @@ function loop() { state.t += 1 / 60; draw(); state.raf = requestAnimationFrame(l
 export function openChart(info = {}) {
   if (!root) build();
   state.info = info; root.hidden = false; document.body.classList.add('charting');
-  const sq = (info.cam && squareAt(info.cam.x, info.cam.z)) || (info.at && squareAt(info.at.x, info.at.z)); if (sq) state.sel = sq;   // roaming: open where the camera is
+  const sq = (info.focus && squareAt(info.focus.x, info.focus.z)) || (info.cam && squareAt(info.cam.x, info.cam.z)) || (info.at && squareAt(info.at.x, info.at.z)); if (sq) state.sel = sq;   // roaming: open where the camera is
   requestAnimationFrame(() => { size(); stats(); detail(); cancelAnimationFrame(state.raf); loop(); });
 }
 export function updateChart(info) { if (root && !root.hidden) { state.info = { ...state.info, ...info }; } }
