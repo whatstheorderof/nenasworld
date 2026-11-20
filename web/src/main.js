@@ -7,6 +7,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, TRIP_ISLES, LONE_ISLES, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, islePos, townPos, site } from '../../shared/world.js';
 import { kitModel as kitM, whenKit as whenK, flutter } from './kit.js';
+import { showGuide, guideSeen } from './guide.js';
 import { icon } from './icons.js';
 import { WEATHER_WORDS, FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, ACTIONS, todaysEvent } from '../../shared/data.js';
 import { buildNena, buildRobot } from './nena.js';
@@ -513,13 +514,14 @@ async function show(name) {
         ${row('clock24', '24-hour clock', 'Off: 9:30 pm instead of 21:30')}
         <h3>You</h3>
         <label class="set"><span><b>Your name</b><small>Shown on your gull, in chat and on notes</small></span><input type="text" id="set-name" maxlength="16" value="${esc(myName())}" /></label>
-        <p class="row"><button class="inline" id="set-reset" type="button">Reset to defaults</button></p>
+        <p class="row"><button class="inline" id="set-reset" type="button">Reset to defaults</button> <button class="inline" id="set-guide" type="button">Show the welcome tour</button></p>
         <p class="dim">Looking after Nena? <a href="/world.html">Read the world diary</a>, a day-by-day record of the island, and leave feedback.</p>`;
       body.querySelectorAll('[data-set]').forEach(el => el.onchange = el.oninput = () => {
         const k = el.dataset.set; settings[k] = el.type === 'checkbox' ? el.checked : el.type === 'range' ? Number(el.value) : el.value; saveSettings(); applySettings(k);
         if (k === 'sound') body.querySelector('[data-set=volume]').disabled = !settings.sound;
       });
       $('set-name').onchange = () => { const v = $('set-name').value.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 16); if (!v) return; localStorage.setItem('nena-name', v); $('set-name').value = v; if (socket) { socket.close(); } };
+      $('set-guide').onclick = () => { close(); showGuide(); };
       $('set-reset').onclick = () => { Object.assign(settings, DEFAULTS); saveSettings(); for (const k of Object.keys(DEFAULTS)) applySettings(k); show('settings'); };
     } else if (name === 'board') {
       if (local) { body.innerHTML = `<h2>The noticeboard</h2>${standIn}`; return; }
@@ -883,9 +885,12 @@ function frame() {
   requestAnimationFrame(frame);
 }
 frame();
-window.__world = { renderer, dyn, scene, camera, controls, nena, sound, site, town, npcs: () => now?.npcs || [], camper: () => now?.camper, pos: () => now?.pos };   // handy in the console
+window.__world = { guide: showGuide, renderer, dyn, scene, camera, controls, nena, sound, site, town, npcs: () => now?.npcs || [], camper: () => now?.camper, pos: () => now?.pos };   // handy in the console
 
 // Phone tab row scrolls sideways: fade the right edge until you reach the end, so it's clear there's more
 { const nav = document.getElementById('nav');
   const edge = () => nav.classList.toggle('end', nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 4);
   nav.addEventListener('scroll', edge, { passive: true }); addEventListener('resize', edge); edge(); }
+
+// First visit: a short welcome tour once the island has loaded (not for automated browsers)
+if (!guideSeen() && !navigator.webdriver) whenK(() => setTimeout(() => { if (!guideSeen()) showGuide(); }, 1800));
