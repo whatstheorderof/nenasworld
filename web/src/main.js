@@ -290,6 +290,9 @@ const onChat = item => { if (item.kind === 'nena' && item.to?.includes(myName())
 const sendMind = m => { if (socket?.readyState === 1) socket.send(JSON.stringify(m)); };
 const feed = [];
 const target = new THREE.Vector3(PLACES.home.x, 0, PLACES.home.z);
+// Her position arrives a few times a second. Between updates she carries on at the speed she was going,
+// so walking and riding glide instead of surging forward and easing off each time.
+const lastPos = target.clone(), vel = new THREE.Vector3(); let lastPosAt = performance.now(), sincePos = 0;
 const api = (path, opts) => fetch(MIND + path, opts).then(r => r.json());
 function startStandIn() {
   if (local) return;
@@ -345,6 +348,12 @@ async function refreshLife() {
 }
 function apply(n, snap) {
   now = n;
+  { const t = performance.now(), gap = (t - lastPosAt) / 1000;
+    if (n.pos.x !== lastPos.x || n.pos.z !== lastPos.z) {
+      const v = new THREE.Vector3(n.pos.x - lastPos.x, 0, n.pos.z - lastPos.z).divideScalar(Math.max(0.05, gap));
+      vel.copy(snap || v.length() > 12 || n.activity?.phase !== 'walking' ? v.set(0, 0, 0) : v);   // a jump (teleport, first load) or standing: no carrying on
+      lastPos.set(n.pos.x, 0, n.pos.z); lastPosAt = t; sincePos = 0;
+    } else if (gap > 0.6) vel.set(0, 0, 0); }
   target.set(n.pos.x, 0, n.pos.z);
   if (snap) nena.root.position.copy(target);
   const upcoming = n.event ? `${n.event.name} is on!` : (todaysEvent(n.day) ? `${todaysEvent(n.day).name} today` : '');
@@ -751,7 +760,8 @@ function frame() {
   if (qs.has('at')) { const [ax, az] = qs.get('at').split(',').map(Number); target.set(ax, 0, az); if (!qs.has('ride') && !qs.has('act')) { act.phase = 'idle'; act.anim = 'stand'; } }   // preview: stand her somewhere
   const pos = nena.root.position, k = 1 - Math.exp(-dt * 6), doing = act.phase === 'doing';
 
-  const goal = target.clone(); let voy = null;
+  sincePos += dt;
+  const goal = target.clone().addScaledVector(vel, Math.min(sincePos, 0.35)); let voy = null;   // where she'll be by now
   if (doing && act.anim === 'swim') { swimT += dt * 0.55; goal.set(town.pond.x + Math.cos(swimT) * 5.5, 0.12, town.pond.z + Math.sin(swimT) * 5.5); heading = -swimT; }            // circles on the pond
   else if (doing && act.anim === 'dive') { swimT += dt * 0.5; const l = Math.hypot(target.x, target.z); goal.set(target.x / l * (WORLD.radius + 3.5) + Math.cos(swimT) * 2, 0, target.z / l * (WORLD.radius + 3.5) + Math.sin(swimT) * 2); heading = -swimT; }   // out in the sea
   else if (doing && act.anim === 'voyage' && (voy = voyagePose(act))) { goal.copy(voy.pos); heading = voy.heading; if (voy.flying || pos.distanceTo(goal) > 6) pos.copy(goal); }   // out on a big island
@@ -764,7 +774,7 @@ function frame() {
   else if (doing && act.anim === 'fish') heading = act.place === 'river' ? 0 : Math.atan2(target.x, target.z);                                                       // facing the water
   else if (now) heading = now.heading;
   if (qs.has('face')) heading = Number(qs.get('face'));   // preview: which way she faces
-  pos.lerp(goal, k);
+  pos.lerp(goal, act.phase === 'walking' && vel.lengthSq() > 0 ? 1 - Math.exp(-dt * 14) : k);   // on the move: follow closely; settling: ease in
   let dh = heading - nena.root.rotation.y; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
   nena.root.rotation.y += dh * k;
   // her face: mood, weather, what she's doing and what just happened
