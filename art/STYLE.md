@@ -243,3 +243,12 @@ A small island (radius 12, shown at 2.4×) in the open sky between Little Gable 
 
 ## The Quarry House (IslandPavilion)
 A small quarry island (radius 12, shown at 2.4×) holding one building. A pale travertine box (`pav_stone`, with faint stone courses) 13 wide, 8 deep and 6 tall, lifted on eight slim columns. Its front is set back 1.4 behind a deep frame and is all glass (`pav_glass`, see-through in the game) in tall panes. Inside, the walls and ceiling glow orange (`glow_pav`, brighter at dusk and night) over a dark polished floor. The room is furnished as in the reference: a rounded orange chair, a low round orange side table with a glass decanter and two tumblers, an orange daybed against a low block with a mustard cushion, and a black arched floor lamp with a lit bulb. A horseshoe of rough layered quarry cliffs, lower towards the open front, surrounds a dark quarry floor with a few fallen blocks. References: a glowing stone pavilion in a quarry at blue hour; an orange room with a round chair and arched lamp.
+
+## Export: two model files
+The kit ships as two files so the home island shows quickly:
+- `web/public/models/island.glb`: everything the home island needs (loaded first).
+- `web/public/models/far.glb`: the far islands (`Island*` roots: the four towns, the three biomes, Bluebell, the Old Hotel, Pompom and the Quarry House), streamed in afterwards. In code, far-island parts wait on `whenFar`, not `whenKit`.
+
+After exporting from Blender and compressing (`gltf-transform meshopt island_raw.glb island_full.glb --level medium`), split it:
+`node art/tools/split-glb.mjs island_full.glb web/public/models/island.glb web/public/models/far.glb`
+A new far island must have a root named `Island<Name>` and be added to the `FAR` pattern in that script.

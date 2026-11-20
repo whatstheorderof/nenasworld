@@ -6,7 +6,7 @@ import { SKY_ISLANDS, TOWN_ISLANDS, BLOOM_ISLE, RUIN_ISLE, POMPOM_ISLE, PAVILION
 import { waterMaterial } from './water.js';
 import { kitParts, kitBoxes } from './kit.js';
 import { buildRoots } from './roots.js';
-import { whenKit, kitModel } from './kit.js';
+import { whenFar as whenKit, kitModel } from './kit.js';
 
 export function buildFarIslands(scene) {
   const root = new THREE.Group(); scene.add(root);

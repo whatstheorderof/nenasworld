@@ -6,13 +6,19 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { pastel } from './palette.js';
 
-let roots = null;
-const waiting = [], merged = {}, mats = {};
-new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(`${import.meta.env.BASE_URL}models/island.glb`, gltf => {
+let roots = null, farReady = false;
+const waiting = [], farWaiting = [], merged = {}, mats = {};
+const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+// The home island's models come first (island.glb); the far islands (far.glb, most of the bytes) stream in after.
+loader.load(`${import.meta.env.BASE_URL}models/island.glb`, gltf => {
   roots = {}; for (const o of gltf.scene.children) roots[o.name] = o;
   gltf.scene.updateMatrixWorld(true);
   for (const f of waiting.splice(0)) try { f(); } catch (e) { console.warn('[kit]', e); }
   loading(1, true);
+  loader.load(`${import.meta.env.BASE_URL}models/far.glb`, far => {
+    far.scene.updateMatrixWorld(true); for (const o of [...far.scene.children]) roots[o.name] = o;
+    farReady = true; for (const f of farWaiting.splice(0)) try { f(); } catch (e) { console.warn('[kit]', e); }
+  }, undefined, err => console.warn('[kit] far islands did not load, keeping the simple ones', err));
 }, xhr => loading(xhr.total ? xhr.loaded / xhr.total : null, false, xhr.loaded), err => { console.warn('[kit] island models did not load, keeping the simple ones', err); loading(1, true); });
 
 // a little pill at the bottom while the island's models come in, so the simple stand-ins don't look final
@@ -20,7 +26,7 @@ function loading(frac, done, bytes = 0) {
   const el = document.getElementById('loading'); if (!el) return;
   if (done) { el.classList.add('done'); setTimeout(() => el.remove(), 700); return; }
   el.hidden = false;
-  el.querySelector('i').style.width = frac != null ? `${Math.round(frac * 100)}%` : `${Math.min(95, bytes / 70000)}%`;   // no size from the server: about 7 MB
+  el.querySelector('i').style.width = frac != null ? `${Math.round(frac * 100)}%` : `${Math.min(95, bytes / 26000)}%`;   // no size from the server: about 2.5 MB
 }
 
 // Compressed models store positions as packed integers; unpack to plain floats before transforming.
@@ -36,6 +42,9 @@ function plain(geo) {
 
 // Run `f` once the kit is here (straight away if it already is).
 export const whenKit = f => { if (roots) { try { f(); } catch (e) { console.warn('[kit]', e); } } else waiting.push(f); };
+
+// Run `f` once the far islands' models are here too (they arrive after the home island's).
+export const whenFar = f => { if (farReady) { try { f(); } catch (e) { console.warn('[kit]', e); } } else farWaiting.push(f); };
 
 // One shared material per Blender material name, unless the caller swaps it for its own.
 function material(src) {
