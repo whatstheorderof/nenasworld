@@ -6,7 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, TRIP_ISLES, LONE_ISLES, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, islePos, townPos, site } from '../../shared/world.js';
-import { kitModel as kitM, whenKit as whenK } from './kit.js';
+import { kitModel as kitM, whenKit as whenK, flutter } from './kit.js';
 import { icon } from './icons.js';
 import { WEATHER_WORDS, FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, ACTIONS, todaysEvent } from '../../shared/data.js';
 import { buildNena, buildRobot } from './nena.js';
@@ -282,6 +282,7 @@ function setWeatherFx(dt, d, n, t) {
   if (wx.snow > 0.02 && wx.wind > 0.02) { const p = snow.geometry.attributes.position; for (let i = 0; i < SNOW; i++) p.setX(i, ((p.getX(i) + wx.wind * 5 * dt + 40) % 80) - 40); }
   rainbow.children.forEach(m => { m.material.uniforms.uOpacity.value = wx.rainbow * d * m.userData.k * 1.4; }); rainbow.visible = wx.rainbow * d > 0.01;
   town.setWind(wx.wind + wx.storm * 0.7, t);
+  flutter.uT.value = t; flutter.uW.value += (Math.min(1, wx.wind + wx.storm * 0.7) - flutter.uW.value) * Math.min(1, dt);   // bunting and flags
 }
 
 // ---- live state: the real mind over WebSocket, or a stand-in in this browser ----------
