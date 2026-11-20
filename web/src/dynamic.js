@@ -140,6 +140,22 @@ export function buildDynamic(scene) {
   function update(dt, t, npcList, night) {
     talkList.length = 0;
     if (camperMesh) { const cl = camperMesh.getObjectByName('label'); if (cl) cl.visible = display.labels; }
+    // the traveller's day at the campsite: sit on the log by the fire, get up and potter round it, warm their paws.
+    // (camp-local coordinates: fire at (0, 3.2), log at (-2.2, 3.0), tent behind z < 1.5)
+    if (camperMesh?.userData.camp) { const c = camperMesh.userData.camp, b = camperMesh.userData.body, step = Math.min(dt, 0.1);
+      const FIRE = [0, 3.2], SEAT = [-2.0, 2.55];
+      if (c.mode === 'walk') { const dx = c.tx - c.x, dz = c.tz - c.z, d = Math.hypot(dx, dz);
+        if (d < 0.05) { c.mode = c.next; c.wait = c.mode === 'sit' ? (night > 0.5 ? 40 : 8 + Math.random() * 14) : 3 + Math.random() * 5; }
+        else { const v = Math.min(d, 0.9 * step); c.x += dx / d * v; c.z += dz / d * v; c.face = Math.atan2(dx, dz); } }
+      else { c.wait -= step; c.face = Math.atan2(FIRE[0] - c.x, FIRE[1] - c.z);
+        if (c.wait <= 0) { if (c.mode === 'sit' || Math.random() < 0.35) { const a = 0.2 + Math.random() * 2.7, r = 1.5 + Math.random() * 0.7; c.tx = FIRE[0] + Math.cos(a) * r * (Math.random() < 0.5 ? 1 : -1); c.tz = FIRE[1] + Math.sin(a) * r; c.next = 'warm'; }
+          else { c.tx = SEAT[0]; c.tz = SEAT[1]; c.next = 'sit'; } c.mode = 'walk'; } }
+      const [wx, wz] = c.toW(c.x, c.z); camperMesh.position.x = wx; camperMesh.position.z = wz;
+      let dr = (c.face ?? 0) + c.ry - camperMesh.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); camperMesh.rotation.y += dr * Math.min(1, step * 5);
+      const ph = t * 9;
+      if (b) { if (c.mode === 'walk') { b.rotation.z = Math.sin(ph) * 0.12; b.position.y = Math.abs(Math.sin(ph)) * 0.08; b.scale.y = 1; }
+        else if (c.mode === 'sit') { b.rotation.z = Math.sin(t * 1.3) * 0.04; b.position.y = -0.12; b.scale.y = 0.9; }   // settled on the log, swaying a little
+        else { b.rotation.z = Math.sin(t * 2) * 0.05; b.position.y = Math.abs(Math.sin(t * 3)) * 0.03; b.scale.y = 1; } } }   // warming by the fire
     for (const m of glows) m.emissiveIntensity = 0.3 + night * 1.6;
     for (const m of spots.values()) { const f = m.getObjectByName('float'); if (f) { f.position.y = Math.sin(t * 1.2) * 0.4; f.rotation.y = t * 0.4; } const pu = m.getObjectByName('pulse'); if (pu) pu.scale.setScalar(1 + Math.sin(t * 3) * 0.2); }
     for (const d of decorG.children) if (d.userData.sing) d.rotation.z = Math.sin(t * 3 + d.id) * 0.12;
@@ -168,7 +184,7 @@ export function buildDynamic(scene) {
     const key = c ? c.name : ''; if (key === camperKey) return; camperKey = key;
     if (camperMesh) { scene.remove(camperMesh); camperMesh = null; }
     if (!c) return;
-    const s = site('camp'), p = PLACES.camp; camperMesh = critter(c.kind); const lx = -1.6, lz = 2.6; camperMesh.position.set(s.x + lx * Math.cos(s.ry) + lz * Math.sin(s.ry), 0, s.z - lx * Math.sin(s.ry) + lz * Math.cos(s.ry)); camperMesh.rotation.y = s.ry; const cl = label(c.name, 2.2); camperMesh.add(cl); scene.add(camperMesh);
+    const s = site('camp'), p = PLACES.camp; camperMesh = critter(c.kind); const lx = -1.6, lz = 2.6; camperMesh.position.set(s.x + lx * Math.cos(s.ry) + lz * Math.sin(s.ry), 0, s.z - lx * Math.sin(s.ry) + lz * Math.cos(s.ry)); camperMesh.rotation.y = s.ry; camperMesh.userData.camp = { toW: (x, z) => [s.x + x * Math.cos(s.ry) + z * Math.sin(s.ry), s.z - x * Math.sin(s.ry) + z * Math.cos(s.ry)], ry: s.ry, x: lx, z: lz, tx: lx, tz: lz, mode: 'sit', wait: 4 + Math.random() * 6 }; const cl = label(c.name, 2.2); camperMesh.add(cl); scene.add(camperMesh);
   }
   // visitors' gulls
   const gulls = new Map(), gullG = new THREE.Group(); scene.add(gullG);
