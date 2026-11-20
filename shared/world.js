@@ -92,6 +92,8 @@ export const BLOOM_ISLE = { id: 'bloom', name: 'Bluebell Isle', a: 5.6, r: 180, 
   hills: [[-7.84,5.35,1.92,1.76,0.56],[-2.93,7.07,1.53,1.4,0.45],[-0.96,-2.76,1.54,1.41,0.45],[2.34,-5.34,1.86,1.7,0.54],[-2.46,3.78,1.32,1.21,0.39],[-2.82,-3.38,2.0,1.83,0.59],[9.37,-3.26,2.19,2.0,0.64],[-2.5,9.42,2.41,2.21,0.71],[-0.64,-7.15,1.33,1.22,0.39],[-2.61,-6.49,2.13,1.95,0.62],[-7.45,-5.89,2.36,2.16,0.69],[-4.71,3.12,1.82,1.66,0.53],[6.53,-6.65,2.56,2.34,0.75],[-0.48,-5.01,1.49,1.36,0.44],[1.9,-3.03,1.39,1.27,0.41],[-4.93,-4.9,1.79,1.63,0.52],[2.76,-9.72,1.93,1.77,0.57],[4.45,-4.09,1.61,1.47,0.47]],
   // the bluebell terraces: dry-stone steps round a centre; step i reaches out to r0 - i*dr and stands (i+1)*h high. Snowy pines on top, a still pool at the foot.
   terraces: { c: [5.0, 8.0], r0: 6.0, dr: 0.95, h: 0.5, n: 6 },
+  // the river's centre line (model x, y) from the far bank to the falls; the goats keep out of it
+  river: [[-11.6, -3.2], [-8, -2.2], [-4.5, -0.2], [-1, 1.6], [2.5, 0.6], [5.5, -1.2], [8.5, 0.4], [11.7, 2.3]],
   // things the goats walk round (model x, y, radius): the shepherd's hut, the goat shelter, the cairn, the bench
   props: [[9.4, 3.9, 1.7], [-8.6, 2.7, 1.6], [-3.2, -8.3, 0.7], [-5.4, -7.1, 0.9]] };
 export const townPos = t => ({ x: Math.cos(t.a) * t.r, z: Math.sin(t.a) * t.r });
@@ -110,16 +112,28 @@ export const ISLETS = [
 // An old hotel standing empty on its own island, a slab of round windows with faded olive awnings,
 // the far end fallen in and ivy climbing the rest. One window is always lit. Model: IslandRuin (radius 12), front faces her island.
 export const RUIN_ISLE = { id: 'ruin', name: 'the Old Hotel', a: 0.55, r: 230, y: -1, scale: 2.4, size: 30,
-  about: 'A tall old hotel with rows of round windows and faded green awnings, standing empty on its own island. The far end has fallen in and ivy climbs the rest. One window is always lit.' };
+  about: 'A tall old hotel with rows of round windows and faded green awnings, standing empty on its own island. The far end has fallen in and ivy climbs the rest. One window is always lit.',
+  resources: ['old room key', 'hotel postcard', 'brass bell'],
+  spots: { pad: [3.2, -9.4], doors: [-0.5, -5.2, { does: 'peering in through the hotel doors', find: 'old room key' }], rubble: [8.6, -3.2, { does: 'picking through the fallen end of the hotel', find: 'brass bell' }],
+    pool: [2.6, 6.8, { does: 'poking about the drained swimming pool', find: 'hotel postcard', draw: 'the old hotel with its round windows' }],
+    brambles: [5.6, -6.8, { does: 'picking blackberries off the brambles by the gate', food: 'blackberries' }], jetty: [-10.4, -2.4, { does: 'sitting on the old jetty, watching the gulls', draw: 'the one lit window in the old hotel' }] } };
 // Islands that stand on their own (not towns, not the three big ones). EVERY island goes on the sea chart:
 // add a new one here (or to ISLETS / TOWN_ISLANDS / SKY_ISLANDS) and shared/chart.js features() picks it up.
 // `chart` is the ink colour it gets on the chart.
 // A field of lime-green pom-pom flowers on tall ribbed stalks, one giant towering over them all. Model: IslandPompom (radius 12).
 export const POMPOM_ISLE = { id: 'pompom', name: 'Pompom Meadow', a: 2.5, r: 230, y: 2, scale: 2.4, size: 30,
-  about: 'A meadow of fluffy lime-green pom-pom flowers on tall stalks, with one giant pom-pom towering over them all. The sun shines through them.' };
+  about: 'A meadow of fluffy lime-green pom-pom flowers on tall stalks, with one giant pom-pom towering over them all. The sun shines through them.',
+  resources: ['pom-pom fluff', 'giant seed'],
+  spots: { pad: [0, -9.8], giant: [0.6, -0.6, { does: 'lying under the giant pom-pom, looking up through it', draw: 'looking up at the giant pom-pom flower' }],
+    fluff: [3.4, -5.2, { does: 'gathering pom-pom fluff', find: 'pom-pom fluff' }], seeds: [-3.6, -3.4, { does: 'hunting for a fallen seed', find: 'giant seed' }],
+    nectar: [-5.4, 1.8, { does: 'sipping nectar from the low pom-poms', food: 'pom nectar' }], meadow: [5.2, 2.6, { does: 'wandering among the tall stalks', draw: 'a meadow of glowing green pom-poms' }] } };
 // A quarry island with one building on it: a travertine box on slim columns, its whole front glass, glowing orange inside. Model: IslandPavilion (radius 12).
 export const PAVILION_ISLE = { id: 'pavilion', name: 'the Quarry House', a: 1.75, r: 245, y: -2, scale: 2.4, size: 30,
-  about: 'A quarry island with a single house: a pale stone box lifted on thin columns, its front all glass, glowing orange inside, with a round chair, a daybed and a lamp.' };
+  about: 'A quarry island with a single house: a pale stone box lifted on thin columns, its front all glass, glowing orange inside, with a round chair, a daybed and a lamp.',
+  resources: ['travertine chip', 'quartz crystal'],
+  spots: { pad: [0, -9.6], glass: [0.4, -5.2, { does: 'looking in through the big glass windows', draw: 'the glowing orange room in the quarry' }],
+    wall: [-7.6, -3.0, { does: 'tapping at the quarry wall', find: 'travertine chip' }], blocks: [7.4, -5.0, { does: 'turning over the fallen blocks', find: 'quartz crystal' }],
+    fig: [-5.6, -7.0, { does: 'picking figs from the little tree in the quarry', food: 'figs' }], cliff: [5.6, 1.0, { does: 'sitting under the cliffs in the quiet', draw: 'the stone house on its columns' }] } };
 export const LONE_ISLES = [{ ...BLOOM_ISLE, chart: '#9aa6e8' }, { ...RUIN_ISLE, chart: '#efe4cc' }, { ...POMPOM_ISLE, chart: '#b6e43c' }, { ...PAVILION_ISLE, chart: '#ff8a3a' }];
 export const SKY_ISLANDS = [
   { id: 'ember', name: 'the smoking island', theme: 'volcano and desert', a: 3.75, r: 405, y: -6, scale: 1.6, size: 58, resources: ['obsidian', 'fire opal', 'sand glass', 'cactus fruit'],
@@ -136,12 +150,12 @@ export const SKY_ISLANDS = [
       berries: [3, 18, { does: 'picking snow berries', food: 'snow berries' }], hole: [0, -6, { does: 'peering into the big hole in the ice', draw: 'the light under the ice', find: 'sunken tile' }] } },
 ];
 // wild food she can find out there (and bring home)
-export const FORAGE = ['dates', 'cactus fruit', 'wild berries', 'honeycomb', 'mushroom', 'ice fish', 'snow berries', 'goat cheese'];
+export const FORAGE = ['dates', 'cactus fruit', 'wild berries', 'honeycomb', 'mushroom', 'ice fish', 'snow berries', 'goat cheese', 'blackberries', 'pom nectar', 'figs'];
 // a big island's turn (so its landing pad faces her island) and where a spot is in the world
 export const isleTurn = isl => Math.atan2(-Math.cos(isl.a), -Math.sin(isl.a));
 export const islePos = isl => ({ x: Math.cos(isl.a) * isl.r, y: isl.y, z: Math.sin(isl.a) * isl.r });
 // everywhere the balloon can take her
-export const TRIP_ISLES = [...SKY_ISLANDS, BLOOM_ISLE];
+export const TRIP_ISLES = [...SKY_ISLANDS, BLOOM_ISLE, RUIN_ISLE, POMPOM_ISLE, PAVILION_ISLE];
 export function isleSpot(isl, key) {
   const [bx, by] = isl.spots[key], s = isl.scale, th = isleTurn(isl), lx = bx * s, lz = -by * s, c = islePos(isl);
   return { x: c.x + lx * Math.cos(th) + lz * Math.sin(th), y: c.y + (key === 'pad' ? 0.4 : 0), z: c.z - lx * Math.sin(th) + lz * Math.cos(th) };

@@ -89,6 +89,10 @@ export function buildFarIslands(scene) {
         float h = fract(sin(dot(vec2(col, row), vec2(12.9898, 78.233))) * 43758.5453);
         float gap = smoothstep(0.0, 0.09, f.x) * smoothstep(1.0, 0.91, f.x) * smoothstep(0.0, 0.13, f.y) * smoothstep(1.0, 0.87, f.y);
         diffuseColor.rgb *= (0.78 + 0.34 * h) * mix(0.42, 1.0, gap);`); }; return m; };
+  // mist where the waterfall off Bluebell Isle gives out (model space, below the lip at angle 0.194)
+  whenKit(() => { const mistM = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xdff4ff, emissiveIntensity: 0.6, transparent: true, opacity: 0.5, depthWrite: false, flatShading: true });
+    for (let i = 0; i < 7; i++) { const a = 0.194 + (Math.random() - 0.5) * 0.25, r = 14.2 + Math.random() * 1.5, m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.9 + Math.random() * 1.1, 1), mistM);
+      m.position.set(Math.cos(a) * r, -13.2 - Math.random() * 1.6, -Math.sin(a) * r); bloom.add(m); } });
   const bloomPool = waterMaterial({ deep: 0x123c40, mid: 0x2a6a6a, foam: 0xcfe8e2, scale: 2.4, speed: 0.12, flow: [0.01, 0.0] });
   const bloomRiver = waterMaterial({ deep: 0x1f9bb0, mid: 0x46c6c4, foam: 0xf2cf62, scale: 1.1, speed: 0.6, flow: [0.12, 0.04] });   // teal water, marbled with gold
   const bloomFall = waterMaterial({ deep: 0x2aa9bc, mid: 0x6fd8cf, foam: 0xf3d77a, fall: 'world', scale: 4.5, speed: 0.9 });
@@ -106,6 +110,8 @@ export function buildFarIslands(scene) {
   const pavBulb = new THREE.MeshBasicMaterial({ color: 0xfff1d0 });
   const pavGlass = new THREE.MeshLambertMaterial({ color: 0xffd2a8, emissive: 0xff9a50, emissiveIntensity: 0.15, transparent: true, opacity: 0.18, depthWrite: false });
   whenKit(() => { const m = kitModel('IslandPavilion', { glow_pav: pavWarm, glow_pavbulb: pavBulb, pav_glass: pavGlass }); if (m) pav.add(m); });
+  // landing pads for the balloon on the islands she can fly to
+  whenKit(() => { for (const [g, I] of [[ruin, RUIN_ISLE], [pom, POMPOM_ISLE], [pav, PAVILION_ISLE]]) { const pad = kitModel('Sky_Pad'); if (!pad || !I.spots?.pad) continue; pad.scale.setScalar(1.55 / I.scale); pad.position.set(I.spots.pad[0], 0.02, -I.spots.pad[1]); g.add(pad); } });
   // gulls wheeling round the Old Hotel
   const gulls = [], gullMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide, flatShading: true });
   const wingGeo = new THREE.BufferGeometry(); wingGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, -0.3, 0, 0, 0.3, 1.5, 0.15, -0.05], 3)); wingGeo.computeVertexNormals();
@@ -123,14 +129,17 @@ export function buildFarIslands(scene) {
   const T = B.terraces, terH = (x, z) => { const d = Math.hypot(x - T.c[0], -z - T.c[1]); let h = 0;
     for (let i = 0; i < T.n; i++) { const r = T.r0 - i * T.dr; h = Math.max(h, (i + 1) * T.h * Math.min(1, Math.max(0, (r - d) / 0.18))); } return h; };
   const hillH = (x, z) => { let h = terH(x, z); for (const [hx, hy, rx, ry, top] of B.hills) { const dx = (x - hx) / rx, dy = (-z - hy) / ry, k = 1 - dx * dx - dy * dy; if (k > 0) { const zc = -ry * 0.1; h = Math.max(h, zc + (top - zc) * Math.sqrt(k)); } } return h; };
-  const blocked = (x, z, pad) => (B.props || []).some(([px, py, r]) => Math.hypot(x - px, z + py) < r + pad);   // goat space is model x, -y
+  // (a goat already standing somewhere blocked may still walk out of it)
+  const segD = (px, py, [ax, ay], [bx, by]) => { const dx = bx - ax, dy = by - ay, t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy))); return Math.hypot(px - ax - dx * t, py - ay - dy * t); };
+  const inRiver = (x, y, pad) => (B.river || []).some((p, i, a) => i > 0 && segD(x, y, a[i - 1], p) < 1.5 + pad);
+  const blocked = (x, z, pad) => (B.props || []).some(([px, py, r]) => Math.hypot(x - px, z + py) < r + pad) || inRiver(x, -z, pad);   // goat space is model x, -y
   function tickGoats(dt) {
     for (const g of goats) { const s = g.userData.goat;
       if (s.wait > 0) { s.wait -= dt; if (s.head) s.head.rotation.x = s.graze ? -0.55 + Math.sin(performance.now() / 300) * 0.08 : 0; s.legs.forEach(l => l && (l.rotation.x = 0)); if (s.wait <= 0) { let tries = 0; do { const a = Math.random() * 6.28, r = Math.sqrt(Math.random()) * 9.5; s.tx = Math.cos(a) * r; s.tz = Math.sin(a) * r; } while (++tries < 8 && (terH(s.tx, s.tz) > 0 || blocked(s.tx, s.tz, 0.5))); } continue; }
       const dx = s.tx - g.position.x, dz = s.tz - g.position.z, d = Math.hypot(dx, dz);
       if (d < 0.1) { s.wait = 3 + Math.random() * 9; s.graze = Math.random() < 0.7; continue; }
       const sp = 0.55 * dt, nx = g.position.x + dx / d * Math.min(sp, d), nz = g.position.z + dz / d * Math.min(sp, d);
-      if (blocked(nx, nz, 0.35)) { s.wait = 0.4 + Math.random(); s.graze = false; continue; }   // something in the way: stop, then pick somewhere else
+      if (blocked(nx, nz, 0.35) && !blocked(g.position.x, g.position.z, 0.35)) { s.wait = 0.4 + Math.random(); s.graze = false; continue; }   // something in the way: stop, then pick somewhere else
       g.position.x = nx; g.position.z = nz;
       const want = Math.atan2(dx, dz); let turn = want - g.rotation.y; turn = Math.atan2(Math.sin(turn), Math.cos(turn)); g.rotation.y += turn * Math.min(1, dt * 4);
       g.position.y = hillH(g.position.x, g.position.z); s.step += dt * 7;

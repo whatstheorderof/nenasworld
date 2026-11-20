@@ -8,7 +8,7 @@ const LOOK = {
   curator: ['#f4efe2', '#5f82ad', 'columns'], fullmuseum: ['#ffd93b', '#5f82ad', 'trophy'], maker: ['#ffd9b0', '#c9531c', 'hammer'], designer: ['#e2f5e0', '#c9531c', 'bench'],
   green: ['#cdeeb0', '#4fae52', 'sprout'], neighbour: ['#ffd9de', '#e8452c', 'hearts'], best: ['#ff7fa3', '#fffaf0', 'heart'], home: ['#fff1d6', '#e8452c', 'house'],
   cocoa: ['#e9c9a8', '#8a5a3a', 'cup'], sailor: ['#9fd6f0', '#e8452c', 'boat'], songs: ['#3c2a86', '#ffd93b', 'record'], party: ['#ffd93b', '#6a2fc4', 'partyhat'],
-  breeder: ['#ffeef1', '#6a2fc4', 'flowers'], goldbloom: ['#3c2a86', '#ffc400', 'goldflower'], host: ['#cdeeb0', '#2fc6b3', 'tent'], everyone: ['#ffe7c4', '#e07a3a', 'hearts'], traveller: ['#9fd6f0', '#4fae52', 'islets'],
+  breeder: ['#ffeef1', '#6a2fc4', 'flowers'], goldbloom: ['#3c2a86', '#ffc400', 'goldflower'], host: ['#cdeeb0', '#2fc6b3', 'tent'], everyone: ['#ffe7c4', '#e07a3a', 'hearts'], skyhopper: ['#cfeaff', '#e8452c', 'islets'], traveller: ['#9fd6f0', '#4fae52', 'islets'],
   joiner: ['#fff3c4', '#f2792e', 'hands'], wardrobe: ['#ffd9de', '#2f7f9a', 'hat'], shades: ['#ffd93b', '#1d2545', 'shades'], starchart: ['#1d2545', '#ffd93b', 'constellation'],
   comet: ['#1d2545', '#9fe0c8', 'comet'], rider: ['#dff3ff', '#2fc6b3', 'robot'], puddles: ['#b4c8dc', '#ffd93b', 'boots'], rainbow: ['#bfe8ff', '#e8452c', 'rainbow'],
   kite: ['#9fd6f0', '#e8452c', 'kite'], storm: ['#3b4252', '#ffd93b', 'lightning'], keeper: ['#1d2545', '#fff3c4', 'lighthouse'], farsight: ['#ffe3c2', '#5f82ad', 'telescope'],

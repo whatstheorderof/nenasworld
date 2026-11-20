@@ -73,6 +73,19 @@ export function drawPicture(canvas, title, seed) {
     if (has('goat')) for (const [gx, gy, k] of [[cx - 12, groundY + 2, 1], [cx + 14, groundY - 1, 0.8]]) {
       blob(gx, gy - 5 * k, 6 * k, 3.6 * k, '#8a7a66', '#f4ecdc', 10); blob(gx - 6 * k, gy - 8.5 * k, 2.6 * k, 2.4 * k, '#8a7a66', '#f4ecdc', 8);
       stroke([[gx - 7 * k, gy - 10.5 * k], [gx - 9 * k, gy - 14 * k], [gx - 6.5 * k, gy - 15 * k]], '#5a4a3e', 1.3); for (const lx of [-3.5, -1, 2, 4]) stroke([[gx + lx * k, gy - 2.5 * k], [gx + lx * k, gy + 1.5 * k]], '#8a7a66', 1.2); } }
+  if (has('old hotel')) { drew = true; const hx = cx - 4, w = 30, h = 26, by = base;
+    stroke([[hx - w / 2, by], [hx - w / 2, by - h], [hx + w / 2, by - h], [hx + w / 2, by - h * 0.55], [hx + w / 2 - 6, by - h * 0.55], [hx + w / 2 - 6, by]], '#8a8274', 1.3, true, '#f2e8d2');
+    for (let row = 0; row < 4; row++) for (let col = 0; col < 4; col++) { const x = hx - w / 2 + 4 + col * 6.6, y = by - h + 3 + row * 5.6; if (col === 3 && row < 2) continue;
+      const lit = has('lit window') && row === 1 && col === 1; stroke([[x, y], [x + 4, y], [x + 4, y + 3.2], [x, y + 3.2]], '#3a4a44', 0.8, true, lit ? '#ffd58a' : '#1e3a33'); stroke([[x - 0.6, y - 0.6], [x + 4.6, y - 0.6]], '#8c8a30', 1.3); } }
+  if (has('pom-pom', 'pom-poms')) { drew = true; const big = has('giant');
+    for (const [px, ph, pr] of big ? [[cx, 30, 12]] : [[cx - 18, 14, 6], [cx, 20, 7.5], [cx + 17, 16, 6.5], [cx - 8, 10, 5], [cx + 9, 11, 5]]) {
+      stroke([[px, base], [px, base - ph]], '#8fa889', big ? 2.4 : 1.2);
+      for (let i = 0; i < (big ? 40 : 18); i++) { const a = i / (big ? 40 : 18) * 6.283; stroke([[px, base - ph - pr * 0.4], [px + Math.cos(a) * pr, base - ph - pr * 0.4 + Math.sin(a) * pr]], i % 2 ? '#b2e23a' : '#e9fbb8', big ? 1.1 : 0.8); } } }
+  if (has('orange room', 'stone house')) { drew = true; const w = 34, h = 16, by = base - 3;
+    stroke([[4, base], [8, base - 26], [18, base - 22], [20, base]], '#5a4337', 1.2, true, '#7b5d4a'); stroke([[96, base], [92, base - 28], [82, base - 24], [80, base]], '#5a4337', 1.2, true, '#7b5d4a');
+    for (const dx of [-12, -4, 4, 12]) stroke([[cx + dx, base], [cx + dx, by]], '#d8cbb0', 0.9);
+    stroke([[cx - w / 2, by], [cx - w / 2, by - h], [cx + w / 2, by - h], [cx + w / 2, by]], '#b8a88a', 1.3, true, '#eadfc8');
+    stroke([[cx - w / 2 + 3, by - 2], [cx - w / 2 + 3, by - h + 3], [cx + w / 2 - 3, by - h + 3], [cx + w / 2 - 3, by - 2]], '#c8501a', 1, true, '#ff7a2a'); }
   if (has('under the ice', 'light under')) { drew = true; blob(cx, groundY + 9, 18, 5, '#1f4f8a', '#2f6fb0'); blob(cx, groundY + 9, 9, 2.6, '#7fe6ff', '#bff6ff');
     for (let i = -2; i <= 2; i++) stroke([[cx + i * 3, groundY + 7], [cx + i * 7, groundY - 20]], '#9cf6ff', 1.2);
     for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283; stroke([[cx + Math.cos(a) * 21, groundY + 9 + Math.sin(a) * 6], [cx + Math.cos(a) * 25, groundY + 9 + Math.sin(a) * 7]], '#7fb8d8', 2.4); } }
