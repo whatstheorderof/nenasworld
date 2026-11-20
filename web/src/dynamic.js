@@ -81,7 +81,7 @@ function critter(kindIn) {
   if (kindIn === 'walrus') for (const sd of [-1, 1]) add(body, new THREE.ConeGeometry(0.05, 0.4, 4), 0xfffaf0, 0.12 * sd, 0.5, 1.0).rotation.x = Math.PI;
   g.scale.setScalar(1.25); g.userData.body = body;
   // the Blender model for this animal replaces the simple one
-  const model = { seal: 'Seal', puffin: 'Puffin', fox: 'Fox', otter: 'Otter', hare: 'Hare', owl: 'Owl', walrus: 'Walrus' }[kindIn];
+  const model = { seal: 'Seal', puffin: 'Puffin', fox: 'Fox', otter: 'Otter', hare: 'Hare', owl: 'Owl', walrus: 'Walrus', badger: 'Badger', hedgehog: 'Hedgehog', raccoon: 'Raccoon', frog: 'Frog', duck: 'Duck', deer: 'Deer', bear: 'Bear' }[kindIn];
   whenKit(() => { const m = kitParts(model); if (!m) return; body.clear(); body.add(m); g.scale.setScalar(1); });
   return g;
 }

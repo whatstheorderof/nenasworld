@@ -63,6 +63,16 @@ export const CAMPERS = [
   { name: 'Tuck', kind: 'owl', home: 'hoop', from: 'the spire on Hoopstead', says: 'the trick is to like the dark first. the hole in the middle helps.' },
   { name: 'Fen', kind: 'walrus', home: 'snowcap', from: 'Snowcap, the stone house under the snow', says: 'your pond is a good size. i checked.' },
   { name: 'Lark', kind: 'hare', home: 'hoop', from: 'Hoopstead, the town built round a hole in the sky', says: 'you can walk all the way round and end up home. we do it for fun.' },
+  { name: 'Bryn', kind: 'fox', home: 'gable', from: 'Little Gable, by the windmill', says: 'i mind the windmill. mostly i mind it going round.' },
+  { name: 'Pip', kind: 'puffin', home: 'fountain', from: 'Fountain Round, the stall with the stripy roof', says: 'market day is every day if you have enough jam.' },
+  { name: 'Sorrel', kind: 'seal', home: 'snowcap', from: 'Snowcap, out by the frozen pond', says: 'i skate. badly. it is still skating.' },
+  { name: 'Hob', kind: 'badger', home: 'gable', from: 'Little Gable, the vegetable beds', says: 'carrots take ages. i talk to them. it does not help but i like it.' },
+  { name: 'Prickle', kind: 'hedgehog', home: 'fountain', from: 'Fountain Round, under the café umbrellas', says: 'i only came for the cake. and the view. mostly the cake.' },
+  { name: 'Rook', kind: 'raccoon', home: 'hoop', from: 'Hoopstead, the lanterns over the hole', says: 'i light the lanterns at dusk. someone has to and i have the hands.' },
+  { name: 'Mossy', kind: 'frog', home: 'fountain', from: 'Fountain Round, the pool in the middle', says: 'your pond is nice. not as nice as mine. but nice.' },
+  { name: 'Dabble', kind: 'duck', home: 'gable', from: 'Little Gable, the duck pond', says: 'i sailed a leaf all the way across the pond once. i am a sailor now.' },
+  { name: 'Willow', kind: 'deer', home: 'snowcap', from: 'Snowcap, between the snowy pines', says: 'it is quiet up there. you can hear the snow land.' },
+  { name: 'Barnaby', kind: 'bear', home: 'snowcap', from: 'Snowcap, the stone house', says: 'i stacked the wood pile. it took all week. i am proud of it.' },
 ];
 // Neighbouring islands with towns on them, near enough to see from hers. The travellers who
 // pitch up at her campsite come from these. Models are in art/island.blend.

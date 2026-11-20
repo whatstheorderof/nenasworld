@@ -145,9 +145,9 @@ export class World {
     if (Date.now() > this.weatherUntil) {
       const was = this.weather, pool = [...SEASON_WEATHER[season], ...(night ? ['aurora', 'meteors'] : [])];
       let next = pool[Math.floor(Math.random() * pool.length)];
-      if ((was === 'rain' || was === 'storm') && !night && Math.random() < 0.45) next = 'rainbow';
+      if ((was === 'rain' || was === 'storm') && !night && Math.random() < 0.8) next = 'rainbow';   // the sun out after rain: most times, rainbows
       this.weather = next;
-      this.weatherUntil = Date.now() + (next === 'rainbow' ? 120 + Math.random() * 120 : 300 + Math.random() * 600) * 1000;
+      this.weatherUntil = Date.now() + (next === 'rainbow' ? 300 + Math.random() * 300 : 300 + Math.random() * 600) * 1000;
     }
     if (!night && (this.weather === 'aurora' || this.weather === 'meteors')) this.weather = 'clear';
     if (night && (this.weather === 'rainbow' || this.weather === 'heat')) this.weather = 'clear';

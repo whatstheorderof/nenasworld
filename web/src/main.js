@@ -214,11 +214,28 @@ const LEAVES = 260, leaves = points(LEAVES, 0.35, null);
 { const p = leaves.geometry.attributes.position, c = leaves.geometry.attributes.color, cols = [0xf2792e, 0xffd93b, 0x4fae52, 0xe8452c, 0xffb7d0].map(h => new THREE.Color(h));
   for (let i = 0; i < LEAVES; i++) { p.setXYZ(i, (Math.random() - 0.5) * 100, 1 + Math.random() * 14, (Math.random() - 0.5) * 100); const k = cols[i % cols.length]; c.setXYZ(i, k.r, k.g, k.b); } }
 leaves.material.sizeAttenuation = true;
+// rainbows: after rain, when the sun comes out, a big one with a faint second bow outside it,
+// and smaller arcs here and there round the sky. Each is one soft band of colour, fading at its feet.
 const rainbow = new THREE.Group(); scene.add(rainbow);
-['#e8452c', '#f2792e', '#ffd93b', '#4fae52', '#58b7e8', '#3c2a86', '#6a2fc4'].forEach((c, i) => {
-  const m = new THREE.Mesh(new THREE.TorusGeometry(150 - i * 4.2, 2.1, 6, 64, Math.PI), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0, depthWrite: false, fog: false }));
-  rainbow.add(m); });
-{ const dir = new THREE.Vector3(-20, 0, -12).normalize(); rainbow.position.copy(dir.multiplyScalar(230)).setY(-40); rainbow.lookAt(0, -40, 0); }
+const bowMat = (outer) => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
+  uniforms: { uOpacity: { value: 0 }, uIn: { value: 0 }, uOut: { value: 1 }, uFlip: { value: outer ? 1 : 0 } },
+  vertexShader: 'varying vec2 vP; void main() { vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform float uOpacity, uIn, uOut, uFlip; varying vec2 vP;
+    vec3 spectrum(float t) { // t 0 = inner (violet) .. 1 = outer (red)
+      vec3 c = mix(vec3(0.42, 0.18, 0.77), vec3(0.24, 0.45, 0.95), smoothstep(0.0, 0.2, t));
+      c = mix(c, vec3(0.31, 0.75, 0.42), smoothstep(0.2, 0.42, t)); c = mix(c, vec3(1.0, 0.86, 0.24), smoothstep(0.42, 0.62, t));
+      c = mix(c, vec3(0.98, 0.52, 0.2), smoothstep(0.62, 0.8, t)); return mix(c, vec3(0.93, 0.27, 0.2), smoothstep(0.8, 1.0, t)); }
+    void main() { float r = length(vP), t = clamp((r - uIn) / (uOut - uIn), 0.0, 1.0); if (uFlip > 0.5) t = 1.0 - t;
+      float edge = smoothstep(0.0, 0.18, t) * smoothstep(1.0, 0.82, t), feet = smoothstep(0.0, 0.35, vP.y / r);
+      gl_FragColor = vec4(spectrum(t), edge * feet * uOpacity); }` });
+function bow(R, w, az, dist, y, k, outer = false) {
+  const m = new THREE.Mesh(new THREE.RingGeometry(R - w / 2, R + w / 2, 96, 1, 0, Math.PI), bowMat(outer));
+  m.material.uniforms.uIn.value = R - w / 2; m.material.uniforms.uOut.value = R + w / 2; m.userData.k = k;
+  m.position.set(Math.cos(az) * dist, y, Math.sin(az) * dist); m.lookAt(0, y, 0); rainbow.add(m); return m; }
+{ const az = Math.atan2(-12, -20);
+  bow(150, 16, az, 240, -40, 0.55); bow(190, 14, az, 250, -40, 0.22, true);   // the main bow and its faint double, colours reversed
+  [[70, 9, az + 1.0, 280, -20, 0.38], [95, 10, az - 0.85, 300, -35, 0.32], [48, 7, az + 2.3, 230, -5, 0.3], [120, 12, az + 3.5, 330, -55, 0.28], [60, 8, az - 2.2, 260, -12, 0.3]]
+    .forEach(([R, w, a, d, y, k]) => bow(R, w, a, d, y, k)); }
 // lightning: a jagged bolt and a flash
 const boltGeo = new THREE.BufferGeometry(); boltGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(14 * 3), 3));
 const bolt = new THREE.Line(boltGeo, new THREE.LineBasicMaterial({ color: 0xfffbe0, transparent: true, opacity: 0, fog: false })); scene.add(bolt);
@@ -262,7 +279,7 @@ function setWeatherFx(dt, d, n, t) {
     p.needsUpdate = true; }
   // snow drifts sideways in the wind too
   if (wx.snow > 0.02 && wx.wind > 0.02) { const p = snow.geometry.attributes.position; for (let i = 0; i < SNOW; i++) p.setX(i, ((p.getX(i) + wx.wind * 5 * dt + 40) % 80) - 40); }
-  rainbow.children.forEach(m => { m.material.opacity = wx.rainbow * d * 0.42; });
+  rainbow.children.forEach(m => { m.material.uniforms.uOpacity.value = wx.rainbow * d * m.userData.k * 1.4; }); rainbow.visible = wx.rainbow * d > 0.01;
   town.setWind(wx.wind + wx.storm * 0.7, t);
 }
 
@@ -354,7 +371,7 @@ function apply(n, snap) {
   town.setHouse(n.look.house, n.look.level);
   town.setIsland(n.look.flag, n.painter, n.crops);
   parked.visible = !n.activity.ride;
-  dyn.setCamper(n.camper);
+  dyn.setCamper(qs.has('camper') ? CAMPERS.find(c => c.name === qs.get('camper') || c.kind === qs.get('camper')) || n.camper : n.camper);   // ?camper= previews a traveller
   const vs = n.visitors || []; $('visitors').textContent = vs.length ? `${vs.length} visitor${vs.length > 1 ? 's' : ''} here${vs.length < 5 ? ': ' + vs.map(v => v.name).join(', ') : ''}. Double-click the ground to fly your gull there, or say hello in Chat.` : ''; $('visitors').hidden = !vs.length;
   town.setAway(n.activity.phase === 'doing' && n.activity.anim === 'sail' ? n.activity.islet ?? 0 : null);
   dyn.setSpots(n.spots || []);

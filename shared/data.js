@@ -81,6 +81,7 @@ export const STAMPS = [
   { id: 'breeder', name: 'Flower Breeder', hint: 'grow 6 flower colours', coins: 400, test: s => s.blooms.length >= 6 },
   { id: 'goldbloom', name: 'The Gold One', hint: 'grow a gold flower', coins: 1000, test: s => s.blooms.includes('gold') },
   { id: 'host', name: 'Good Host', hint: 'meet 4 campers', coins: 300, test: s => s.metCampers.length >= 4 },
+  { id: 'everyone', name: 'Friend of Everyone', hint: 'meet all fifteen travellers', coins: 800, test: s => s.metCampers.length >= 15 },
   { id: 'traveller', name: 'Seen Them All', hint: 'row to all 3 islets', coins: 400, test: s => s.islets.length >= 3 },
   { id: 'joiner', name: 'Joins In', hint: 'join in with neighbours 8 times', coins: 200, test: s => (s.n.join_hobby || 0) >= 8 },
   { id: 'wardrobe', name: 'Full Wardrobe', hint: 'own 5 hats', coins: 300, test: s => (s.look.hats || []).length >= 5 },

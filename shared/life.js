@@ -53,7 +53,7 @@ export class Life {
   patches() { return this.s.decor.filter(d => d.kind === 'flowers'); }
   ripe(day) { return this.s.decor.find(d => d.kind === 'coin tree' && day - d.day >= 3) || null; }
   newDay(day) { this.s.turnipPrice = rint(45, 190); this.s.hot = pick(['shell', 'fruit', 'ore', 'clay', 'veg', 'mushroom', 'sea glass']);
-    const last = this.s.camper?.name; this.s.camper = Math.random() < 0.45 ? pick(CAMPERS.filter(c => c.name !== last)) : null; if (calendar(day).weekday === 0 && this.s.turnips.n) { this.s.turnips = { n: 0, paid: 0 }; } this.save(); }
+    const last = this.s.camper?.name; this.s.camper = Math.random() < 0.6 ? pick(CAMPERS.filter(c => c.name !== last)) : null; if (calendar(day).weekday === 0 && this.s.turnips.n) { this.s.turnips = { n: 0, paid: 0 }; } this.save(); }
   place(kind, at, day, color) { this.s.decor.push({ kind, x: at.x, z: at.z, day, ...(color ? { color } : {}) }); if (this.s.decor.length > 45) this.s.decor.shift(); }
 
   // ---- what comes of an action. Returns { text, say?, remember?, lift? } or null -----------
