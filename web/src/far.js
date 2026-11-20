@@ -2,7 +2,7 @@
 // each with one small sign of what lives there: smoke and a red glow on the
 // volcano, tiny lights in the forest, and light coming up through the hole in the ice.
 import * as THREE from 'three';
-import { SKY_ISLANDS, TOWN_ISLANDS, BLOOM_ISLE, RUIN_ISLE, townPos, islePos, isleTurn } from '../../shared/world.js';
+import { SKY_ISLANDS, TOWN_ISLANDS, BLOOM_ISLE, RUIN_ISLE, POMPOM_ISLE, townPos, islePos, isleTurn } from '../../shared/world.js';
 import { waterMaterial } from './water.js';
 import { kitParts, kitBoxes } from './kit.js';
 import { buildRoots } from './roots.js';
@@ -96,6 +96,10 @@ export function buildFarIslands(scene) {
     const pad = kitModel('Sky_Pad'); if (pad) { pad.scale.setScalar(0.7 * 2.2 / B.scale); pad.position.set(B.spots.pad[0], 0, -B.spots.pad[1]); bloom.add(pad); }
     for (let i = 0; i < 5; i++) { const g = kitParts('Goat'); if (!g) break; g.scale.setScalar((0.85 + Math.random() * 0.3) * 2.2 / B.scale); const a = Math.random() * 6.28, r = Math.random() * 8;
       g.position.set(Math.cos(a) * r, 0, -Math.sin(a) * r); g.userData.goat = { tx: g.position.x, tz: g.position.z, wait: Math.random() * 6, step: Math.random() * 6, legs: ['FL', 'FR', 'BL', 'BR'].map(k => g.getObjectByName(`GoatLeg${k}`)), head: g.getObjectByName('GoatHead') }; bloom.add(g); goats.push(g); } });
+  // Pompom Meadow: the heads glow softly, as if the sun were shining through them, and sway in the breeze
+  const pom = new THREE.Group(), PM = POMPOM_ISLE; pom.position.set(Math.cos(PM.a) * PM.r, PM.y, Math.sin(PM.a) * PM.r); pom.scale.setScalar(PM.scale); pom.rotation.y = isleTurn(PM); scene.add(pom);
+  const pomLit = (c, e) => new THREE.MeshLambertMaterial({ color: c, emissive: e, emissiveIntensity: 0.55, flatShading: true, side: THREE.DoubleSide });
+  whenKit(() => { const m = kitModel('IslandPompom', { pom_head: pomLit(0xb2e23a, 0x7aa82a), pom_tip: pomLit(0xf0fdc8, 0xd8f0a0), pom_core: pomLit(0x86b832, 0x4a7a1a) }); if (m) pom.add(m); });
   // gulls wheeling round the Old Hotel
   const gulls = [], gullMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide, flatShading: true });
   const wingGeo = new THREE.BufferGeometry(); wingGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, -0.3, 0, 0, 0.3, 1.5, 0.15, -0.05], 3)); wingGeo.computeVertexNormals();
