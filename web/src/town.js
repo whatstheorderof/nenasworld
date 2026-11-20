@@ -642,29 +642,33 @@ export function buildTown() {
   // ---- decoration round the edge ------------------------------------------------------------
   const extraObs = [site('cafe'), CLOCK, BIG_ROCK, BALLOON, ...NEIGHBOURS.flatMap(n => n.hobbies.filter(h => h.at).map(h => h.at)), ...ORCHARD_TREES.map(([x, z]) => ({ x, z })), ...NEIGHBOURS.map(n => n.home)];
   const clear = (x, z, pad) => !onPath(x, z, 1.8) && !inBeach(x, z) && !nearRiver(x, z, 3.2) && extraObs.every(o => Math.hypot(o.x - x, o.z - z) > 3.6) && Object.keys(PLACES).every(k => { const s = site(k); return Math.hypot(s.x - x, s.z - z) > (s.r || 2.5) + pad && Math.hypot(PLACES[k].x - x, PLACES[k].z - z) > 3; });
+  // every decoration has a footprint (roughly its canopy or spread), and nothing goes down inside another's
   let placed = 0;
-  const trees = [];
-  for (let i = 0; i < 4000 && placed < 175; i++) {
+  const trees = [], decor = [];
+  const roomFor = (x, z, r) => decor.every(d => Math.hypot(d.x - x, d.z - z) > (d.r + r) * 0.9);
+  const TREE_R = [0.9, 1.7, 2.6, 3.4];
+  for (let i = 0; i < 6000 && placed < 175; i++) {
     const a = rand() * 6.28, r = R * 0.5 + rand() * (R * 0.39), x = Math.cos(a) * r, z = Math.sin(a) * r;
     const kind = placed % 5, roll = rand(), stage = roll < 0.2 ? 0 : roll < 0.5 ? 1 : roll < 0.85 ? 2 : 3;
-    if (!clear(x, z, kind === 4 ? 2.4 + stage * 0.8 : 2.8)) continue;
-    if (kind === 4 && trees.some(t => Math.hypot(t.x - x, t.z - z) < 3 + stage * 1.2)) continue;
-    if (kind === 0) flower(x, z, 1.4 + rand() * 1.5, P.petals[Math.floor(rand() * 4)]);
-    else if (kind === 1) rock(x, z, 0.7 + rand() * 1.1);
-    else if (kind === 2) pine(x, z, 0.9 + rand() * 0.7);
-    else if (kind === 3) { const b = makeBush(); b.position.set(x, 0, z); b.rotation.y = rand() * 6; b.scale.setScalar(0.85 + rand() * 0.9); town.add(b); }
-    else { const t = makeTree(stage, rand() < 0.35 ? 'cherry' : 'oak'), wrap = new THREE.Group(); wrap.position.set(x, 0, z); wrap.rotation.y = rand() * 6.28; t.scale.setScalar(0.8 + rand() * 0.3); wrap.add(t); town.add(wrap); trees.push({ x, z }); }
-    placed++;
+    const size = kind === 0 ? 1.4 + rand() * 1.5 : kind === 1 ? 0.7 + rand() * 1.1 : kind === 2 ? 0.9 + rand() * 0.7 : kind === 3 ? 0.85 + rand() * 0.9 : 0.8 + rand() * 0.3;
+    const foot = kind === 0 ? 0.5 + size * 0.45 : kind === 1 ? size * 1.1 : kind === 2 ? size * 1.3 : kind === 3 ? size * 1.25 : TREE_R[stage] * size;
+    if (!clear(x, z, kind === 4 ? 1.2 + foot : 1.2 + foot * 0.6) || !roomFor(x, z, foot)) continue;
+    if (kind === 0) flower(x, z, size, P.petals[Math.floor(rand() * 4)]);
+    else if (kind === 1) rock(x, z, size);
+    else if (kind === 2) pine(x, z, size);
+    else if (kind === 3) { const b = makeBush(); b.position.set(x, 0, z); b.rotation.y = rand() * 6; b.scale.setScalar(size); town.add(b); }
+    else { const t = makeTree(stage, rand() < 0.35 ? 'cherry' : 'oak'), wrap = new THREE.Group(); wrap.position.set(x, 0, z); wrap.rotation.y = rand() * 6.28; t.scale.setScalar(size); wrap.add(t); town.add(wrap); trees.push({ x, z }); }
+    decor.push({ x, z, r: foot }); placed++;
   }
-  // sunflowers: a few patches, all turned to face the morning sun (east); small in spring, tall in summer,
+  // sunflowers: a few patches, each turned its own way; small in spring, tall in summer,
   // turning bronze in autumn, gone in winter
   const sunflowers = [];
   { const patches = [];
     for (let i = 0; i < 3000 && patches.length < 5; i++) {
       const a = rand() * 6.28, r = R * 0.3 + rand() * R * 0.52, x = Math.cos(a) * r, z = Math.sin(a) * r;
-      if (!clear(x, z, 3.6) || trees.some(t => Math.hypot(t.x - x, t.z - z) < 5) || patches.some(p => Math.hypot(p.x - x, p.z - z) < 16)) continue;
-      patches.push({ x, z }); const n = 6 + Math.floor(rand() * 4);
-      for (let k = 0; k < n; k++) { const b = rand() * 6.28, d = Math.sqrt(rand()) * 1.9; sunflowers.push({ x: x + Math.cos(b) * d, z: z + Math.sin(b) * d, s: 0.8 + rand() * 0.45, ry: Math.PI / 2 + (rand() - 0.5) * 0.6 }); }
+      if (!clear(x, z, 3.0) || !roomFor(x, z, 2.2) || patches.some(p => Math.hypot(p.x - x, p.z - z) < 16)) continue;
+      patches.push({ x, z }); decor.push({ x, z, r: 2.2 }); const n = 6 + Math.floor(rand() * 4), face = rand() * 6.28;   // each patch leans its own way, each flower a little differently
+      for (let k = 0; k < n; k++) { const b = rand() * 6.28, d = Math.sqrt(rand()) * 1.7; sunflowers.push({ x: x + Math.cos(b) * d, z: z + Math.sin(b) * d, s: 0.5 + rand() * 0.28, ry: face + (rand() - 0.5) * 2.2 }); }
     } }
   const sunInst = [], sunMats = {}; town.userData.sunflowers = sunflowers;
   const layoutSunflowers = season => {
