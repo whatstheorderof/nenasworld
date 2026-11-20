@@ -577,14 +577,37 @@ const close = () => { openPanel = null; $('panel').hidden = true; };
 $('close').onclick = close;
 
 // ---- camera: follow her, or roam free ----------------------------------------------
-let freeCam = false;
+let freeCam = false, view = 'follow';
+const UP = new THREE.Vector3(0, 1, 0);
+// a link to exactly what you are looking at: ?view=camera x,y,z,target x,y,z (opens in free camera there)
+function toast(text) { const t = $('toast'); t.textContent = text; t.hidden = false; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => { t.hidden = true; }, 2600); }
+async function shareView() {
+  const r = v => [v.x, v.y, v.z].map(n => n.toFixed(1)).join(','), url = `${location.origin}${location.pathname}?view=${r(camera.position)},${r(controls.target)}`;
+  try { if (navigator.share && matchMedia('(pointer: coarse)').matches) await navigator.share({ title: "Nena's World", text: now?.activity?.label ? `Nena is ${now.activity.label}` : "Nena's World", url }); else { await navigator.clipboard.writeText(url); toast('Link copied'); } }
+  catch { prompt('Copy this link', url); }
+}
+// camera views: follow (default), close-up, slow drift round her, or the whole island from above
+function setView(v) {
+  view = v; if (freeCam) $('cam').click();
+  for (const b of document.querySelectorAll('#views [data-view]')) b.setAttribute('aria-checked', String(b.dataset.view === v));
+  $('views-btn').classList.toggle('on', v !== 'follow');
+  if (v === 'island') flight = { from: controls.target.clone(), fromCam: camera.position.clone(), to: new THREE.Vector3(0, 0, 0), toCam: new THREE.Vector3(70, 95, 105), t: 0 };
+  else if (v === 'follow') { const p = nena.root.position, off = camera.position.clone().sub(controls.target).setLength(22); off.y = Math.max(off.y, 7); flight = { from: controls.target.clone(), fromCam: camera.position.clone(), to: new THREE.Vector3(p.x, 1, p.z), toCam: new THREE.Vector3(p.x, 1, p.z).add(off), t: 0 }; }
+}
+{ const menu = $('views'), btn = $('views-btn');
+  const toggle = open => { menu.hidden = !open; btn.setAttribute('aria-expanded', String(open)); if (open) menu.querySelector('[aria-checked=true]')?.focus(); };
+  btn.onclick = e => { e.stopPropagation(); toggle(menu.hidden); };
+  menu.onclick = e => { if (e.target.id === 'share-view') { shareView(); toggle(false); return; } const b = e.target.closest('[data-view]'); if (!b) return; setView(b.dataset.view); toggle(false); };
+  addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) toggle(false); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) { toggle(false); btn.focus(); }
+    if (/^[1-4]$/.test(e.key) && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) setView(['follow', 'close', 'drift', 'island'][e.key - 1]); }); }
 const keys = new Set();
 addEventListener('keydown', e => { if (chartOpen() && e.key.startsWith('Arrow')) return;   // with the chart open the arrows pick squares; WASD still flies
   if (!/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) keys.add(e.key.toLowerCase()); });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());
 $('cam').onclick = () => {
-  freeCam = !freeCam;
+  freeCam = !freeCam; if (freeCam && view !== 'follow') { view = 'follow'; for (const b of document.querySelectorAll('#views [data-view]')) b.setAttribute('aria-checked', String(b.dataset.view === 'follow')); $('views-btn').classList.remove('on'); }
   controls.enablePan = freeCam; controls.maxDistance = freeCam ? 300 : 165; controls.maxPolarAngle = freeCam ? Math.PI * 0.94 : 1.45;
   $('cam').classList.toggle('on', freeCam); $('cam').title = freeCam ? 'Follow Nena again' : 'Roam the island yourself';
   $('camhelp').hidden = !freeCam; if (freeCam) $('offline').hidden = true;
@@ -889,12 +912,17 @@ function frame() {
         if (!wasOver) { P.x -= mv.x; P.z -= mv.z; controls.target.x -= mv.x; controls.target.z -= mv.z; }   // the island's side is a wall
         else { const prev = P.y - mv.y, to = prev >= TOP ? TOP : prev <= BOT ? BOT : P.y > -20 ? TOP : BOT; controls.target.y += to - P.y; P.y = to; } }
       if (P.y < -400) { controls.target.y += -400 - P.y; P.y = -400; } }
-  } else if (!window.__world?.freeze && settings.follow) {
+  } else if (!window.__world?.freeze && settings.follow && view !== 'island') {
     controls.maxPolarAngle = doing && act.anim === 'dive' ? 2.15 : 1.45;
     { const L = town.town.userData.lagoon; if (L && camera.position.y < L.bed + 0.6) { const d = L.bed + 0.6 - camera.position.y; camera.position.y += d; } }
     const before = controls.target.clone();
     controls.target.lerp(new THREE.Vector3(pos.x, pos.y + 1, pos.z), 1 - Math.exp(-dt * 2.5));
     camera.position.add(controls.target.clone().sub(before));   // camera travels with her
+    if (view === 'close' || view === 'drift') { const off = camera.position.clone().sub(controls.target), e = 1 - Math.exp(-dt * 1.2);
+      const want = view === 'close' ? 8.5 : 19, len = off.length(); off.setLength(len + (want - len) * e);
+      off.y += (want * (view === 'close' ? 0.32 : 0.42) - off.y) * e;
+      if (view === 'drift' && !keys.size) off.applyAxisAngle(UP, dt * 0.12);
+      camera.position.copy(controls.target).add(off); }
   }
   cloudFade.uCamPos.value.copy(camera.position);
   controls.update();
@@ -918,3 +946,6 @@ window.__world = { guide: showGuide, renderer, dyn, scene, camera, controls, nen
 
 // First visit: a short welcome tour once the island has loaded (not for automated browsers)
 if (!guideSeen() && !navigator.webdriver) whenK(() => setTimeout(() => { if (!guideSeen()) showGuide(); }, 1800));
+
+// opened from a shared view link: go to that spot in free camera
+if (qs.has('view')) { const v = qs.get('view').split(',').map(Number); if (v.length === 6 && v.every(Number.isFinite)) setTimeout(() => { if (!freeCam) $('cam').click(); camera.position.set(v[0], v[1], v[2]); controls.target.set(v[3], v[4], v[5]); controls.update(); }, 300); }

@@ -51,10 +51,20 @@
   <div id="tools">
     <button id="map-btn" class="icon" title="Sea chart" aria-label="Open the sea chart"><svg viewBox="0 0 24 24"><path d="M3 6.5l5.5-2.5 7 2.5 5.5-2.5v13.5l-5.5 2.5-7-2.5-5.5 2.5z"/><path d="M8.5 4v13.5M15.5 6.5V20"/></svg></button>
     <button id="cam" class="icon" title="Roam the island yourself" aria-label="Free camera"><svg viewBox="0 0 24 24"><path d="M4 8.5h3l1.6-2.5h6.8L17 8.5h3v10H4z"/><circle cx="12" cy="13.3" r="3.3"/></svg></button>
+    <button id="views-btn" class="icon" title="Camera views" aria-label="Camera views" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M3 7.5h12v9H3z"/><path d="M15 10.5l6-3v9l-6-3z"/></svg></button>
+    <div id="views" class="card" role="menu" hidden>
+      <button role="menuitemradio" data-view="follow" aria-checked="true">Follow Nena</button>
+      <button role="menuitemradio" data-view="close" aria-checked="false">Close-up</button>
+      <button role="menuitemradio" data-view="drift" aria-checked="false">Slow drift</button>
+      <button role="menuitemradio" data-view="island" aria-checked="false">Whole island</button>
+      <hr />
+      <button role="menuitem" id="share-view">Copy a link to this view</button>
+    </div>
     <button data-panel="settings" id="settings-btn" class="icon" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M12 2.8l1.6 2.3 2.7-.7.6 2.7 2.6 1-.9 2.6 1.9 2.1-2.2 1.7.4 2.8-2.8.2-1.1 2.6-2.5-1.3-2.5 1.3-1.1-2.6-2.8-.2.4-2.8L4.1 12.8 6 10.7l-.9-2.6 2.6-1 .6-2.7 2.7.7z"/><circle cx="12" cy="12" r="3.2"/></svg></button>
   </div>
 
   <div id="stamp-pop" hidden></div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
 
   <nav id="nav">
     <button data-panel="diary">Diary</button>

@@ -352,3 +352,15 @@ details.advanced[open] > summary::before { transform: rotate(90deg); }
 .postcard { display: flex; align-items: center; gap: 10px; background: #fff; border: 2.5px solid var(--line); border-radius: 12px; padding: 8px 10px; font-size: 14px; }
 .postcard .ico { width: 34px; height: 34px; flex: none; }
 .postcard small { display: block; opacity: .65; font-size: 12px; }
+
+/* camera views menu */
+#views { position: absolute; top: 56px; right: 0; display: grid; gap: 4px; padding: 8px; min-width: 170px; z-index: 5; }
+#views[hidden] { display: none; }
+#views button { text-align: left; background: none; border: 0; border-radius: 10px; padding: 8px 10px 8px 30px; font: inherit; font-weight: 800; font-size: 14px; color: var(--ink); cursor: pointer; position: relative; }
+#views button:hover, #views button:focus-visible { background: #f3ead8; outline: none; }
+#views button[aria-checked=true]::before { content: ''; position: absolute; left: 11px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 2px var(--line); }
+@media (max-width: 700px) { #views { top: 0; right: 46px; } }
+#views hr { border: 0; border-top: 2px dashed #e4d9c4; margin: 4px 2px; }
+#toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); background: var(--ink); color: #fff; font-weight: 800; font-size: 14px; padding: 9px 16px; border-radius: 12px; z-index: 30; }
+#toast.show { animation: toast-in .25s ease-out; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
