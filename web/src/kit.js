@@ -12,7 +12,16 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(`${import.meta.env.BASE_
   roots = {}; for (const o of gltf.scene.children) roots[o.name] = o;
   gltf.scene.updateMatrixWorld(true);
   for (const f of waiting.splice(0)) try { f(); } catch (e) { console.warn('[kit]', e); }
-}, undefined, err => console.warn('[kit] island models did not load, keeping the simple ones', err));
+  loading(1, true);
+}, xhr => loading(xhr.total ? xhr.loaded / xhr.total : null, false, xhr.loaded), err => { console.warn('[kit] island models did not load, keeping the simple ones', err); loading(1, true); });
+
+// a little pill at the bottom while the island's models come in, so the simple stand-ins don't look final
+function loading(frac, done, bytes = 0) {
+  const el = document.getElementById('loading'); if (!el) return;
+  if (done) { el.classList.add('done'); setTimeout(() => el.remove(), 700); return; }
+  el.hidden = false;
+  el.querySelector('i').style.width = frac != null ? `${Math.round(frac * 100)}%` : `${Math.min(95, bytes / 70000)}%`;   // no size from the server: about 7 MB
+}
 
 // Compressed models store positions as packed integers; unpack to plain floats before transforming.
 function plain(geo) {
