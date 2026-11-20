@@ -304,3 +304,14 @@ details.advanced { margin: 10px 0 4px; border-top: 1.5px dashed rgba(42, 33, 64,
 details.advanced > summary { cursor: pointer; font-weight: 900; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; opacity: .7; list-style: none; padding: 4px 0; }
 details.advanced > summary::before { content: '▸ '; display: inline-block; transition: transform .15s; }
 details.advanced[open] > summary::before { transform: rotate(90deg); }
+
+/* under the lagoon: a blue-green wash, brighter towards the surface, with light rippling down */
+#underwater { position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: 0; transition: opacity .25s;
+  background: linear-gradient(to bottom, rgba(120, 220, 230, .28), rgba(20, 90, 120, .42) 70%, rgba(10, 50, 80, .55));
+  mix-blend-mode: multiply; }
+#underwater::after { content: ''; position: absolute; inset: -20%; opacity: .22; mix-blend-mode: screen;
+  background: repeating-linear-gradient(100deg, transparent 0 40px, rgba(200, 255, 250, .5) 52px, transparent 70px 120px);
+  animation: caustic 7s linear infinite; }
+#underwater.on { opacity: 1; }
+@keyframes caustic { from { transform: translateX(-60px) skewX(-6deg); } to { transform: translateX(60px) skewX(6deg); } }
+@media (prefers-reduced-motion: reduce) { #underwater::after { animation: none; } }

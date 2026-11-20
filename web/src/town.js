@@ -425,7 +425,7 @@ export function buildTown() {
   // wind: trees lean and sway, the flag streams out
   function setWind(w, t) {
     blades.material.uniforms.uWind.value += (w - blades.material.uniforms.uWind.value) * 0.05;   // grass leans more in a breeze
-    tickPetals(t, Math.min(0.1, t - (bigTree.lastT ?? t)), w); bigTree.lastT = t;
+    tickPetals(t, Math.min(0.1, t - (bigTree.lastT ?? t)), w); bigTree.lastT = t; town.userData.tickSea?.(t);
     tickTrees(t, w); tickRoots(t, w);
     for (const g of swayers) { g.rotation.z = Math.sin(t * 1.6 + g.id) * 0.04 * w + 0.05 * w; g.rotation.x = Math.cos(t * 1.3 + g.id) * 0.03 * w; }
     const f = town.userData.flagCloth; if (f) { f.rotation.y = Math.sin(t * (2 + w * 6)) * (0.25 + w * 0.35); f.rotation.z = -0.15 * (1 - w); }
@@ -626,7 +626,7 @@ export function buildTown() {
     ground(new THREE.RingGeometry(BEACH.inner, R + 0.05, 24, 1, -BEACH.to, len), P.sand, 0, 0, 0.04);
     ground(new THREE.RingGeometry(BEACH.inner - 1.2, BEACH.inner, 24, 1, -BEACH.to - 0.03, len + 0.06), P.sandDark, 0, 0, 0.035);
     mesh(new THREE.CylinderGeometry(R + 0.3, R - 1, 0.7, 24, 1, false, Math.PI / 2 - BEACH.to, len), flat(P.sandDark), 0, -0.36, 0);
-    const sea = mesh(new THREE.CylinderGeometry(R + 9, R + 5, 0.9, 20, 1, false, Math.PI / 2 - BEACH.to - 0.1, len + 0.2), waterMaterial({ scale: 3.6 }), 0, -0.55, 0);
+    const sea = new THREE.Group();   // (the lagoon below is the sea here now)
     ground(new THREE.RingGeometry(R + 0.05, R + 0.8, 24, 1, -BEACH.to, len), 0xffffff, 0, 0, -0.08);   // foam line
     town.userData.sea = sea;
     // one sea running out from the beach to all three islets: a curved lagoon with rounded ends, a slab so it has a side
@@ -638,14 +638,43 @@ export function buildTown() {
       cap(a1, 1);
       for (let i = 0; i <= 40; i++) { const a = a1 - (a1 - a0) * i / 40; pt(Math.cos(a) * rin, Math.sin(a) * rin); }
       cap(a0, -1);
-      const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.8, bevelEnabled: false, curveSegments: 4 }); geo.rotateX(-Math.PI / 2);
-      const lagoon = new THREE.Mesh(geo, waterMaterial({ scale: 3.6 })); lagoon.position.y = -0.95; town.add(lagoon);
+      // the water is 4 deep: a surface you can see from above and below, and sides (no bottom, so the seabed shows)
+      const DEEP = 4.0, SURF = -0.15, BED = SURF - DEEP;
+      const geo = new THREE.ExtrudeGeometry(sh, { depth: DEEP, bevelEnabled: false, curveSegments: 4 }); geo.rotateX(-Math.PI / 2);
+      const waterM = waterMaterial({ scale: 3.6 });
+      const lagoon = new THREE.Mesh(geo, [new THREE.MeshBasicMaterial({ visible: false }), waterM]); lagoon.position.y = BED; town.add(lagoon);
+      const top = new THREE.Mesh(new THREE.ShapeGeometry(sh, 4).rotateX(-Math.PI / 2), waterM); top.position.y = SURF; town.add(top);
+      // is (x, z) over the lagoon? (for the camera, and for scattering the seabed)
+      const inLagoon = (x, z) => { let c = false; for (let i = 0, j = edge.length - 1; i < edge.length; j = i++) { const [xi, zi] = edge[i], [xj, zj] = edge[j]; if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) c = !c; } return c; };
+      town.userData.lagoon = { inLagoon, surf: SURF, bed: BED };
+      // the seabed: sand, seaweed swaying, rocks, shells, starfish, coral, and fish swimming about
+      { const sea = new THREE.Group(); town.add(sea); const weeds = [], fish = [];
+        const pick = (minR = R + 0.5) => { for (let k = 0; k < 60; k++) { const a = a0 + rand() * (a1 - a0), r = rin + rand() * (rout - rin); const x = Math.cos(a) * r, z = Math.sin(a) * r; if (Math.hypot(x, z) > minR && inLagoon(x, z) && !ISLETS.some((il, ii) => { const ip = isletPos(ii); return Math.hypot(ip.x - x, ip.z - z) < 7; })) return [x, z]; } return null; };
+        const kelp = flat(0x3f9a5a), kelp2 = flat(0x6cbf6a);
+        for (let i = 0; i < 90; i++) { const p = pick(); if (!p) continue; const g = new THREE.Group(); g.position.set(p[0], BED, p[1]); sea.add(g); const n = 2 + Math.floor(rand() * 3);
+          for (let k = 0; k < n; k++) { const h = 1.2 + rand() * 2.2, m = mesh(new THREE.ConeGeometry(0.16, h, 4), k % 2 ? kelp : kelp2, (rand() - 0.5) * 0.7, h / 2, (rand() - 0.5) * 0.7, g); m.userData.h = h; }
+          g.userData.ph = rand() * 6.28; weeds.push(g); }
+        for (let i = 0; i < 45; i++) { const p = pick(); if (!p) continue; const s2 = 0.3 + rand() * 0.9; const m = mesh(new THREE.DodecahedronGeometry(s2, 0), flat(rand() < 0.5 ? P.rock : P.rockDark), p[0], BED + s2 * 0.4, p[1], sea); m.rotation.set(rand() * 3, rand() * 3, 0); m.scale.y = 0.6; }
+        for (let i = 0; i < 40; i++) { const p = pick(); if (!p) continue; const c = [0xff9aa8, 0xffb45a, 0xfffaf0, 0xe8452c, 0xb27ad6][i % 5];
+          if (i % 3 === 0) { const st = new THREE.Shape(); for (let k = 0; k < 10; k++) { const aa = k / 10 * 6.283, rr = k % 2 ? 0.12 : 0.32; st[k ? 'lineTo' : 'moveTo'](Math.cos(aa) * rr, Math.sin(aa) * rr); } const m = new THREE.Mesh(new THREE.ShapeGeometry(st), flat(c)); m.rotation.x = -Math.PI / 2; m.position.set(p[0], BED + 0.03, p[1]); sea.add(m); }
+          else if (i % 3 === 1) { const m = mesh(new THREE.ConeGeometry(0.2, 0.32, 6), flat(c), p[0], BED + 0.12, p[1], sea); m.rotation.set(1.3, rand() * 6, 0); }
+          else for (let k = 0; k < 4; k++) mesh(new THREE.CylinderGeometry(0.06, 0.1, 0.5 + rand() * 0.6, 5), flat(c), p[0] + (rand() - 0.5) * 0.6, BED + 0.35, p[1] + (rand() - 0.5) * 0.6, sea).rotation.set((rand() - 0.5) * 0.8, 0, (rand() - 0.5) * 0.8); }
+        const fishCol = [0xffb45a, 0x58b7e8, 0xffd93b, 0xff7fa3, 0x2fc6b3, 0xfffaf0];
+        for (let i = 0; i < 26; i++) { const p = pick(R + 2); if (!p) continue; const g = new THREE.Group(), c = fishCol[i % fishCol.length], sz = 0.5 + rand() * 0.6;
+          const body = mesh(new THREE.SphereGeometry(0.3, 7, 5), flat(c), 0, 0, 0, g); body.scale.set(0.55, 0.7, 1.3);
+          const tail = mesh(new THREE.ConeGeometry(0.22, 0.32, 4), flat(c), 0, 0, -0.45, g); tail.rotation.x = -Math.PI / 2; tail.scale.x = 0.3; g.userData.tail = tail;
+          for (const sd of [-1, 1]) mesh(new THREE.SphereGeometry(0.04, 4, 3), flat(0x141833), sd * 0.13, 0.06, 0.25, g);
+          g.scale.setScalar(sz); sea.add(g); fish.push({ g, cx: p[0], cz: p[1], r: 1.5 + rand() * 3.5, y: BED + 0.7 + rand() * (DEEP - 1.4), w: (0.3 + rand() * 0.5) * (rand() < 0.5 ? 1 : -1), a: rand() * 6.28 }); }
+        town.userData.tickSea = t => {
+          for (const g of weeds) g.children.forEach((m, k) => { m.rotation.z = Math.sin(t * 0.9 + g.userData.ph + k) * 0.18; m.rotation.x = Math.cos(t * 0.7 + g.userData.ph + k * 2) * 0.12; });
+          for (const f of fish) { const a = f.a + t * f.w; let x = f.cx + Math.cos(a) * f.r, z = f.cz + Math.sin(a) * f.r; if (!inLagoon(x, z)) { f.cx += (0 - f.cx) * 0.002; f.cz += (0 - f.cz) * 0.002; }
+            f.g.position.set(x, f.y + Math.sin(t * 0.8 + f.a) * 0.3, z); f.g.rotation.y = -a + (f.w > 0 ? Math.PI : 0); f.g.userData.tail.rotation.y = Math.sin(t * 9 + f.a) * 0.5; } }; }
       // the ground it sits in: a lip of sand, then earth and rock stepping in underneath, like the island itself
       const slab = (depth, mat, y, k) => { const g2 = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false, curveSegments: 4 }); g2.rotateX(-Math.PI / 2); const m = new THREE.Mesh(g2, mat); m.position.y = y; m.scale.set(k, 1, k); town.add(m); return m; };
-      slab(0.5, flat(P.sandDark), -1.2, 1.006);
-      slab(3.2, flat(P.rockDark), -4.4, 0.995);
-      slab(4.5, flat(P.rock), -8.9, 0.94);
-      slab(5, flat(P.rockDark), -13.9, 0.86);
+      slab(0.5, flat(P.sand), BED - 0.5, 1.006);   // the sandy seabed
+      slab(3.2, flat(P.rockDark), BED - 3.7, 0.995);
+      slab(4.5, flat(P.rock), BED - 8.2, 0.94);
+      slab(5, flat(P.rockDark), BED - 13.2, 0.86);
       // the same rim as the island's along its outer edge
       const runs = []; let cur = null;
       for (const [x, z] of edge) { if (Math.hypot(x, z) < R + 4) { if (cur && cur.length > 1) runs.push(cur); cur = null; continue; } const k = 0.988; (cur ||= []).push([x * k, z * k]); }

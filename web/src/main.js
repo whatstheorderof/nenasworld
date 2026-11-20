@@ -823,19 +823,27 @@ function frame() {
     mv.multiplyScalar(sp); camera.position.add(mv); controls.target.add(mv);
     // over her island the ground is the floor, or once you are underneath, the bottom of the island is the ceiling.
     // Anywhere else you can sink a long way down towards the sea.
-    { const P = camera.position, TOP = 1.5, BOT = -46, R = WORLD.radius + 8, inBand = y => y < TOP && y > BOT;
-      const over = Math.hypot(P.x, P.z) < R, wasOver = Math.hypot(P.x - mv.x, P.z - mv.z) < R;
+    const L = town.town.userData.lagoon, wet = L && L.inLagoon(camera.position.x, camera.position.z), wasWet = L && L.inLagoon(camera.position.x - mv.x, camera.position.z - mv.z);
+    if (L && wasWet && !wet && camera.position.y < L.surf && camera.position.y - mv.y < L.surf) { camera.position.x -= mv.x; camera.position.z -= mv.z; controls.target.x -= mv.x; controls.target.z -= mv.z; }   // underwater, the lagoon's sides are walls
+    else if (wet && camera.position.y < L.bed + 0.4 && camera.position.y > L.bed - 18) { const P = camera.position, prev = P.y - mv.y, to = prev >= L.bed + 0.4 ? L.bed + 0.4 : L.bed - 18; controls.target.y += to - P.y; P.y = to; }   // the seabed
+    else { const P = camera.position, TOP = 1.5, BOT = -46, R = WORLD.radius + 8, inBand = y => y < TOP && y > BOT;
+      const over = Math.hypot(P.x, P.z) < R && !wet, wasOver = Math.hypot(P.x - mv.x, P.z - mv.z) < R && !wasWet;
       if (over && inBand(P.y)) {
         if (!wasOver) { P.x -= mv.x; P.z -= mv.z; controls.target.x -= mv.x; controls.target.z -= mv.z; }   // the island's side is a wall
         else { const prev = P.y - mv.y, to = prev >= TOP ? TOP : prev <= BOT ? BOT : P.y > -20 ? TOP : BOT; controls.target.y += to - P.y; P.y = to; } }
       if (P.y < -400) { controls.target.y += -400 - P.y; P.y = -400; } }
   } else if (!window.__world?.freeze && settings.follow) {
+    controls.maxPolarAngle = doing && act.anim === 'dive' ? 2.15 : 1.45;
+    { const L = town.town.userData.lagoon; if (L && camera.position.y < L.bed + 0.6) { const d = L.bed + 0.6 - camera.position.y; camera.position.y += d; } }
     const before = controls.target.clone();
     controls.target.lerp(new THREE.Vector3(pos.x, pos.y + 1, pos.z), 1 - Math.exp(-dt * 2.5));
     camera.position.add(controls.target.clone().sub(before));   // camera travels with her
   }
   cloudFade.uCamPos.value.copy(camera.position);
   controls.update();
+  { const L = town.town.userData.lagoon, under = L && camera.position.y < L.surf - 0.02 && L.inLagoon(camera.position.x, camera.position.z);
+    $('underwater').classList.toggle('on', !!under);
+    if (under) { const lum = scene.background?.isColor ? Math.min(1, 0.35 + scene.background.r + scene.background.g) : 1; scene.fog.color.set(0x1f8fa8).multiplyScalar(Math.min(1, lum)); scene.fog.near = 1; scene.fog.far = 34; } }
   if (chartOpen()) { const d = camera.getWorldDirection(new THREE.Vector3()); updateChart({ cam: freeCam ? { x: camera.position.x, z: camera.position.z, yaw: Math.atan2(d.x, d.z) } : null }); }
   composer.render();
 

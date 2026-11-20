@@ -173,6 +173,10 @@ export function buildNena() {
   const bits = new THREE.Group(); root.add(bits);   // dirt clods and wood chips flying off
   const clods = Array.from({ length: 5 }, (_, i) => { const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.06 + (i % 2) * 0.03, 0), dirtM); m.visible = false; bits.add(m); return m; });
   const chips = Array.from({ length: 6 }, (_, i) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.05), chipM); m.visible = false; bits.add(m); return m; });
+  // bubbles rising from her while she dives
+  const bubbleMat = new THREE.MeshLambertMaterial({ color: 0xe8fbff, emissive: 0x9fe8ff, emissiveIntensity: 0.4, transparent: true, opacity: 0.7 });
+  const bubbles = Array.from({ length: 10 }, (_, i) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.05 + (i % 3) * 0.025, 6, 4), bubbleMat); m.visible = false; m.userData.ph = i / 10; return m; });
+  let bubbleHome = null;
   // the hole she digs stays put in the world while she works, and fills back in after she goes
   const hole = new THREE.Group(); hole.visible = false;
   const pit = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.04, 10), toolMat(0x3b2a20)); pit.position.y = 0.03; hole.add(pit);
@@ -180,6 +184,11 @@ export function buildNena() {
   let holeLife = 0, digging = false;
   const ease = x => x * x * (3 - 2 * x), seg = (u, a, b) => Math.min(1, Math.max(0, (u - a) / (b - a)));
   function tools(dt, act, state) {
+    if (act === 'dive' && root.parent) { if (!bubbleHome) { bubbleHome = root.parent; bubbles.forEach(b => bubbleHome.add(b)); }
+      const top = -0.2, from = root.localToWorld(new THREE.Vector3(0, body.position.y + 0.6, 0.3));
+      bubbles.forEach((b, i) => { const u = (t * 0.45 + b.userData.ph) % 1; if (u < 0.03) b.userData.at = from.clone();
+        const at = b.userData.at; b.visible = !!at && at.y + u * 3 < top; if (at) b.position.set(at.x + Math.sin(u * 12 + i) * 0.12, at.y + u * 3.2, at.z + Math.cos(u * 10 + i) * 0.12); }); }
+    else bubbles.forEach(b => b.visible = false);
     let hit = false, pose = null;
     shovel.visible = act === 'dig'; axe.visible = act === 'chop';
     if (act === 'dig') {
@@ -236,7 +245,7 @@ export function buildNena() {
     else if (act === 'peck') { pitch = Math.max(0, Math.sin(t * 4)) * 0.55; flap = 0.4; }
     else if (act === 'flap') { roll = Math.sin(t * 2) * 0.05; flap = 0.9 + Math.sin(t * 10) * 0.35; y = Math.abs(Math.sin(t * 5)) * 0.04; }
     else if (act === 'swim') { pitch = 1.35; y = -0.42; flap = 1.2 + Math.sin(t * 8) * 0.2; }
-    else if (act === 'dive') { pitch = 1.35 + Math.sin(t * 1.3) * 0.5; y = -0.75 + Math.sin(t * 1.3) * 0.35; flap = 1.2; }
+    else if (act === 'dive') { const d = Math.sin(t * 0.55); pitch = 1.35 + Math.cos(t * 0.55) * 0.55; y = -2.0 + d * 1.5; flap = 1.0 + Math.abs(Math.sin(t * 6)) * 0.4; }   // down to the seabed and back up, flippers beating
     else if (act === 'read') { pitch = 0.22; roll = Math.sin(t * 0.8) * 0.05; }
     else if (act === 'lookup') { pitch = -0.38; flap = 0.4 + Math.max(0, Math.sin(t * 3)) * 0.5; }
     else if (act === 'lie') { pitch = -1.4; y = -0.38; flap = 1.3; }
