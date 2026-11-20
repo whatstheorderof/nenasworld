@@ -44,7 +44,7 @@ export function buildTown() {
   mesh(new THREE.CylinderGeometry(R, R - 1.5, 0.6, 48), grassMat, 0, -0.3, 0);
   mesh(new THREE.CylinderGeometry(R - 1.2, R - 6, 3.2, 28), flat(0x9a6e52), 0, -2.2, 0);   // brown earth under the grass, like the reference rim
   mesh(new THREE.CylinderGeometry(R - 6.5, R - 16, 5, 9), flat(P.rockDark), 0, -6.2, 0);
-  buildRoots(town, { top: -8.6, bottomR: R - 17, sideY: -4.3, sideR: R - 8.5 });   // roots hanging from underneath
+  buildRoots(town, { top: -8.6, bottomR: R - 17, sideY: -4.3, sideR: R - 8.5, segs: 12, radial: 4 });   // roots hanging from underneath
   const inBeach = (x, z) => { const a = Math.atan2(z, x); return a > BEACH.from - 0.08 && a < BEACH.to + 0.08 && Math.hypot(x, z) > BEACH.inner - 1; };
   const nearRiver = (x, z, pad) => riverBand(x, z, pad) || RIVER.some(([rx, rz]) => Math.hypot(rx - x, rz - z) < pad);
   for (let i = 0; i < 44; i++) {
@@ -95,8 +95,7 @@ export function buildTown() {
         if (w && wet == null) wet = t; if ((!w || t + 0.25 > len) && wet != null) { const t0 = wet, t1 = t, mx = a.x + dx / full * (t0 + t1) / 2, mz = a.z + dz / full * (t0 + t1) / 2; wet = null;
           if (t1 - t0 > 0.6 && !bridges.some(b => Math.hypot(b.x - mx, b.z - mz) < 3)) bridges.push({ x: mx, z: mz, a: Math.atan2(dz, dx), len: t1 - t0 + 1.6 }); } }
     }
-    const hex = (() => { const v = [], r = 0.2, h = 0.2; for (let i = 0; i < 6; i++) { const a = i / 6 * 6.2832 + 0.26, b = (i + 1) / 6 * 6.2832 + 0.26, ax = Math.cos(a) * r, az = Math.sin(a) * r, bx = Math.cos(b) * r, bz = Math.sin(b) * r;
-        v.push(ax, h, az, bx, -h, bz, ax, -h, az, ax, h, az, bx, h, bz, bx, -h, bz); }   // sides, facing out
+    const hex = (() => { const v = [], r = 0.2, h = 0.2; /* cobbles are just their tops (sides would be ~12 of their 16 triangles, unseen at this size) */
       for (let i = 1; i < 5; i++) { const p = k => [Math.cos(k / 6 * 6.2832 + 0.26) * r, h, Math.sin(k / 6 * 6.2832 + 0.26) * r]; v.push(...p(0), ...p(i + 1), ...p(i)); }   // the top
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals(); return g; })();
     const inst = new THREE.InstancedMesh(hex, new THREE.MeshLambertMaterial({ flatShading: true }), stones.length), m = new THREE.Object3D(), c = new THREE.Color();

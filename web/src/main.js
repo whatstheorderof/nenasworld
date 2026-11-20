@@ -112,7 +112,8 @@ fadeClouds(cloudMat);
   clouds.add(inst); }
 // a second, far ring of big clouds round the horizon; not fogged (they are past the fog), tinted into the haze instead
 const farCloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5, flatShading: true, fog: false }); fadeClouds(farCloudMat);
-{ const puff = new THREE.IcosahedronGeometry(1, 1), N = 70, PER = 8, inst = new THREE.InstancedMesh(puff, farCloudMat, N * PER), m = new THREE.Object3D();
+{ const puff = new THREE.IcosahedronGeometry(1, 0), N = 70, PER = 8,   // far away: plain puffs are enough
+  inst = new THREE.InstancedMesh(puff, farCloudMat, N * PER), m = new THREE.Object3D();
   let seed = 41; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   for (let c = 0, k = 0; c < N; c++) {
     const a = c / N * 6.283 + rnd() * 0.08, r = 480 + rnd() * 200, y = -70 + rnd() * 95, size = 14 + rnd() * 18, cx = Math.cos(a) * r, cz = Math.sin(a) * r;
