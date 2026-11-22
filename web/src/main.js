@@ -8,6 +8,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, TRIP_ISLES, LONE_ISLES, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, islePos, townPos, site } from '../../shared/world.js';
 import { kitModel as kitM, whenKit as whenK, flutter } from './kit.js';
 import { showGuide, guideSeen } from './guide.js';
+import { report, setGpu } from './report.js';
 import { icon } from './icons.js';
 import { WEATHER_WORDS, FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, ACTIONS, todaysEvent } from '../../shared/data.js';
 import { buildNena, buildRobot } from './nena.js';
@@ -974,3 +975,7 @@ if (!guideSeen() && !navigator.webdriver) whenK(() => setTimeout(() => { if (!gu
 
 // opened from a shared view link: go to that spot in free camera
 if (qs.has('view')) { const v = qs.get('view').split(',').map(Number); if (v.length === 6 && v.every(Number.isFinite)) setTimeout(() => { if (!freeCam) $('cam').click(); camera.position.set(v[0], v[1], v[2]); controls.target.set(v[3], v[4], v[5]); controls.update(); }, 300); }
+
+// which graphics the visitor has, sent along with any error report
+try { const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'); setGpu(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); } catch {}
+renderer.domElement.addEventListener('webglcontextlost', () => report('WebGL context lost', '', 'renderer'));
