@@ -899,5 +899,38 @@ export function buildTown() {
   function setAway(islet) { isletBoats.forEach((b, i) => { b.visible = islet === i; }); beachBoat.visible = islet == null; }
   function setEvent(show) { festival.visible = !!show; lanternsG.visible = show === 'lanterns'; }
   setHouse(0, 1);
-  return { town, woodlot, board, setEasel, setLights, setWind, setNight, setSeason, setHouse, setEvent, setIsland, setAway, setClock, setObservatory, pond, flag: town.userData.flag };
+  // ---- keepsakes: travellers' postcards pinned to the back of the noticeboard, presents waiting at its foot --
+  const keep = new THREE.Group(); town.add(keep); let keepKey = '';
+  // the board's model arrives later and replaces its parts, so the keepsakes sit beside it rather than inside it:
+  // same place and turn, and pinned just behind the back of whatever the board is made of now
+  const backOf = () => { keep.position.copy(board.position); keep.rotation.copy(board.rotation); board.updateMatrixWorld(true);
+    const inv = board.matrixWorld.clone().invert(), bb = new THREE.Box3(), v = new THREE.Vector3();
+    board.traverse(o => { if (!o.isMesh || !o.visible || keep === o) return; let vis = true; for (let q = o; q && q !== board; q = q.parent) if (!q.visible) vis = false; if (!vis) return;
+      const pos = o.geometry.attributes.position; for (let i = 0; i < pos.count; i += Math.max(1, Math.floor(pos.count / 400))) bb.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).applyMatrix4(inv)); });
+    return bb.isEmpty() ? -0.12 : bb.min.z - 0.015; };
+  const CARD_SKY = { otter: '#9fd6f0', bear: '#ffd9b0', seal: '#cfe3f2', deer: '#e2f5e0', duck: '#fff3c4', frog: '#cdeeb0', goat: '#e9ddff', gull: '#dff3ff', hare: '#ffe3ec', hedgehog: '#f4e3c8', owl: '#d8d0f0', puffin: '#ffd9cc', raccoon: '#e0e6ee', fox: '#ffe0c0', walrus: '#d6ecff' };
+  const cardTex = (kind, i) => { const c = document.createElement('canvas'); c.width = 96; c.height = 64; const g = c.getContext('2d');
+    g.fillStyle = '#fbf5e8'; g.fillRect(0, 0, 96, 64); g.fillStyle = CARD_SKY[kind] || '#dff3ff'; g.fillRect(5, 5, 50, 54);
+    g.fillStyle = ['#8ccf8a', '#6fbf8f', '#9cc97a'][i % 3]; g.beginPath(); g.moveTo(5, 59); g.lineTo(5, 40); g.quadraticCurveTo(20, 28 + (i % 3) * 4, 32, 38); g.quadraticCurveTo(44, 46, 55, 34); g.lineTo(55, 59); g.fill();
+    g.fillStyle = '#ffd24a'; g.beginPath(); g.arc(18 + (i % 4) * 7, 17, 5, 0, 7); g.fill();
+    g.strokeStyle = '#8a8a99'; g.lineWidth = 2; for (const y of [22, 32, 42]) { g.beginPath(); g.moveTo(62, y); g.lineTo(88, y); g.stroke(); }
+    g.fillStyle = '#f2792e'; g.fillRect(76, 6, 14, 12);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+  let kitReady = false, lastKeep = [[], 0]; whenKit(() => setTimeout(() => { kitReady = true; setKeepsakes(...lastKeep); }, 0));
+  function setKeepsakes(cards = [], gifts = 0) { lastKeep = [cards, gifts];
+    const key = cards.map(c => c.name).join() + '|' + Math.min(gifts, 4) + '|' + (kitReady ? 1 : 0); if (key === keepKey) return; keepKey = key;
+    const back = backOf();
+    for (const o of [...keep.children]) { keep.remove(o); o.traverse(m => { m.geometry?.dispose(); m.material?.map?.dispose(); m.material?.dispose?.(); }); }
+    cards.slice(-8).forEach((c, i) => { const col = i % 4, row = Math.floor(i / 4);
+      const card = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.3), new THREE.MeshLambertMaterial({ map: cardTex(c.kind, i), side: THREE.DoubleSide }));
+      card.position.set(0.72 - col * 0.48, 1.92 - row * 0.42, back); card.rotation.set(0, Math.PI, (((i * 37) % 7) - 3) * 0.025); keep.add(card);
+      const pin = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 4), flat(0xe8452c)); pin.position.set(card.position.x, card.position.y + 0.11, back - 0.02); keep.add(pin); });
+    const WRAP = [[0xe8452c, 0xffd24a], [0x2fc6b3, 0xfffaf0], [0x6a2fc4, 0xffd9de], [0xffd24a, 0xe8452c]];
+    for (let i = 0; i < Math.min(gifts, 4); i++) { const [a, b] = WRAP[i], sz = 0.34 + (i % 2) * 0.1, g = new THREE.Group();
+      g.position.set(-1.45 + (i % 2) * 0.42 - (i > 1 ? 0.12 : 0), (i > 1 ? 0.38 : 0) + sz / 2, 0.45 + (i % 2) * 0.12); g.rotation.y = i * 0.7;
+      box(sz, sz, sz, a, 0, 0, 0, g); box(sz + 0.02, sz + 0.02, 0.07, b, 0, 0, 0, g); box(0.07, sz + 0.02, sz + 0.02, b, 0, 0, 0, g);
+      const bow = mesh(new THREE.TorusGeometry(0.06, 0.025, 5, 8), flat(b), 0, sz / 2 + 0.04, 0, g); bow.rotation.x = Math.PI / 2; keep.add(g); }
+  }
+
+  return { town, woodlot, board, setKeepsakes, setEasel, setLights, setWind, setNight, setSeason, setHouse, setEvent, setIsland, setAway, setClock, setObservatory, pond, flag: town.userData.flag };
 }

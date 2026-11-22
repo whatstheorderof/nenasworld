@@ -349,7 +349,7 @@ const clockText = h => { const hh = Math.floor(h) % 24, mm = String(Math.floor((
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 async function refreshLife() {
-  try { lifeData = local ? local.life() : await api('/api/life'); noticeStamps(lifeData.stamps || []); dyn.setDecor(lifeData.decorList || [], now?.day || 1); if (openPanel === 'things' || openPanel === 'makes') show(openPanel); } catch {}
+  try { lifeData = local ? local.life() : await api('/api/life'); noticeStamps(lifeData.stamps || []); dyn.setDecor(lifeData.decorList || [], now?.day || 1); town.setKeepsakes(lifeData.postcards || [], lifeData.items?.gift || 0); if (openPanel === 'things' || openPanel === 'makes') show(openPanel); } catch {}
 }
 function apply(n, snap) {
   now = n;
