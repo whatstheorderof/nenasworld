@@ -111,7 +111,15 @@ export function buildFarIslands(scene) {
   const pavWarm = new THREE.MeshLambertMaterial({ color: 0xff6a22, emissive: 0xff5a14, emissiveIntensity: 0.35, flatShading: true, side: THREE.DoubleSide });
   const pavBulb = new THREE.MeshBasicMaterial({ color: 0xfff1d0 });
   const pavGlass = new THREE.MeshLambertMaterial({ color: 0xffd2a8, emissive: 0xff9a50, emissiveIntensity: 0.15, transparent: true, opacity: 0.18, depthWrite: false });
-  whenKit(() => { const m = kitModel('IslandPavilion', { glow_pav: pavWarm, glow_pavbulb: pavBulb, pav_glass: pavGlass }); if (m) pav.add(m); });
+  // someone is home: a dark figure moving about behind the glass, seen against the glow after dark
+  const pavFigure = new THREE.Group(); { const ink = new THREE.MeshBasicMaterial({ color: 0x3a1a10 });
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.42, 3, 8), ink); body.position.y = 0.36; const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), ink); head.position.y = 0.74;
+    pavFigure.add(body, head); pavFigure.scale.setScalar(1.25); pavFigure.visible = false; pav.add(pavFigure); }
+  const pavRoom = { box: null, x: 0, tx: 0, wait: 2 };
+  whenKit(() => { const m = kitModel('IslandPavilion', { glow_pav: pavWarm, glow_pavbulb: pavBulb, pav_glass: pavGlass }); if (!m) return; pav.add(m);
+    pav.updateMatrixWorld(true); const inv = pav.matrixWorld.clone().invert(), bb = new THREE.Box3();
+    m.traverse(o => { if (o.isMesh && o.material === pavWarm) { o.geometry.computeBoundingBox(); bb.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld).applyMatrix4(inv)); } });
+    if (!bb.isEmpty()) { pavRoom.box = bb; pavRoom.x = pavRoom.tx = (bb.min.x + bb.max.x) / 2; } });
   // landing pads for the balloon on the islands she can fly to
   whenKit(() => { for (const [g, I] of [[ruin, RUIN_ISLE], [pom, POMPOM_ISLE], [pav, PAVILION_ISLE]]) { const pad = kitModel('Sky_Pad'); if (!pad || !I.spots?.pad) continue; pad.scale.setScalar(1.55 / I.scale); pad.position.set(I.spots.pad[0], 0.02, -I.spots.pad[1]); g.add(pad); } });
   // gulls wheeling round the Old Hotel
@@ -125,7 +133,13 @@ export function buildFarIslands(scene) {
   // the Old Hotel, empty but for one lit window
   const ruin = new THREE.Group(), RU = RUIN_ISLE; ruin.position.set(Math.cos(RU.a) * RU.r, RU.y, Math.sin(RU.a) * RU.r); ruin.scale.setScalar(RU.scale); ruin.rotation.y = isleTurn(RU); scene.add(ruin);
   const ruinPond = waterMaterial({ deep: 0x2c5a63, mid: 0x4f8790, foam: 0xdfeee9, scale: 2.0, speed: 0.15, flow: [0.02, 0.0] });
-  whenKit(() => { const m = kitModel('IslandRuin', { ...farLit, ruin_pond: ruinPond }); if (m) ruin.add(m); });
+  // where gulls can land: the highest ledges and roof tops of the hotel, found by dropping a line from above
+  const perches = [];
+  whenKit(() => { const m = kitModel('IslandRuin', { ...farLit, ruin_pond: ruinPond }); if (!m) return; ruin.add(m); ruin.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster(), hits = [], meshes = []; m.traverse(o => { if (o.isMesh && !o.material.transparent) meshes.push(o); });
+    for (let x = -9; x <= 9; x += 1.5) for (let z = -9; z <= 9; z += 1.5) { const from = ruin.localToWorld(new THREE.Vector3(x, 30, z));
+      ray.set(from, new THREE.Vector3(0, -1, 0)); const h = ray.intersectObjects(meshes, false)[0]; if (h && h.face && h.face.normal.y > 0.7) hits.push(h.point.clone()); }
+    hits.sort((a, b) => b.y - a.y); for (const h of hits) { if (perches.length >= 6) break; if (perches.every(p => p.distanceTo(h) > 4)) perches.push({ at: h, taken: false }); } });
   // the height of the hills at a point (model units; three x = model x, three z = -model y)
   // goats live in the meadow and now and then hop up the terraces to graze
   const T = B.terraces, terH = (x, z) => { const d = Math.hypot(x - T.c[0], -z - T.c[1]); let h = 0;
@@ -161,10 +175,30 @@ export function buildFarIslands(scene) {
         tickV.set(e.x + (u * u * 4.5 + w) * e.s, e.y + u * 6.5 * e.s, e.z + (u * 1.6 + w * 0.6) * e.s); sc.setScalar(Math.max(0.001, k)); M4.compose(tickV, tickQ, sc); chimney.setMatrixAt(n++, M4); }   // rises, leans with the wind, wavers
       chimney.count = n; chimney.instanceMatrix.needsUpdate = true; }
     { const cx = Math.cos(RUIN_ISLE.a) * RUIN_ISLE.r, cz = Math.sin(RUIN_ISLE.a) * RUIN_ISLE.r;
+      const dtG = Math.min(0.1, t - (update.lastG ?? t)); update.lastG = t;
       for (const g of gulls) { const a = g.a + t * g.w, f = Math.sin(t * 7 + g.ph);
-        g.b.position.set(cx + Math.cos(a) * g.r, RUIN_ISLE.y + g.h + Math.sin(t * 0.5 + g.ph) * 2, cz + Math.sin(a) * g.r);
+        const circ = tickV2.set(cx + Math.cos(a) * g.r, RUIN_ISLE.y + g.h + Math.sin(t * 0.5 + g.ph) * 2, cz + Math.sin(a) * g.r);
+        // now and then one comes down to sit on the hotel for a while, then goes back up
+        g.mode ??= 'fly';
+        if (g.mode === 'fly' && perches.length && Math.random() < dtG * 0.03) { const p = perches.find(q => !q.taken); if (p) { p.taken = true; g.perch = p; g.mode = 'land'; g.k = 0; g.from = g.b.position.clone(); } }
+        if (g.mode === 'land' || g.mode === 'leave') { g.k += dtG / 5; const e = g.k * g.k * (3 - 2 * g.k), to = g.mode === 'land' ? g.perch.at : circ;
+          const prev = g.b.position.clone(); g.b.position.lerpVectors(g.mode === 'land' ? g.from : g.perch.at, to, Math.min(1, e)); if (g.mode === 'leave') g.b.position.y += Math.sin(Math.PI * Math.min(1, g.k)) * 3;
+          const dv = g.b.position.clone().sub(prev); if (dv.lengthSq() > 1e-6) g.b.rotation.set(0, Math.atan2(dv.x, dv.z), 0);
+          const fl = Math.sin(t * 10 + g.ph) * 0.5; g.L.rotation.z = fl; g.R.rotation.z = -fl;
+          if (g.k >= 1) { if (g.mode === 'land') { g.mode = 'perch'; g.sit = 8 + Math.random() * 14; } else { g.mode = 'fly'; g.perch.taken = false; g.perch = null; } }
+          continue; }
+        if (g.mode === 'perch') { g.sit -= dtG; g.b.position.copy(g.perch.at); g.b.position.y += Math.abs(Math.sin(t * 1.3 + g.ph)) * 0.05; g.L.rotation.z = 1.1; g.R.rotation.z = -1.1;   // wings folded
+          g.b.rotation.y += Math.sin(t * 0.7 + g.ph) * 0.004; if (g.sit <= 0) { g.mode = 'leave'; g.k = 0; } continue; }
+        g.b.position.copy(circ);
         g.b.rotation.set(0, -a + (g.w > 0 ? 0 : Math.PI), (g.w > 0 ? -0.25 : 0.25));
         const flap = f > 0.3 ? 0.15 : f * 0.55; g.L.rotation.z = flap; g.R.rotation.z = -flap; } }
+    // the figure in the Quarry House: about at dusk and in the evening, pacing, stopping, pacing
+    { const evening = night > 0.25, R = pavRoom; pavFigure.visible = evening && !!R.box;
+      if (pavFigure.visible) { const dtP = Math.min(0.1, t - (update.lastP ?? t)); update.lastP = t; const B = R.box;
+        if (R.wait > 0) { R.wait -= dtP; if (R.wait <= 0) R.tx = B.min.x + 0.5 + Math.random() * Math.max(0.1, B.max.x - B.min.x - 1); }
+        else { const d = R.tx - R.x; if (Math.abs(d) < 0.03) R.wait = 2 + Math.random() * 6; else R.x += Math.sign(d) * Math.min(Math.abs(d), dtP * 0.45); }
+        pavFigure.position.set(R.x, B.min.y + 0.02, B.max.z - 0.6); pavFigure.rotation.y = R.wait > 0 ? 0 : Math.sign(R.tx - R.x) * Math.PI / 2;
+        pavFigure.children[0].position.y = 0.36 + (R.wait > 0 ? 0 : Math.abs(Math.sin(t * 8)) * 0.02); } }
     tickGoats(Math.min(0.1, t - (update.last ?? t))); update.last = t;
     for (const m of Object.values(farLit)) m.emissiveIntensity = 0.4 + night * 1.1;
     sparks.forEach(m => { m.opacity = night * (0.6 + Math.sin(t * 2) * 0.25); });
