@@ -20,7 +20,7 @@ export class WorldLog {
     const d = view.day;
     if (!this.days[d]) {
       this.days[d] = { day: d, season: view.season, dayOfSeason: view.dayOfSeason, startedAt: Date.now(), coins: { start: view.coins ?? null, end: view.coins ?? null },
-        hours: {}, weather: {}, moods: {}, places: {}, did: {}, results: [], stamps: [], visitors: [], chats: 0, notes: 0, events: [], made: 0 };
+        hours: {}, weather: {}, moods: {}, places: {}, did: {}, results: [], stamps: [], visitors: [], chats: 0, notes: 0, events: [], made: 0, outside: [] };
       const keys = Object.keys(this.days).map(Number).sort((a, b) => a - b);
       while (keys.length > KEEP_DAYS) delete this.days[keys.shift()];
     }
@@ -58,6 +58,14 @@ export class WorldLog {
     if (item.kind === 'visitor') { d.chats++; if (item.name && !d.visitors.includes(item.name)) d.visitors.push(item.name); }
     this.dirty = true;
   }
+  // what she asked to do outside the island, and what became of it (one line per request, updated as it moves)
+  outside(it, view) {
+    const d = this.day({ ...view, day: it.day || view.day }); d.outside ||= [];
+    const line = { id: it.id, h: Math.floor(view.hour), kind: it.kind, status: it.status, what: outsideWhat(it), note: it.note || '' };
+    const i = d.outside.findIndex(o => o.id === it.id); if (i >= 0) d.outside[i] = { ...d.outside[i], status: line.status, note: line.note }; else d.outside.push(line);
+    if (d.outside.length > 60) d.outside.shift();
+    this.dirty = true;
+  }
   flush() { if (this.dirty) { this.dirty = false; this.saveFn({ days: this.days }); } }
   // newest first, each with its best and worst moments worked out
   list(limit = 30) {
@@ -69,6 +77,11 @@ export class WorldLog {
 }
 
 // The day as plain text: for copying into a message, or for a future mind to read.
+export function outsideWhat(it) {
+  const p = it.payload || {};
+  return it.kind === 'letter' ? `a letter: "${p.subject || ''}"` : it.kind === 'post' ? `a post: "${p.text || ''}"` : it.kind === 'browse' ? `reading ${p.topic || p.url || 'a page'}`
+    : it.kind === 'thank' ? 'a thank-you' : it.kind === 'sell' ? `a print of ${p.art || 'a drawing'}` : it.kind === 'publish_code' ? `a code change: ${p.message || ''}` : it.kind;
+}
 export function dayText(d, fb) {
   const top = (o, n = 3) => Object.entries(o || {}).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${k} (${v})`).join(', ') || 'none';
   const lines = [`## Day ${d.day} · ${d.season} ${d.dayOfSeason}/7`,
@@ -76,6 +89,7 @@ export function dayText(d, fb) {
     `- coins: ${d.coins.start ?? '?'} → ${d.coins.end ?? '?'}`, `- visitors: ${d.visitors.length ? d.visitors.join(', ') : 'none'} · chats: ${d.chats} · notes read: ${d.notes}`];
   if (d.events?.length) lines.push(`- events: ${d.events.join(', ')}`);
   if (d.stamps?.length) lines.push(`- stamps: ${d.stamps.join(', ')}`);
+  if (d.outside?.length) lines.push(`- outside the island: ${d.outside.map(o => `${o.what} (${o.status})`).join('; ')}`);
   if (d.best?.length) lines.push(`- best moments: ${d.best.map(r => r.text).join('; ')}`);
   if (d.worst?.length) lines.push(`- low moments: ${d.worst.map(r => r.text).join('; ')}`);
   if (d.diary) lines.push(`- her diary: ${d.diary.replace(/\s+/g, ' ').slice(0, 600)}`);

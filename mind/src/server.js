@@ -20,6 +20,8 @@ const { World } = await import('./world.js');
 const { Life } = await import('../../shared/life.js');
 const { WorldLog, FEEDBACK_TAGS } = await import('../../shared/worldlog.js');
 const { Memory } = await import('./memory.js');
+const { Outbox } = await import('../../shared/outbox.js');
+const { HANDS, connected } = await import('./hands.js');
 const { Brain } = await import('./brain.js');
 const { provider, usage } = await import('./models.js');
 
@@ -57,6 +59,15 @@ function addChat(item) {
   broadcast({ type: 'chat', item });
 }
 brain.onChat = addChat;
+
+// ---- the outbox: anything she would do outside the island waits here for the rules, and for you ----
+const outbox = new Outbox({ load: () => memory.readJson('outbox.json', null), save: v => memory.writeJson('outbox.json', v),
+  onResult: it => brain.outsideResult(it) });
+brain.outbox = outbox;
+brain.onOutside = (it, view) => log.outside(it, view);
+setInterval(() => { outbox.expire(); outbox.dispatch(HANDS).catch(e => console.error('[outbox]', e)); }, 5000);
+const creator = req => { const key = process.env.CREATOR_KEY; return !!key && req.headers['x-creator-key'] === key; };
+async function body(req, max = 6000) { let b = ''; for await (const c of req) { b += c; if (b.length > max) throw new Error('Too long.'); } return JSON.parse(b || '{}'); }
 
 // ---- loops ---------------------------------------------------------------
 let last = Date.now();
@@ -98,6 +109,15 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/life') return json(res, 200, { ...life.summary(), decorList: life.s.decor });
     if (url.pathname === '/api/facts') return json(res, 200, { model: provider(), usage, daySeconds: DAY_SECONDS, bornAt: world.bornAt, visitors: Object.keys(memory.visitors).length });
     if (url.pathname === '/') return json(res, 200, { ok: true, who: 'Nena', see: ['/api/now', '/api/feed', '/api/chat', '/api/board', '/api/diary', '/api/memory', '/api/life', '/api/facts', '/api/world'] });
+  }
+  // the outbox, for her creator only: what she has asked to do, your answers, and the switches
+  if (url.pathname.startsWith('/api/outbox')) {
+    if (!creator(req)) return json(res, 403, { error: process.env.CREATOR_KEY ? 'Only her creator can see the outbox.' : 'Set CREATOR_KEY on her mind server to use the outbox.' });
+    if (req.method === 'GET' && url.pathname === '/api/outbox') return json(res, 200, { ...outbox.view(120), connected: connected() });
+    let d; try { d = await body(req); } catch (e) { return json(res, 400, { error: e.message || 'Bad JSON.' }); }
+    if (req.method === 'POST' && url.pathname === '/api/outbox/decide') { const r = outbox.decide(String(d.id || ''), !!d.approve, d.note); if (r.item) log.outside(r.item, world.view()); return json(res, r.error ? 400 : 200, r); }
+    if (req.method === 'POST' && url.pathname === '/api/outbox/settings') return json(res, 200, { settings: outbox.setSettings(d) });
+    return json(res, 404, { error: 'Not found.' });
   }
   // feedback on a day of the world diary: only Nena's creator, with CREATOR_KEY
   if (req.method === 'POST' && url.pathname === '/api/world/feedback') {

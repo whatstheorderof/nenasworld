@@ -7,6 +7,11 @@ import { guidanceFrom, paced } from '../../shared/guidance.js';
 import { scriptedReply } from '../../shared/chat.js';
 import { ask, provider } from './models.js';
 
+const FALLBACK_TOPICS = {
+  read: ['penguins', 'icebergs', 'the moon', 'lighthouses', 'whales', 'volcanoes', 'kites', 'the northern lights', 'bees', 'sailing'],
+  draw: ['the lighthouse at dusk', 'a sleepy seal', 'the big tree', 'my igloo', 'the balloon', 'a jar of fireflies', 'the waterfall', 'clouds like fish'],
+};
+
 export class Brain {
   // her creator's feedback on the world diary, as gentle guidance (re-read once a minute)
   guide() { if (!this._guide || Date.now() - this._guideAt > 60000) { this._guide = guidanceFrom(this.memory.readJson('world-feedback.json', {})); this._guideAt = Date.now(); } return this._guide; }
@@ -22,6 +27,30 @@ export class Brain {
     this.heard = [];             // things visitors said that she has not answered yet
     this.nextReply = 0; this.replying = false; this.sleepNoted = false;
     this.onChat = () => {};
+    this.outbox = null; this.onOutside = () => {};
+  }
+
+  // ---- outside the island: she asks, the outbox decides --------------------
+  #want(kind, payload, why) {
+    if (!this.outbox) return null;
+    const w = this.world, it = this.outbox.propose(kind, payload, { why, day: w.day, from: 'nena' });
+    this.onOutside(it, w.view());
+    return it;
+  }
+  // what came back from a request (called by the outbox when a hand has finished, or given up)
+  outsideResult(it) {
+    const w = this.world, m = this.memory, p = it.payload || {};
+    this.onOutside(it, w.view());
+    let line = null, lift = 0;
+    if (it.status === 'failed') line = `I tried to ${it.kind === 'browse' ? `read about ${p.topic || 'something'}` : it.kind === 'letter' ? 'send my letter' : it.kind === 'post' ? 'share my drawing' : 'do something outside the island'}, but it did not work`;
+    else if (it.kind === 'browse') { const r = it.result || {}, first = String(r.text || '').split(/(?<=\.)\s/)[0].slice(0, 160);
+      if (p.topic) m.bumpInterest(p.topic, 0.2); m.remember(w.day, `read "${(r.title || p.topic || 'a page').slice(0, 60)}": ${first}`, 0.7); line = `Read about ${p.topic || r.title || 'something'} on a real web page`; lift = 0.15; }
+    else if (it.kind === 'letter') { line = 'Sent my letter to the one who looks after the island'; lift = 0.1; }
+    else if (it.kind === 'post') { line = 'Shared my drawing with the world outside'; lift = 0.2; }
+    else line = 'Something I asked for outside the island happened';
+    if (lift) w.bump(lift);
+    m.diaryLine(w.day, w.hour, line + '.');
+    this.onFeed({ at: Date.now(), day: w.day, hour: w.hour, action: 'outside', label: line.charAt(0).toLowerCase() + line.slice(1), reason: '', source: 'world', result: true, lift });
   }
 
   hear(name, text) { this.heard.push({ name, text, at: Date.now() }); if (this.heard.length > 8) this.heard.shift(); }
@@ -47,6 +76,9 @@ export class Brain {
       const offered = c => c && options.some(o => o.action === c.action);
       const thirdRepeat = c => this.recent.length >= 2 && this.recent.slice(-2).every(a => a === c.action) && options.length > 1;
       if (!offered(choice) || thirdRepeat(choice)) { choice = chooseFallback(options, w.needs, this.recent, this.memory.topInterests(3), this.guide()); source = 'fallback'; }
+      if (!choice.detail && FALLBACK_TOPICS[choice.action]) {   // without a model she still reads and draws about something
+        const mine = this.memory.topInterests(3), list = FALLBACK_TOPICS[choice.action];
+        choice = { ...choice, detail: mine.length && Math.random() < 0.5 ? mine[Math.floor(Math.random() * mine.length)] : list[Math.floor(Math.random() * list.length)] }; }
       if (!w.start(choice.action, choice.detail || null)) { this.nextThink = Date.now() + 3000; return; }
 
       this.recent.push(choice.action); if (this.recent.length > 8) this.recent.shift();
@@ -119,8 +151,10 @@ export class Brain {
   // ---- what an activity leaves behind -----------------------------------
   async #afterwards(a) {
     const w = this.world, m = this.memory;
-    if (a.action === 'read' && a.detail) { m.bumpInterest(a.detail); w.bump(0.1); }
-    if (a.action === 'draw' && a.detail) { m.bumpInterest(a.detail, 0.15); w.bump(0.15); }
+    if (a.action === 'read' && a.detail) { m.bumpInterest(a.detail); w.bump(0.1);
+      if (Math.random() < 0.3) this.#want('browse', { url: `https://en.wikipedia.org/wiki/${encodeURIComponent(a.detail.trim().replace(/\s+/g, '_'))}`, topic: a.detail }, `I want to know more about ${a.detail}.`); }
+    if (a.action === 'draw' && a.detail) { m.bumpInterest(a.detail, 0.15); w.bump(0.15);
+      if (Math.random() < 0.4) this.#want('post', { text: await this.#caption(a.detail), art: `day${w.day}-${Math.floor(w.hour)}h` }, `I am proud of my drawing of ${a.detail}.`); }
     if (a.action === 'watch_film' && a.detail) { this.todayLog.push({ made: `watched "${a.detail}" at the cinema` }); w.bump(0.15); }
     if (a.action === 'read_mail') await this.#readMail();
     if (a.action === 'sleep') await this.#sleepOnIt();
@@ -134,6 +168,11 @@ export class Brain {
       m.diaryLine(w.day, w.hour, r.text.charAt(0).toUpperCase() + r.text.slice(1) + '.');
       this.onFeed({ at: Date.now(), day: w.day, hour: w.hour, action: a.action, label: r.text, reason: '', source: 'world', result: true, lift: r.lift || 0 });
     }
+  }
+
+  async #caption(what) {   // a short caption in her voice for a drawing she wants to share
+    const r = await ask(`${this.memory.character()}\n\nNena wants to share a drawing she made. Reply with only JSON: {"caption": "<her caption, under 20 words, no links, no @mentions, no hashtags>"}`, `She drew: ${what}`, 80);
+    return String(r?.caption || `i drew ${what} today.`).replace(/\s+/g, ' ').trim().slice(0, 200);
   }
 
   async #readMail() {
@@ -171,5 +210,7 @@ export class Brain {
     m.diarySummary(dayOfLog, diary);
     for (const k of keep) m.remember(dayOfLog, k, 0.8);
     this.todayLog = [];
+    // a letter to the person who looks after her island, about the day (one a day at most; the outbox decides)
+    this.#want('letter', { to: 'creator', subject: `Day ${dayOfLog} on the island`, body: `${diary}${keep.length ? `\n\nThings I want to remember:\n${keep.map(k => `- ${k}`).join('\n')}` : ''}\n\nNena` }, 'I want to tell you about my day.');
   }
 }
