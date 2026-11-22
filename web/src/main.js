@@ -9,6 +9,7 @@ import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, TRIP_ISLES, LONE_ISLES, BALL
 import { kitModel as kitM, whenKit as whenK, flutter, snowCover } from './kit.js';
 import { showGuide, guideSeen } from './guide.js';
 import { report, setGpu } from './report.js';
+import { buildWildlife } from './wildlife.js';
 import { icon } from './icons.js';
 import { WEATHER_WORDS, FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, ACTIONS, todaysEvent } from '../../shared/data.js';
 import { buildNena, buildRobot } from './nena.js';
@@ -169,6 +170,8 @@ addEventListener('resize', resize); resize();
 // ---- sky by the hour -------------------------------------------------------
 const SKY = HORIZON;   // the horizon colour, which the fog matches
 const skyDome = buildSky(scene);
+const wild = buildWildlife(scene);
+if (qs.has('fox')) setTimeout(() => wild.foxNow(), 9000);   // preview the fox
 let skyHour = 12;
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const sky = new THREE.Color();
@@ -917,6 +920,7 @@ function frame() {
   const hour = qs.has('hour') ? Number(qs.get('hour')) : now ? now.hour : 12;
   const showEv = qs.get('show') || now?.event?.show || null;
   setSky(hour, qs.get('weather') || now?.weather || 'clear', dt, showEv);
+  wild.update(dt, elapsed, { hour, season: town.town.userData.season || 'summer', rain: wx.rain + wx.storm });
   // draw distance: pull the haze in and stop drawing what is past it (the sky dome shrinks to stay inside)
   { const D = settings.draw ?? 1; scene.fog.near *= D; scene.fog.far *= D;
     const far = Math.max(scene.fog.far + 60, 1400 * Math.pow(D, 1.5)); if (Math.abs(camera.far - far) > 1) { camera.far = far; camera.updateProjectionMatrix(); }
@@ -983,7 +987,7 @@ function frame() {
   requestAnimationFrame(frame);
 }
 frame();
-window.__world = { guide: showGuide, renderer, dyn, scene, camera, controls, nena, sound, site, town, npcs: () => now?.npcs || [], camper: () => now?.camper, pos: () => now?.pos };   // handy in the console
+window.__world = { wild, guide: showGuide, renderer, dyn, scene, camera, controls, nena, sound, site, town, npcs: () => now?.npcs || [], camper: () => now?.camper, pos: () => now?.pos };   // handy in the console
 
 // Phone tab row scrolls sideways: fade the right edge until you reach the end, so it's clear there's more
 { const nav = document.getElementById('nav');
