@@ -369,7 +369,7 @@ function connect() {
 setTimeout(connect, 0);
 setInterval(() => { if (local) apply(local.now()); }, 200);
 $('status').onclick = () => $('status').classList.toggle('open');
-const chartInfo = (extra = {}) => ({ islets: lifeData?.islets || [], far: Object.keys(lifeData?.farVisited || {}), at: (({ x, z }) => ({ x, z }))(nena.root.position), heading: now?.heading, cam: freeCam ? { x: camera.position.x, z: camera.position.z, yaw: 0 } : null, ...extra });
+const chartInfo = (extra = {}) => ({ flyTo: flyToIsle, islets: lifeData?.islets || [], far: Object.keys(lifeData?.farVisited || {}), at: (({ x, z }) => ({ x, z }))(nena.root.position), heading: now?.heading, cam: freeCam ? { x: camera.position.x, z: camera.position.z, yaw: 0 } : null, ...extra });
 $('map-btn').onclick = () => (chartOpen() ? closeChart() : openChart(chartInfo()));
 $('offline').onclick = () => { $('offline').hidden = true; };   // on phones the card starts small
 
@@ -646,9 +646,20 @@ async function shareView() {
   try { if (navigator.share && matchMedia('(pointer: coarse)').matches) await navigator.share({ title: "Nena's World", text: now?.activity?.label ? `Nena is ${now.activity.label}` : "Nena's World", url }); else { await navigator.clipboard.writeText(url); toast('Link copied'); } }
   catch { prompt('Copy this link', url); }
 }
+// from the chart: fly the camera over to an island to have a look (null: back to Nena)
+function flyToIsle(f) {
+  if (!f) { setView('follow'); return; }
+  if (freeCam) $('cam').click();
+  view = 'away'; for (const b of document.querySelectorAll('#views [data-view]')) b.setAttribute('aria-checked', 'false'); $('views-btn').classList.add('on');
+  const r = f.r || 10, to = new THREE.Vector3(f.x, (f.y || 0) + r * 0.6, f.z), dir = new THREE.Vector3(f.x, 0, f.z).normalize(), d = Math.min(160, Math.max(85, r * 6));
+  if (dir.lengthSq() < 0.5) dir.set(0, 0, 1);
+  const cam = to.clone().addScaledVector(dir, -d).add(new THREE.Vector3(0, d * 0.5, 0));   // seen from the home side, a little above
+  flight = { from: controls.target.clone(), fromCam: camera.position.clone(), to, toCam: cam, t: 0, sp: 0.32 };
+  $('back-nena').hidden = false;
+}
 // camera views: follow (default), close-up, slow drift round her, or the whole island from above
 function setView(v) {
-  view = v; if (freeCam) $('cam').click();
+  view = v; $('back-nena').hidden = true; if (freeCam) $('cam').click();
   for (const b of document.querySelectorAll('#views [data-view]')) b.setAttribute('aria-checked', String(b.dataset.view === v));
   $('views-btn').classList.toggle('on', v !== 'follow');
   if (v === 'island') flight = { from: controls.target.clone(), fromCam: camera.position.clone(), to: new THREE.Vector3(0, 0, 0), toCam: new THREE.Vector3(70, 95, 105), t: 0 };
@@ -970,7 +981,7 @@ function frame() {
   const sp = snow.geometry.attributes.position;
   if (wx.snow > 0.02) { for (let i = 0; i < SNOW; i++) { let y = sp.getY(i) - dt * (1.5 + (i % 5) * 0.3); if (y < 0) y = 30; sp.setY(i, y); } sp.needsUpdate = true; }
 
-  if (flight) { flight.t = settings.calm ? 1 : Math.min(1, flight.t + dt * 0.7); const e = flight.t * flight.t * (3 - 2 * flight.t); controls.target.lerpVectors(flight.from, flight.to, e); camera.position.lerpVectors(flight.fromCam, flight.toCam, e); if (flight.t >= 1 || keys.size) flight = null; }
+  if (flight) { flight.t = settings.calm ? 1 : Math.min(1, flight.t + dt * (flight.sp || 0.7)); const e = flight.t * flight.t * (3 - 2 * flight.t); controls.target.lerpVectors(flight.from, flight.to, e); camera.position.lerpVectors(flight.fromCam, flight.toCam, e); if (flight.t >= 1 || keys.size) flight = null; }
   if (freeCam) {
     const sp = (keys.has('shift') ? 40 : 16) * dt, f = new THREE.Vector3(); camera.getWorldDirection(f); f.y = 0; f.normalize(); const r = new THREE.Vector3(-f.z, 0, f.x), mv = new THREE.Vector3();
     if (keys.has('w') || keys.has('arrowup')) mv.add(f); if (keys.has('s') || keys.has('arrowdown')) mv.sub(f); if (keys.has('d') || keys.has('arrowright')) mv.add(r); if (keys.has('a') || keys.has('arrowleft')) mv.sub(r);
@@ -987,7 +998,7 @@ function frame() {
         if (!wasOver) { P.x -= mv.x; P.z -= mv.z; controls.target.x -= mv.x; controls.target.z -= mv.z; }   // the island's side is a wall
         else { const prev = P.y - mv.y, to = prev >= TOP ? TOP : prev <= BOT ? BOT : P.y > -20 ? TOP : BOT; controls.target.y += to - P.y; P.y = to; } }
       if (P.y < -400) { controls.target.y += -400 - P.y; P.y = -400; } }
-  } else if (!window.__world?.freeze && settings.follow && view !== 'island') {
+  } else if (!window.__world?.freeze && settings.follow && view !== 'island' && view !== 'away') {
     controls.maxPolarAngle = doing && act.anim === 'dive' ? 2.15 : 1.45;
     { const L = town.town.userData.lagoon; if (L && camera.position.y < L.bed + 0.6) { const d = L.bed + 0.6 - camera.position.y; camera.position.y += d; } }
     const before = controls.target.clone();
@@ -1028,3 +1039,16 @@ if (qs.has('view')) { const v = qs.get('view').split(',').map(Number); if (v.len
 // which graphics the visitor has, sent along with any error report
 try { const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'); setGpu(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); } catch {}
 renderer.domElement.addEventListener('webglcontextlost', () => report('WebGL context lost', '', 'renderer'));
+
+// iPhone: a two-finger pinch that starts on a card or button zooms the whole page instead of the island,
+// and there was no way back. Pinches on the page are stopped (the island still zooms with two fingers),
+// and if the page ever does end up zoomed, it snaps back as soon as the fingers lift.
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+document.addEventListener('touchmove', e => { if (e.touches.length > 1 && !e.target.closest?.('canvas')) e.preventDefault(); }, { passive: false });
+{ const meta = document.querySelector('meta[name=viewport]'), base = meta?.content || '';
+  const unzoom = () => { const vv = window.visualViewport; if (!meta || !vv || vv.scale <= 1.02) return;
+    meta.content = base.replace(/maximum-scale=[^,]*,?\s*/, '') + ', maximum-scale=1.0001'; requestAnimationFrame(() => { meta.content = base; }); window.scrollTo(0, 0); };
+  addEventListener('touchend', e => { if (!e.touches.length) setTimeout(unzoom, 60); }, { passive: true });
+  window.visualViewport?.addEventListener('resize', () => setTimeout(unzoom, 300)); }
+
+$('back-nena').onclick = () => setView('follow');

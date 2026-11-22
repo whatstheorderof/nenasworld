@@ -27,7 +27,7 @@ export const PLACES = {
   tailor:  { label: 'Clothes Shop', x: 16.8,  z: -8.9,  d: 4.4, r: 2.9 },
   observatory: { label: 'Observatory', x: 3.6, z: -20.7, d: 4.8, r: 3.3 },
   lighthouse: { label: 'Lighthouse', x: -17.1, z: -17.1, d: 5.0, r: 2.6 },
-  camp:    { label: 'Campsite',     x: 21.5,  z: 3.4,   d: 3.6, r: 2.0 },
+  camp:    { label: 'Campsite',     x: 20.54, z: 3.25,  d: 5.5, r: 2.0 },   // where she stands is a couple of metres back from the fire, never on it
   garden:  { label: 'Garden',       x: 7,     z: -3,    d: 0,   r: 0   },
   orchard: { label: 'Orchard',      x: 3.6,   z: -9.4,  d: 0,   r: 0   },
   rock:    { label: 'Big Rock',     x: -8.6,  z: 2.6,   d: 0,   r: 0   },

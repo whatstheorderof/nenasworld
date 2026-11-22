@@ -387,3 +387,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 #panel h2:focus { outline: none; }
 body.calm *, body.calm *::before, body.calm *::after { animation-duration: .01s !important; animation-iteration-count: 1 !important; transition-duration: .01s !important; }
 body.calm .confetti { display: none; }
+
+html, body { touch-action: manipulation; overscroll-behavior: none; }
+#scene { touch-action: none; }
+.chart-fly { margin: 2px 0 8px; font: inherit; font-weight: 800; font-size: 14px; color: #fff; background: var(--orange, #f2792e); border: 3px solid #4a3220; border-radius: 12px; padding: 6px 14px; box-shadow: 0 3px 0 #4a3220; cursor: pointer; }
+#back-nena { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 5; font: inherit; font-weight: 900; font-size: 15px; color: #fff; background: var(--orange); border: 3px solid var(--line); border-radius: 14px; padding: 9px 18px; box-shadow: 0 4px 0 var(--line); cursor: pointer; }
+#back-nena[hidden] { display: none; }

@@ -150,7 +150,7 @@ export function buildDynamic(scene) {
       if (talkTo && c.mode !== 'walk') { if (c.mode === 'sit') c.mode = 'warm';   // stand up to say hello
         const [wx0, wz0] = c.toW(c.x, c.z), wa = Math.atan2(talkTo.x - wx0, talkTo.z - wz0); c.face = wa - c.ry; c.wait = Math.max(c.wait, 2); }
       else if (c.mode !== 'walk') { c.wait -= step; c.face = Math.atan2(FIRE[0] - c.x, FIRE[1] - c.z);
-        if (c.wait <= 0) { if (c.mode === 'sit' || Math.random() < 0.35) { const a = 0.2 + Math.random() * 2.7, r = 1.5 + Math.random() * 0.7; c.tx = FIRE[0] + Math.cos(a) * r * (Math.random() < 0.5 ? 1 : -1); c.tz = FIRE[1] + Math.sin(a) * r; c.next = 'warm'; }
+        if (c.wait <= 0) { if (c.mode === 'sit' || Math.random() < 0.35) { const a = 0.15 + Math.random() * 0.9, r = 1.5 + Math.random() * 0.6; c.tx = FIRE[0] + Math.cos(a) * r * (Math.random() < 0.5 ? 1 : -1); c.tz = FIRE[1] + Math.sin(a) * r * (Math.random() < 0.5 ? 1 : -1); c.next = 'warm'; }   // warming at the sides of the fire, leaving the front for Nena
           else { c.tx = SEAT[0]; c.tz = SEAT[1]; c.next = 'sit'; } c.mode = 'walk'; } }
       const [wx, wz] = c.toW(c.x, c.z); camperMesh.position.x = wx; camperMesh.position.z = wz;
       let dr = (c.face ?? 0) + c.ry - camperMesh.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); camperMesh.rotation.y += dr * Math.min(1, step * 5);

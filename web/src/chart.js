@@ -35,6 +35,8 @@ function build() {
   root.querySelector('#chart-close').onclick = closeChart;
   root.querySelector('#chart-zoom').onclick = () => { state.zoom = state.zoom === 1 ? 3 : 1; root.querySelector('#chart-zoom').textContent = `Zoom ×${state.zoom}`; draw(); };
   root.addEventListener('click', e => { if (e.target === root) closeChart(); });
+  root.addEventListener('click', e => { const b = e.target.closest('.chart-fly'); if (!b || !state.info.flyTo) return;   // fly the camera to an island
+    const d = b.dataset; state.info.flyTo(d.home ? null : { x: +d.x, z: +d.z, r: +d.r, y: +d.y }); closeChart(); });
   cv.addEventListener('pointermove', e => { state.hover = cellAt(e); });
   cv.addEventListener('pointerleave', () => { state.hover = null; });
   cv.addEventListener('click', e => { const c = cellAt(e); if (c) { state.sel = c; detail(); } });
@@ -190,7 +192,7 @@ function detail() {
   const cx = (col + 0.5) * CELL - EXTENT / 2, cz = (row + 0.5) * CELL - EXTENT / 2;
   const here = features().filter(f => Math.abs(f.x - cx) <= CELL / 2 && Math.abs(f.z - cz) <= CELL / 2);
   const at = state.info.at, nenaHere = at && squareAt(at.x, at.z)?.col === col && squareAt(at.x, at.z)?.row === row;
-  root.querySelector('#chart-detail').innerHTML = `<small>Square ${key}</small><h3>${esc(name)}</h3>` + (here.length ? here.map(f => `<p><b>${esc(cap(f.name))}</b> ${esc(f.about)}</p>${f.resources ? `<p class="res">${f.resources.map(r => `<span>${esc(r)}</span>`).join('')}</p>` : ''}`).join('') : '<p>Open sky. Nothing charted here yet.</p>') + (nenaHere ? '<p class="here">◆ Nena is here</p>' : '');
+  root.querySelector('#chart-detail').innerHTML = `<small>Square ${key}</small><h3>${esc(name)}</h3>` + (state.info.flyTo ? here.map(f => `<button class="chart-fly" data-x="${f.x}" data-z="${f.z}" data-r="${f.r}" data-y="${f.y ?? 0}" data-home="${f.kind === 'home' ? 1 : ''}">${f.kind === 'home' ? 'Back to Nena' : here.length > 1 ? `Fly to ${esc(f.name)}` : 'Fly there'}</button>`).join(' ') : '') + (here.length ? here.map(f => `<p><b>${esc(cap(f.name))}</b> ${esc(f.about)}</p>${f.resources ? `<p class="res">${f.resources.map(r => `<span>${esc(r)}</span>`).join('')}</p>` : ''}`).join('') : '<p>Open sky. Nothing charted here yet.</p>') + (nenaHere ? '<p class="here">◆ Nena is here</p>' : '');
   draw();
 }
 function stats() {
