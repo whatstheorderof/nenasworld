@@ -364,3 +364,10 @@ details.advanced[open] > summary::before { transform: rotate(90deg); }
 #toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); background: var(--ink); color: #fff; font-weight: 800; font-size: 14px; padding: 9px 16px; border-radius: 12px; z-index: 30; }
 #toast.show { animation: toast-in .25s ease-out; }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+.stampbook figcaption .sp { display: block; height: 6px; margin: 4px auto 1px; width: 80%; background: #e9e1cf; border-radius: 4px; overflow: hidden; }
+.stampbook figcaption .sp i { display: block; height: 100%; background: var(--orange); border-radius: 4px; }
+.stampbook figcaption small { display: block; font-size: 11px; opacity: .7; }
+/* a little burst of confetti when a stamp is earned */
+.confetti { position: fixed; width: 8px; height: 12px; z-index: 6; pointer-events: none; border-radius: 2px; animation: confetti 1.4s cubic-bezier(.2,.7,.4,1) forwards; }
+@keyframes confetti { to { transform: translate(var(--dx), var(--dy)) rotate(var(--r)); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .confetti { display: none; } }

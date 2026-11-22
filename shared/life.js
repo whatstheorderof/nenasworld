@@ -1,7 +1,7 @@
 // Nena's belongings and what comes of the things she does: pockets, coins, the museum,
 // what she has built and where she put it, her house, her scarves, her friendships.
 // Pure logic with an injected store, so the same code runs on the server and in the browser.
-import { SPECIES, MATERIAL_VALUE, RECIPES, SHOP, SCARVES, HOUSE_LOOKS, HOUSE_LOAN, SEASON_FIND, SONGS, STAMPS, FLAGS, BLOOMS, HATS, CLOTHES_PRICE, SKY, SKY_RARE, GLASSES, crossBloom, catchOne, calendar } from './data.js';
+import { SPECIES, MATERIAL_VALUE, RECIPES, SHOP, SCARVES, HOUSE_LOOKS, HOUSE_LOAN, SEASON_FIND, SONGS, STAMPS, STAMP_PROGRESS, FLAGS, BLOOMS, HATS, CLOTHES_PRICE, SKY, SKY_RARE, GLASSES, crossBloom, catchOne, calendar } from './data.js';
 import { NEIGHBOURS, CAMPERS, ISLETS, SKY_ISLANDS, TRIP_ISLES, FORAGE, WORLD, K, LAYOUT_K, SQUARE, freeSpot, freeNear, blocked } from './world.js';
 
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -243,7 +243,7 @@ export class Life {
 
   summary() {
     const s = this.s;
-    return { coins: s.coins, items: s.items, museum: s.museum, total: Object.keys(SPECIES).length, decor: s.decor.length, house: s.house, loan: HOUSE_LOAN[s.house.level] || null, friends: s.friends, turnips: s.turnips, turnipPrice: s.turnipPrice, photos: s.photos, shaken: s.shaken, songs: s.songs, stamps: s.stamps, cosy: s.cosy, tune: s.tune, hot: s.hot, golden: s.golden, rides: s.rides, blooms: s.blooms, camper: s.camper, metCampers: s.metCampers, islets: s.islets, farVisited: s.farVisited || {}, inspo: s.inspo || [], sky: s.sky || [], hats: s.look.hats || [0], glasses: s.look.glasses_owned || [0], stampDays: s.stampDays || {}, drawings: s.drawings || [], photoLog: s.photoLog || [], dishes: s.dishes || [], flag: s.look.flag || 0, postcards: s.postcards || [] };
+    return { coins: s.coins, items: s.items, museum: s.museum, total: Object.keys(SPECIES).length, decor: s.decor.length, house: s.house, loan: HOUSE_LOAN[s.house.level] || null, friends: s.friends, turnips: s.turnips, turnipPrice: s.turnipPrice, photos: s.photos, shaken: s.shaken, songs: s.songs, stamps: s.stamps, cosy: s.cosy, tune: s.tune, hot: s.hot, golden: s.golden, rides: s.rides, blooms: s.blooms, camper: s.camper, metCampers: s.metCampers, islets: s.islets, farVisited: s.farVisited || {}, inspo: s.inspo || [], sky: s.sky || [], hats: s.look.hats || [0], glasses: s.look.glasses_owned || [0], stampDays: s.stampDays || {}, drawings: s.drawings || [], photoLog: s.photoLog || [], dishes: s.dishes || [], flag: s.look.flag || 0, postcards: s.postcards || [], stampProg: Object.fromEntries(STAMPS.filter(st => STAMP_PROGRESS[st.id] && !s.stamps.includes(st.id)).map(st => { try { const [h, n] = STAMP_PROGRESS[st.id](s); return [st.id, [Math.min(h, n), n]]; } catch { return [st.id, null]; } })) };
   }
   freeSpot() { return freeSpot(this.s.decor); }
 }

@@ -99,6 +99,20 @@ export const STAMPS = [
   { id: 'regulars', name: 'Knows Everyone', hint: 'talk with 10 different visitors', coins: 400, test: s => (s.chatNames || []).length >= 10 },
   { id: 'rider', name: 'Robot Rider', hint: 'ride the robot 20 times', coins: 100, test: s => (s.rides || 0) >= 20 },
 ];
+// How far along each stamp is, as [have, need], for the hints in the stamp book.
+const nn = (s, ...ks) => ks.reduce((t, k) => t + (s.n?.[k] || 0), 0), inMuseum = s => Object.values(s.museum || {}).reduce((t, a) => t + a.length, 0);
+const visited = (s, ks) => ks.filter(k => s.farVisited?.[k]).length, friendsAt = (s, v) => Object.values(s.friends || {}).filter(x => x >= v).length;
+export const STAMP_PROGRESS = {
+  first: s => [nn(s, 'go_fishing', 'sea_fishing'), 1], angler: s => [nn(s, 'go_fishing', 'sea_fishing'), 20], bugs: s => [nn(s, 'catch_bugs'), 15], diver: s => [nn(s, 'dive'), 10],
+  curator: s => [inMuseum(s), 10], fullmuseum: s => [inMuseum(s), Object.keys(SPECIES).length], maker: s => [nn(s, 'craft'), 5], designer: s => [nn(s, 'decorate'), 10],
+  green: s => [nn(s, 'plant_tree', 'plant_flowers', 'harvest'), 6], neighbour: s => [friendsAt(s, 5), Object.keys(s.friends || {}).length], home: s => [s.house?.level || 0, 3],
+  cocoa: s => [nn(s, 'drink_cocoa'), 10], flyer: s => [visited(s, ['ember', 'wood', 'glass']), 3], skyhopper: s => [visited(s, ['ember', 'wood', 'glass', 'bloom', 'ruin', 'pompom', 'pavilion']), 7],
+  sailor: s => [nn(s, 'boat_trip'), 5], songs: s => [(s.songs || []).length, 5], party: s => [nn(s, 'event'), 5], breeder: s => [(s.blooms || []).length, 6],
+  host: s => [(s.metCampers || []).length, 4], everyone: s => [(s.metCampers || []).length, 15], traveller: s => [(s.islets || []).length, 3], joiner: s => [nn(s, 'join_hobby'), 8],
+  wardrobe: s => [(s.look?.hats || []).length, 5], shades: s => [(s.look?.glasses_owned || []).length, 4], starchart: s => [(s.sky || []).length, 6], puddles: s => [nn(s, 'puddle_jump'), 5],
+  kite: s => [nn(s, 'fly_kite'), 3], storm: s => [nn(s, 'watch_storm'), 2], keeper: s => [nn(s, 'watch_beam'), 5], farsight: s => [Object.keys(s.farSeen || {}).length, 3],
+  chatter: s => [nn(s, 'visitor_chat'), 10], regulars: s => [(s.chatNames || []).length, 10], rider: s => [s.rides || 0, 20],
+};
 export function catchOne(cat, where, season, lucky = false, rand = Math.random) {
   const pool = Object.entries(SPECIES).filter(([, s]) => s.cat === cat && (!where || s.where === where) && (!s.s || s.s.includes(season)));
   const total = pool.reduce((t, [, s]) => t + (s.rare ? (lucky ? 0.4 : 0.12) : 1), 0);

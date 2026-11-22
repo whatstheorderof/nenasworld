@@ -492,7 +492,7 @@ async function show(name) {
       const l = lifeData, got = new Set(l?.stamps || []), days = l?.stampDays || {};
       body.innerHTML = `<h2>Her stamp book</h2><p class="dim">She earns these just by living. Each one pays a few coins.</p>
         <div class="meter"><i style="width:${got.size / STAMPS.length * 100}%"></i></div><p><b>${got.size} of ${STAMPS.length}</b> collected</p>
-        <div class="stampbook">${[...STAMPS].sort((a, b) => (got.has(b.id) - got.has(a.id)) || ((days[a.id] || 0) - (days[b.id] || 0))).map(st => `<figure title="${esc(got.has(st.id) ? st.name : 'Hint: ' + st.hint)}"><canvas width="240" height="300" data-stamp="${st.id}"></canvas><figcaption>${got.has(st.id) ? `day ${days[st.id] ?? '?'}` : esc(st.hint)}</figcaption></figure>`).join('')}</div>`;
+        <div class="stampbook">${[...STAMPS].sort((a, b) => (got.has(b.id) - got.has(a.id)) || ((days[a.id] || 0) - (days[b.id] || 0))).map(st => `<figure title="${esc(got.has(st.id) ? st.name : 'Hint: ' + st.hint)}"><canvas width="240" height="300" data-stamp="${st.id}"></canvas><figcaption>${got.has(st.id) ? `day ${days[st.id] ?? '?'}` : `${esc(st.hint)}${(() => { const pr = l?.stampProg?.[st.id]; return pr && pr[1] > 1 ? `<span class="sp"><i style="width:${Math.round(pr[0] / pr[1] * 100)}%"></i></span><small>${pr[0]} of ${pr[1]}</small>` : ''; })()}`}</figcaption></figure>`).join('')}</div>`;
       body.querySelectorAll('canvas[data-stamp]').forEach(c => { const st = STAMPS.find(x => x.id === c.dataset.stamp); drawStamp(c, st, got.has(st.id) ? (days[st.id] ?? '?') : null); });
     } else if (name === 'settings') {
       const row = (key, label, hint) => `<label class="set"><span><b>${label}</b>${hint ? `<small>${hint}</small>` : ''}</span><input type="checkbox" class="switch" data-set="${key}" ${settings[key] ? 'checked' : ''} /></label>`;
@@ -649,12 +649,17 @@ function noticeStamps(list) {
 }
 function nextStamp() {
   if (stampShowing || !stampQueue.length) return;
-  const st = STAMPS.find(x => x.id === stampQueue.shift()); if (!st) return nextStamp();
+  const id = stampQueue.shift(), st = STAMPS.find(x => x.id === id); if (!st) return nextStamp();
   stampShowing = true;
   const el = $('stamp-pop'); el.innerHTML = `<canvas width="240" height="300"></canvas><div><b>Nena earned a stamp!</b><span>${esc(st.name)}</span><span class="dim">+${st.coins} coins</span></div>`;
   drawStamp(el.querySelector('canvas'), st, lifeData?.stampDays?.[st.id] ?? now?.day ?? 1); sound.stamp();
   el.hidden = false; el.classList.remove('go', 'out'); void el.offsetWidth; el.classList.add('go');
   el.onclick = () => show('stamps');
+  requestAnimationFrame(() => { const r = el.getBoundingClientRect(), cx = r.left + 60, cy = r.top + r.height / 2;   // confetti from the stamp
+    for (let i = 0; i < 26; i++) { const c = document.createElement('i'); c.className = 'confetti'; const a = Math.random() * Math.PI * 2, d = 70 + Math.random() * 130;
+      Object.assign(c.style, { left: `${cx}px`, top: `${cy}px`, background: ['#f2792e', '#ffd93b', '#2fc6b3', '#e8452c', '#6a2fc4', '#58b7e8'][i % 6] });
+      c.style.setProperty('--dx', `${Math.cos(a) * d}px`); c.style.setProperty('--dy', `${Math.sin(a) * d + 90}px`); c.style.setProperty('--r', `${(Math.random() - 0.5) * 720}deg`);
+      document.body.append(c); setTimeout(() => c.remove(), 1500); } });
   setTimeout(() => el.classList.add('out'), 5800);
   setTimeout(() => { el.hidden = true; stampShowing = false; nextStamp(); }, 6500);
 }
