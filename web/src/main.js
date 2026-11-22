@@ -29,7 +29,7 @@ const qs = new URLSearchParams(location.search);   // ?hour=23&weather=aurora&se
 const $ = id => document.getElementById(id);
 
 // ---- settings (kept in this browser) -----------------------------------------------------
-const DEFAULTS = { sound: true, volume: 0.6, dots: localStorage.getItem('nena-dots') !== 'off', quality: matchMedia('(max-width: 700px)').matches ? 'low' : 'high', labels: true, bubbles: true, flashes: true, clock24: true, follow: true, res: 'auto', draw: 1 };
+const DEFAULTS = { sound: true, volume: 0.6, dots: localStorage.getItem('nena-dots') !== 'off', quality: matchMedia('(max-width: 700px)').matches ? 'low' : 'high', labels: true, bubbles: true, flashes: true, clock24: true, follow: true, calm: matchMedia('(prefers-reduced-motion: reduce)').matches, res: 'auto', draw: 1 };
 const settings = (() => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nena-settings') || '{}') }; } catch { return { ...DEFAULTS }; } })();
 const saveSettings = () => { try { localStorage.setItem('nena-settings', JSON.stringify(settings)); } catch {} };
 
@@ -338,7 +338,7 @@ $('offline').onclick = () => { $('offline').hidden = true; };   // on phones the
 
 const NEED_COLORS = { fullness: '#f2792e', energy: '#ffd93b', wonder: '#6a2fc4', joy: '#ff7fa3', calm: '#2fc6b3' };
 const NEED_ICONS = { fullness: '🍙', energy: '⚡', wonder: '✨', joy: '💗', calm: '🍃' };
-$('needs').innerHTML = NEEDS.map(k => `<div class="need" id="needbox-${k}"><svg viewBox="0 0 40 40"><circle class="track" cx="20" cy="20" r="16"/><circle class="fill" id="need-${k}" cx="20" cy="20" r="16" stroke="${NEED_COLORS[k]}" pathLength="100" stroke-dasharray="100" stroke-dashoffset="50"/></svg><span>${NEED_ICONS[k]}</span><small>${k[0].toUpperCase() + k.slice(1)}</small></div>`).join('');
+$('needs').innerHTML = NEEDS.map(k => `<div class="need" id="needbox-${k}" role="meter" aria-label="${k}" aria-valuemin="0" aria-valuemax="100"><svg aria-hidden="true" viewBox="0 0 40 40"><circle class="track" cx="20" cy="20" r="16"/><circle class="fill" id="need-${k}" cx="20" cy="20" r="16" stroke="${NEED_COLORS[k]}" pathLength="100" stroke-dasharray="100" stroke-dashoffset="50"/></svg><span aria-hidden="true">${NEED_ICONS[k]}</span><small aria-hidden="true">${k[0].toUpperCase() + k.slice(1)}</small></div>`).join('');
 const MOOD_FACES = { content: '🙂', curious: '🧐', delighted: '🤩', happy: '😊', hungry: '😋', 'put out': '😤', restless: '😣', sleepy: '🥱', asleep: '😴', unsettled: '😟', 'a little flat': '😔' };
 const WEATHER_ICONS = { clear: '☀️', cloudy: '☁️', rain: '🌧️', storm: '⛈️', wind: '🌬️', heat: '🔥', rainbow: '🌈', snow: '❄️', mist: '🌫️', aurora: '🌌', meteors: '🌠' };
 const SEASON_ICONS = { spring: '🌸', summer: '🌿', autumn: '🍂', winter: '❄️' };
@@ -372,7 +372,7 @@ function apply(n, snap) {
   $('coins').innerHTML = `<i class="coin"></i>${n.coins}`;
   { const m = $('mind'); m.textContent = n.mind.local ? 'stand-in mind' : n.mind.model ? 'her own mind' : 'scripted mind'; m.className = n.mind.local ? 'standin' : n.mind.model ? 'live' : 'scripted';
     m.title = n.mind.local ? 'Her own mind is not online yet: a stand-in is running in your browser' : n.mind.model ? `Mind: ${n.mind.model} (last choice: ${n.mind.source})` : 'Scripted fallback: no model connected yet'; }
-  for (const k of NEEDS) { const v = Math.round(n.needs[k] * 100); $(`need-${k}`).setAttribute('stroke-dashoffset', 100 - v); const b = $(`needbox-${k}`); b.title = `${cap(k)}: ${v}%`; b.classList.toggle('low', v < 25); }
+  for (const k of NEEDS) { const v = Math.round(n.needs[k] * 100); $(`need-${k}`).setAttribute('stroke-dashoffset', 100 - v); const b = $(`needbox-${k}`); b.title = `${cap(k)}: ${v}%`; b.setAttribute('aria-valuenow', v); b.setAttribute('aria-valuetext', `${v}%`); b.classList.toggle('low', v < 25); }
   updateChart({ at: n.activity.action === 'boat_trip' && n.activity.phase === 'doing' && n.activity.islet != null ? isletPos(n.activity.islet) : n.activity.anim === 'voyage' && n.activity.phase === 'doing' ? (({ x, z }) => ({ x, z }))(nena.root.position) : n.pos, heading: n.heading, far: Object.keys(lifeData?.farVisited || {}) });
   town.flag.rotation.z = n.mail ? 0 : -1.4; town.flag.position.y = n.mail ? 1.5 : 1.25;
   nena.setScarf(SCARVES[n.look.scarf] ?? SCARVES[0]);
@@ -425,7 +425,8 @@ const tile = (k, n, kind, cls = '') => `<div class="tile ${cls}" title="${esc(k)
 const dishIcon = d => { d = d.toLowerCase(); if (/cake|tart|crumble|bake|pancake/.test(d)) return icon('cake'); if (/soup|stew|tea/.test(d)) return icon('soup'); const hit = [...Object.keys(SPECIES), ...FORAGE, 'mushroom', 'fruit', 'veg'].filter(k => d.includes(k)).sort((a, b) => b.length - a.length)[0]; return icon(hit || 'dish'); };
 
 async function show(name) {
-  openPanel = name; $('panel').hidden = false;
+  if ($('panel').hidden) lastFocus = document.activeElement;
+  openPanel = name; $('panel').hidden = false; $('panel').setAttribute('aria-label', name);
   const body = $('panel-body');
   try {
     if (name === 'diary') {
@@ -512,6 +513,7 @@ async function show(name) {
         ${row('labels', 'Name tags', 'Names over neighbours, campers and visitors')}
         ${row('bubbles', 'Speech bubbles', 'What Nena and visitors say, over their heads')}
         ${row('follow', 'Camera follows Nena', 'Off: the camera stays where you put it')}
+        ${row('calm', 'Reduce motion', 'Camera jumps instead of gliding, no drifting views or confetti')}
         ${row('clock24', '24-hour clock', 'Off: 9:30 pm instead of 21:30')}
         <h3>You</h3>
         <label class="set"><span><b>Your name</b><small>Shown on your gull, in chat and on notes</small></span><input type="text" id="set-name" maxlength="16" value="${esc(myName())}" /></label>
@@ -573,7 +575,11 @@ async function show(name) {
   } catch { body.innerHTML = `<h2>Hm.</h2><p>Couldn't reach Nena's mind right now.</p>`; }
 }
 document.querySelectorAll('#nav button[data-panel], #tools button[data-panel]').forEach(b => b.onclick = () => (openPanel === b.dataset.panel ? close() : show(b.dataset.panel)));
-const close = () => { openPanel = null; $('panel').hidden = true; };
+const close = () => { openPanel = null; $('panel').hidden = true; if (lastFocus?.isConnected) lastFocus.focus(); lastFocus = null; };
+let lastFocus = null;
+// keyboard: Escape closes the open panel; opening one moves focus to its heading
+addEventListener('keydown', e => { if (e.key === 'Escape' && !$('panel').hidden && $('views').hidden && !document.getElementById('guide')) close(); });
+new MutationObserver(() => { const h = $('panel-body').querySelector('h2'); if (h && !$('panel').hidden && !$('panel').contains(document.activeElement)) { h.tabIndex = -1; h.focus({ preventScroll: true }); } }).observe($('panel-body'), { childList: true });
 // On a phone the panel is a sheet: drag the handle up for more room, down to make it smaller or close it
 { const panel = $('panel'), grab = $('grab'), phone = matchMedia('(max-width: 700px)');
   const SNAP = [0.42, 0.64, 0.9]; let snap = 1, drag = null;
@@ -630,6 +636,7 @@ $('cam').onclick = () => {
 
 // ---- applying settings ----------------------------------------------------------------------
 function applySettings(k) {
+  if (!k || k === 'calm') document.body.classList.toggle('calm', !!settings.calm);
   if (k === 'dots') dots.enabled = settings.dots;
   if (k === 'sound') sound.setEnabled(settings.sound);
   if (k === 'volume') sound.setVolume(settings.volume);
@@ -638,7 +645,7 @@ function applySettings(k) {
   if (k === 'quality' || k === 'res') { if (k === 'res') res.auto = 1; renderer.setPixelRatio(pixelRatio()); dots.uniforms.cell.value = 5 * renderer.getPixelRatio(); resize(); }
   if (k === 'clock24' && now) apply(now);
 }
-for (const k of ['labels', 'bubbles', 'volume']) applySettings(k);
+for (const k of ['labels', 'bubbles', 'volume', 'calm']) applySettings(k);
 sound.setVolume(settings.volume);
 if (settings.sound) sound.setEnabled(true);
 const unlock = () => { sound.unlock(); }; addEventListener('pointerdown', unlock); addEventListener('keydown', unlock);
@@ -668,7 +675,7 @@ function nextStamp() {
   drawStamp(el.querySelector('canvas'), st, lifeData?.stampDays?.[st.id] ?? now?.day ?? 1); sound.stamp();
   el.hidden = false; el.classList.remove('go', 'out'); void el.offsetWidth; el.classList.add('go');
   el.onclick = () => show('stamps');
-  requestAnimationFrame(() => { const r = el.getBoundingClientRect(), cx = r.left + 60, cy = r.top + r.height / 2;   // confetti from the stamp
+  if (!settings.calm) requestAnimationFrame(() => { const r = el.getBoundingClientRect(), cx = r.left + 60, cy = r.top + r.height / 2;   // confetti from the stamp
     for (let i = 0; i < 26; i++) { const c = document.createElement('i'); c.className = 'confetti'; const a = Math.random() * Math.PI * 2, d = 70 + Math.random() * 130;
       Object.assign(c.style, { left: `${cx}px`, top: `${cy}px`, background: ['#f2792e', '#ffd93b', '#2fc6b3', '#e8452c', '#6a2fc4', '#58b7e8'][i % 6] });
       c.style.setProperty('--dx', `${Math.cos(a) * d}px`); c.style.setProperty('--dy', `${Math.sin(a) * d + 90}px`); c.style.setProperty('--r', `${(Math.random() - 0.5) * 720}deg`);
@@ -913,7 +920,7 @@ function frame() {
   const sp = snow.geometry.attributes.position;
   if (wx.snow > 0.02) { for (let i = 0; i < SNOW; i++) { let y = sp.getY(i) - dt * (1.5 + (i % 5) * 0.3); if (y < 0) y = 30; sp.setY(i, y); } sp.needsUpdate = true; }
 
-  if (flight) { flight.t = Math.min(1, flight.t + dt * 0.7); const e = flight.t * flight.t * (3 - 2 * flight.t); controls.target.lerpVectors(flight.from, flight.to, e); camera.position.lerpVectors(flight.fromCam, flight.toCam, e); if (flight.t >= 1 || keys.size) flight = null; }
+  if (flight) { flight.t = settings.calm ? 1 : Math.min(1, flight.t + dt * 0.7); const e = flight.t * flight.t * (3 - 2 * flight.t); controls.target.lerpVectors(flight.from, flight.to, e); camera.position.lerpVectors(flight.fromCam, flight.toCam, e); if (flight.t >= 1 || keys.size) flight = null; }
   if (freeCam) {
     const sp = (keys.has('shift') ? 40 : 16) * dt, f = new THREE.Vector3(); camera.getWorldDirection(f); f.y = 0; f.normalize(); const r = new THREE.Vector3(-f.z, 0, f.x), mv = new THREE.Vector3();
     if (keys.has('w') || keys.has('arrowup')) mv.add(f); if (keys.has('s') || keys.has('arrowdown')) mv.sub(f); if (keys.has('d') || keys.has('arrowright')) mv.add(r); if (keys.has('a') || keys.has('arrowleft')) mv.sub(r);
@@ -939,7 +946,7 @@ function frame() {
     if (view === 'close' || view === 'drift') { const off = camera.position.clone().sub(controls.target), e = 1 - Math.exp(-dt * 1.2);
       const want = view === 'close' ? 8.5 : 19, len = off.length(); off.setLength(len + (want - len) * e);
       off.y += (want * (view === 'close' ? 0.32 : 0.42) - off.y) * e;
-      if (view === 'drift' && !keys.size) off.applyAxisAngle(UP, dt * 0.12);
+      if (view === 'drift' && !keys.size && !settings.calm) off.applyAxisAngle(UP, dt * 0.12);
       camera.position.copy(controls.target).add(off); }
   }
   cloudFade.uCamPos.value.copy(camera.position);

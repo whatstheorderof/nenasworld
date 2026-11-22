@@ -382,3 +382,8 @@ details.advanced[open] > summary::before { transform: rotate(90deg); }
   #grab i { width: 44px; height: 5px; border-radius: 3px; background: #d8cdb6; }
   #close { top: 10px; }
 }
+/* keyboard focus you can see; calm mode stops decorative animation */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+#panel h2:focus { outline: none; }
+body.calm *, body.calm *::before, body.calm *::after { animation-duration: .01s !important; animation-iteration-count: 1 !important; transition-duration: .01s !important; }
+body.calm .confetti { display: none; }
