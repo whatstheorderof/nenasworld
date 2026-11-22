@@ -228,6 +228,7 @@ export function buildNena() {
     return { hit, pose };
   }
   // state: { phase:'walking'|'doing'|'idle', action }
+  let lastAct = null, after = null, afterT = 0, gait = 0;
   function animate(dt, state) {
     t += dt;
     const walking = state.phase === 'walking';
@@ -236,12 +237,21 @@ export function buildNena() {
     const to = (obj, prop, v) => { obj[prop] += (v - obj[prop]) * k; };
 
     let roll = 0, pitch = 0, y = 0, flap = 0.25, footSwing = 0;
+    // after a swim she shakes the water off; after a long trip she has a big stretch
+    const was = lastAct; lastAct = state.flying ? 'voyage' : walking ? 'walk' : act;
+    if (['swim', 'dive'].includes(was) && !['swim', 'dive'].includes(lastAct)) { after = 'shake'; afterT = 1.3; }
+    if (was === 'voyage' && lastAct !== 'voyage') { after = 'stretch'; afterT = 1.8; }
+    afterT -= dt; if (afterT <= 0) after = null;
     const riding = walking && state.ride;
     robot.visible = riding; boat.visible = false;
     if (riding) robot.userData.brush.rotation.y = t * 14;
     if (riding) { y = 0.2; pitch = 0.1; roll = Math.sin(t * 3) * 0.04; flap = 0.75 + Math.sin(t * 6) * 0.08; }
     else if (act === 'sail') { pitch = Math.max(0, Math.sin(t * 3)) * 0.5; flap = 0.4; }   // poking about on an islet
-    else if (walking) { const w = Math.sin(t * 9); roll = w * 0.16; y = Math.abs(w) * 0.05; footSwing = w * 0.16; flap = 0.5 + Math.abs(w) * 0.15; }
+    else if (walking) {   // how she walks shows how she feels: a skip when happy, a shuffle when tired or low
+      const up = Math.min(1, feel.happy + feel.bounce * 0.5), low = Math.min(1, feel.droop * 5 + feel.sad * 0.6 + feel.blink * 0.5);
+      gait += dt * 9 * (1 + up * 0.25 - low * 0.35); const w = Math.sin(gait);
+      roll = w * (0.16 - low * 0.05); y = Math.abs(w) * (0.05 + up * 0.07 - low * 0.025); footSwing = w * (0.16 - low * 0.05);
+      flap = 0.5 + Math.abs(w) * (0.15 + up * 0.35) - low * 0.2; pitch = low * 0.22 - up * 0.04; }
     else if (act === 'peck') { pitch = Math.max(0, Math.sin(t * 4)) * 0.55; flap = 0.4; }
     else if (act === 'flap') { roll = Math.sin(t * 2) * 0.05; flap = 0.9 + Math.sin(t * 10) * 0.35; y = Math.abs(Math.sin(t * 5)) * 0.04; }
     else if (act === 'swim') { pitch = 1.35; y = -0.42; flap = 1.2 + Math.sin(t * 8) * 0.2; }
@@ -253,6 +263,8 @@ export function buildNena() {
     else if (act === 'fish') { pitch = 0.12; y = Math.sin(t * 1.5) * 0.02; flap = 0.9; }
     else if (act === 'dig' || act === 'chop') { /* set by the tool below */ }
     else { roll = Math.sin(t * 1.5) * 0.04; y = Math.sin(t * 2.2) * 0.012; }
+    if (after === 'shake' && !walking) { const k = afterT / 1.3; roll = Math.sin(t * 38) * 0.22 * k; flap = 0.9 + Math.sin(t * 30) * 0.4 * k; y = 0.02 * k; }
+    else if (after === 'stretch' && !walking) { const k = Math.sin(Math.min(1, (1.8 - afterT) / 1.8) * Math.PI); pitch = -0.32 * k; flap = 0.3 + 1.25 * k; y = 0.06 * k; }
     const tool = tools(dt, walking ? null : act, state);
     if (tool.pose) { roll = tool.pose.roll ?? 0; pitch = tool.pose.pitch ?? 0; flap = tool.pose.flap ?? flap; }
 

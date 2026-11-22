@@ -763,7 +763,7 @@ function voyagePose(act) {
   if (p < 0.1 || p > 0.9) {
     const u = p < 0.1 ? p / 0.1 : 1 - (p - 0.9) / 0.1, e = u * u * (3 - 2 * u), b = home.clone().lerp(land, e); b.y += Math.sin(e * Math.PI) * 45;
     const dir = p < 0.1 ? land.clone().sub(home) : home.clone().sub(land);
-    return { flying: true, balloon: b, pos: b.clone().add(new V3(0, 0.2, 0)), heading: Math.atan2(dir.x, dir.z), act: { ...act, ride: false, phase: 'doing', anim: 'lookup' }, isl, text: p < 0.1 ? `flying the balloon to ${isl.name}` : 'flying home in the balloon' };
+    return { flying: true, balloon: b, pos: b.clone().add(new V3(0, 0.2, 0)), heading: Math.atan2(dir.x, dir.z), act: { ...act, ride: false, phase: 'doing', anim: 'lookup', flying: true }, isl, text: p < 0.1 ? `flying the balloon to ${isl.name}` : 'flying home in the balloon' };
   }
   const stops = ['pad', ...(act.route || []), 'pad'], segs = stops.length - 1, x = (p - 0.1) / 0.8 * segs, i = Math.min(segs - 1, Math.floor(x)), f = x - i;
   const A = isleSpot(isl, stops[i]), B = isleSpot(isl, stops[i + 1]), walk = f < 0.3, w = walk ? f / 0.3 : 1;
