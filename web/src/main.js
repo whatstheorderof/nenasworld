@@ -177,11 +177,28 @@ const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a
 const sky = new THREE.Color();
 const wx = { snow: 0, aurora: 0, mist: 0, meteors: 0, rain: 0, storm: 0, cloudy: 0, wind: 0, heat: 0, rainbow: 0 };
 let nightness = 0;
+const WET = new Set(['rain', 'storm', 'snow']), front = { p: null, a: 0 };
+const frontMat = new THREE.MeshLambertMaterial({ color: 0x8a93a8, flatShading: true, transparent: true, opacity: 0.9, depthWrite: false });
+const frontBank = (() => { const N = 46, inst = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), frontMat, N), m = new THREE.Object3D(); let seed = 11; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < N; i++) { const s = 22 + r() * 26; m.position.set((r() - 0.5) * 110, 48 + r() * 18, (r() - 0.5) * 340); m.scale.set(s, s * 0.5, s * 1.2); m.rotation.set(r(), r() * 3, r()); m.updateMatrix(); inst.setMatrixAt(i, m.matrix); }
+  inst.frustumCulled = false; const g = new THREE.Group(); g.add(inst); g.visible = false; scene.add(g); return g; })();
 function setSky(hour, weather, dt, show) {
   const d = smooth(5, 7.5, hour) * (1 - smooth(18.5, 21, hour)), n = 1 - d; nightness = n; skyHour = hour;
   sky.copy(SKY.night).lerp(SKY.day, d).lerp(SKY.dusk, Math.min(1, 4 * d * (1 - d) * 0.85));
   const k = 1 - Math.exp(-dt * 1.5);
-  for (const key of Object.keys(wx)) wx[key] += ((weather === key ? 1 : 0) - wx[key]) * k;
+  // wet weather comes in on a front: a bank of dark cloud rolls in from upwind and the rain starts as it
+  // arrives overhead; when it clears, the bank carries on and away the other side
+  const wetNow = WET.has(weather);
+  if (front.p === null) front.p = wetNow ? 0 : 1;   // on load: already raining, or already clear
+  if (wetNow && front.p >= 0.999) { front.p = -1; front.a = Math.random() * Math.PI * 2; }
+  if (wetNow && front.p < 0) front.p = Math.min(0, front.p + dt / 38);
+  if (!wetNow && front.p < 1) front.p = Math.min(1, front.p + dt / 45);
+  const cover = front.p < 0 ? smooth(-0.3, 0, front.p) : 1 - smooth(0, 0.3, front.p);
+  for (const key of Object.keys(wx)) wx[key] += ((weather === key ? (WET.has(key) ? cover : 1) : 0) - wx[key]) * k;
+  frontBank.visible = Math.abs(front.p) < 0.999;
+  if (frontBank.visible) { const r = front.p * 320; frontBank.position.set(Math.cos(front.a) * r, 0, Math.sin(front.a) * r); frontBank.rotation.y = -front.a;
+    frontMat.color.copy(cloudMat.color).multiplyScalar(0.55 + (1 - cover) * 0.2); frontMat.emissive.copy(frontMat.color).multiplyScalar(0.4);
+    frontMat.opacity = 0.92 * Math.min(1, (1 - Math.abs(front.p)) * 3); }
   if (wx.mist > 0.01) sky.lerp(new THREE.Color(d > 0.5 ? 0xd8eef5 : 0x232a45), wx.mist * 0.6);
   scene.background = sky; scene.fog.color.copy(sky);
   scene.fog.near = 150 - wx.mist * 115; scene.fog.far = 470 - wx.mist * 330;   // misty, but she and the town stay in view
@@ -385,7 +402,7 @@ function apply(n, snap) {
   if (snap) nena.root.position.copy(target);
   const upcoming = n.event ? `${n.event.name} is on!` : (todaysEvent(n.day) ? `${todaysEvent(n.day).name} today` : '');
   skyDome.setMoonPhase(qs.has('moon') ? Number(qs.get('moon')) : moonPhase(n.day));
-  { const w = qs.get('weather') || n.weather; $('clock').innerHTML = `<span>Day ${n.day}</span><span>${SEASON_ICONS[n.season] || ''} ${cap(n.season)} ${n.dayOfSeason}/7</span><span>${n.night ? moonFace(n.day) : '🕑'} ${clockText(n.hour)}</span><span>${WEATHER_ICONS[w] || ''} ${cap(WEATHER_WORDS[w] || w)}</span>`; }
+  { const w = qs.get('weather') || n.weather; $('clock').innerHTML = `<span>Day ${n.day}</span><span>${SEASON_ICONS[n.season] || ''} ${cap(n.season)} ${n.dayOfSeason}/7</span><span>${n.night ? moonFace(n.day) : '🕑'} ${clockText(n.hour)}</span><span>${WEATHER_ICONS[w] || ''} ${WET.has(w) && front.p !== null && front.p < -0.05 ? `${cap(w)} on the way` : cap(WEATHER_WORDS[w] || w)}</span>`; }
   $('mood').textContent = `${MOOD_FACES[n.mood] || '🙂'} ${n.mood}`;
   $('doing-ico').textContent = doingIcon(n.activity);
   { const pr = n.activity.phase === 'doing' && n.activity.progress > 0; $('doing-bar').hidden = !pr; if (pr) $('doing-bar').firstChild.style.width = `${Math.round(n.activity.progress * 100)}%`; }
@@ -995,7 +1012,7 @@ function frame() {
   requestAnimationFrame(frame);
 }
 frame();
-window.__world = { wild, guide: showGuide, renderer, dyn, scene, camera, controls, nena, sound, site, town, npcs: () => now?.npcs || [], camper: () => now?.camper, pos: () => now?.pos };   // handy in the console
+window.__world = { qs, wild, front, wx, guide: showGuide, renderer, dyn, scene, camera, controls, nena, sound, site, town, npcs: () => now?.npcs || [], camper: () => now?.camper, pos: () => now?.pos };   // handy in the console
 
 // Phone tab row scrolls sideways: fade the right edge until you reach the end, so it's clear there's more
 { const nav = document.getElementById('nav');
