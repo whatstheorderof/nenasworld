@@ -6,7 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, TRIP_ISLES, LONE_ISLES, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, islePos, townPos, site } from '../../shared/world.js';
-import { kitModel as kitM, whenKit as whenK, flutter } from './kit.js';
+import { kitModel as kitM, whenKit as whenK, flutter, snowCover } from './kit.js';
 import { showGuide, guideSeen } from './guide.js';
 import { report, setGpu } from './report.js';
 import { icon } from './icons.js';
@@ -217,6 +217,12 @@ const LEAVES = 260, leaves = points(LEAVES, 0.35, null);
 { const p = leaves.geometry.attributes.position, c = leaves.geometry.attributes.color, cols = [0xf2792e, 0xffd93b, 0x4fae52, 0xe8452c, 0xffb7d0].map(h => new THREE.Color(h));
   for (let i = 0; i < LEAVES; i++) { p.setXYZ(i, (Math.random() - 0.5) * 100, 1 + Math.random() * 14, (Math.random() - 0.5) * 100); const k = cols[i % cols.length]; c.setXYZ(i, k.r, k.g, k.b); } }
 leaves.material.sizeAttenuation = true;
+// the season in the air: blossom drifting down in spring, seed fluff in summer, falling leaves in autumn
+const DRIFT = 240, drift = points(DRIFT, 0.3, null); drift.material.sizeAttenuation = true; drift.frustumCulled = false;
+const DRIFT_LOOK = { spring: { cols: [0xffc8d8, 0xffe4ec, 0xfff6f8, 0xf7a8c0], fall: 0.45, op: 0.9, size: 0.34 }, summer: { cols: [0xfffbe8, 0xfff3c4], fall: -0.05, op: 0.55, size: 0.16 },
+  autumn: { cols: [0xf2792e, 0xe8452c, 0xffb347, 0xc9531c, 0xffd93b], fall: 0.9, op: 0.95, size: 0.44 }, winter: { cols: [0xffffff], fall: 0.6, op: 0, size: 0.2 } };
+let driftSeason = '';
+{ const p = drift.geometry.attributes.position; for (let i = 0; i < DRIFT; i++) p.setXYZ(i, (Math.random() - 0.5) * 70, Math.random() * 14, (Math.random() - 0.5) * 70); }
 // rainbows: after rain, when the sun comes out, a big one with a faint second bow outside it,
 // and smaller arcs here and there round the sky. Each is one soft band of colour, fading at its feet.
 const rainbow = new THREE.Group(); scene.add(rainbow);
@@ -280,6 +286,16 @@ function setWeatherFx(dt, d, n, t) {
     for (let i = 0; i < LEAVES; i++) { let x = p.getX(i) + dt * (9 + (i % 5)), y = p.getY(i) + Math.sin(t * 3 + i) * dt * 1.5, z = p.getZ(i) + Math.sin(t + i * 0.7) * dt * 2;
       if (x > 55) { x = -55; y = 1 + Math.random() * 14; z = (Math.random() - 0.5) * 100; } p.setXYZ(i, x, y, z); }
     p.needsUpdate = true; }
+  { const season = town.town.userData.season || 'summer', L = DRIFT_LOOK[season] || DRIFT_LOOK.summer;
+    if (season !== driftSeason) { driftSeason = season; const c = drift.geometry.attributes.color; for (let i = 0; i < DRIFT; i++) { const k = new THREE.Color(L.cols[i % L.cols.length]); c.setXYZ(i, k.r, k.g, k.b); } c.needsUpdate = true; drift.material.size = L.size; }
+    drift.material.opacity += ((L.op * (1 - wx.rain * 0.7) * (0.35 + d * 0.65)) - drift.material.opacity) * Math.min(1, dt);
+    drift.visible = drift.material.opacity > 0.02;
+    if (drift.visible) { drift.position.set(controls.target.x, 0, controls.target.z); const p = drift.geometry.attributes.position, w = wx.wind + wx.storm * 0.7;
+      for (let i = 0; i < DRIFT; i++) { let x = p.getX(i) + (Math.sin(t * 0.9 + i) * 0.6 + w * 5) * dt, y = p.getY(i) - (L.fall + Math.sin(t * 1.7 + i * 1.3) * 0.25) * dt, z = p.getZ(i) + Math.cos(t * 0.7 + i * 0.5) * 0.5 * dt;
+        if (y < 0 || y > 16) y = y < 0 ? 14 : 0.2; if (x > 35) x -= 70; if (x < -35) x += 70; if (z > 35) z -= 70; if (z < -35) z += 70; p.setXYZ(i, x, y, z); }
+      p.needsUpdate = true; } }
+  // snow settles on rooftops and tree tops in winter
+  snowCover.value += ((driftSeason === 'winter' ? 0.85 : 0) + wx.snow * 0.15 - snowCover.value) * Math.min(1, dt * 0.3);
   // snow drifts sideways in the wind too
   if (wx.snow > 0.02 && wx.wind > 0.02) { const p = snow.geometry.attributes.position; for (let i = 0; i < SNOW; i++) p.setX(i, ((p.getX(i) + wx.wind * 5 * dt + 40) % 80) - 40); }
   rainbow.children.forEach(m => { m.material.uniforms.uOpacity.value = wx.rainbow * d * m.userData.k * 1.4; }); rainbow.visible = wx.rainbow * d > 0.01;

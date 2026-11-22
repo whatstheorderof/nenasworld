@@ -47,10 +47,20 @@ export const whenKit = f => { if (roots) { try { f(); } catch (e) { console.warn
 export const whenFar = f => { if (farReady) { try { f(); } catch (e) { console.warn('[kit]', e); } } else farWaiting.push(f); };
 
 // One shared material per Blender material name, unless the caller swaps it for its own.
+// winter: anything facing the sky (roofs, tree tops, ledges) turns white as snow settles. Not characters,
+// glass, water or lights, and not the island ground, which the town colours for each season itself.
+export const snowCover = { value: 0 };
+const NO_SNOW = /^(chr_|isl_)|glass|water|glow|lamp|win|light|fire|flame/i;
 function material(src) {
   if (mats[src.name]) return mats[src.name];
   const col = src.color.clone(); if (/^(isl_|house_)/.test(src.name)) col.setHex(pastel(col.getHex()));
-  return mats[src.name] = Object.assign(new THREE.MeshLambertMaterial({ color: col, flatShading: !/^chr_/.test(src.name) }), { name: src.name });   // characters are smooth, like Nena
+  const m = Object.assign(new THREE.MeshLambertMaterial({ color: col, flatShading: !/^chr_/.test(src.name) }), { name: src.name });   // characters are smooth, like Nena
+  if (!NO_SNOW.test(src.name)) { m.onBeforeCompile = sh => { sh.uniforms.uSnow = snowCover;
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uSnow;')
+        .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+          { vec3 wN = normalize((vec4(normal, 0.0) * viewMatrix).xyz); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.96, 0.97, 1.0), uSnow * smoothstep(0.5, 0.82, wN.y)); }`); };
+    m.customProgramCacheKey = () => 'snowy'; }
+  return mats[src.name] = m;
 }
 
 // Cloth that moves in the wind: bunting pennants and little flags. Their pieces all have the model's root as
