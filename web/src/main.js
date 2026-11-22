@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, TRIP_ISLES, LONE_ISLES, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, islePos, townPos, site } from '../../shared/world.js';
+import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, TRIP_ISLES, LONE_ISLES, BALLOON, FORAGE, CAMPERS, TOWN_ISLANDS, NEIGHBOURS, isletPos, isleSpot, islePos, townPos, site, RIVER, RUIN_ISLE, BLOOM_ISLE } from '../../shared/world.js';
 import { kitModel as kitM, whenKit as whenK, flutter, snowCover } from './kit.js';
 import { showGuide, guideSeen } from './guide.js';
 import { report, setGpu } from './report.js';
@@ -709,6 +709,14 @@ function nextStamp() {
 }
 if (qs.has('stamp')) setTimeout(() => { stampQueue.push(qs.get('stamp')); nextStamp(); }, 2500);   // preview a stamp pop-up
 
+// how close the camera is to each place that makes its own sound (0 far .. 1 right there)
+const SOUND_AT = (() => { const fire = site('camp'), [fx, fz] = RIVER[RIVER.length - 1], ruin = islePos(RUIN_ISLE), bloom = islePos(BLOOM_ISLE), pond = site('pond');
+  return [['fire', fire.x, 0.5, fire.z, 14], ['fall', fx, -4, fz, 30], ['gulls', ruin.x, ruin.y + 4, ruin.z, 120], ['goats', bloom.x, bloom.y + 4, bloom.z, 110], ['frogs', pond.x, 0.3, pond.z, 16]]; })();
+function nearSounds() { const c = camera.position, out = {};
+  for (const [k, x, y, z, range] of SOUND_AT) { const d = Math.hypot(c.x - x, (c.y - y) * 0.6, c.z - z); out[k] = Math.max(0, 1 - d / range) ** 1.5; }
+  if (!now?.camper) out.fire *= 0.4;   // the fire is lower when nobody is camping
+  return out; }
+
 // ---- photos: render the view from where she stood ------------------------------------
 const photoCam = new THREE.PerspectiveCamera(50, 1.5, 0.5, 800);
 function renderPhoto(canvas, p) {
@@ -940,7 +948,7 @@ function frame() {
   dots.uniforms.amount.value = 1 - nightness * 0.5;   // lighter touch at night so the glow reads
   dyn.update(dt, elapsed, qs.get('npcs') ? now?.npcs?.map(n => ({ ...n, out: true })) : now?.npcs, nightness);   // ?npcs=1 shows everyone (previews)
   { const p = nena.root.position, edge = Math.hypot(controls.target.x, controls.target.z) / WORLD.radius;
-    sound.update(dt, { ...wx, day: 1 - nightness, summer: (now?.season || '') === 'summer', seaNear: 0.35 + Math.max(0, edge - 0.4) * 1.2 }); void p; }
+    sound.update(dt, { ...wx, day: 1 - nightness, summer: (now?.season || '') === 'summer', winter: (now?.season || '') === 'winter', seaNear: 0.35 + Math.max(0, edge - 0.4) * 1.2, near: nearSounds() }); void p; }
   dyn.setVisitors([...(now?.visitors || []), ...(qs.get('gull') && now ? [{ id: -1, name: 'a gull', x: now.pos.x + 1.6, z: now.pos.z + 1.2, wave: Date.now() }] : [])], elapsed, dt);   // ?gull=1 previews a visitor
   const sp = snow.geometry.attributes.position;
   if (wx.snow > 0.02) { for (let i = 0; i < SNOW; i++) { let y = sp.getY(i) - dt * (1.5 + (i % 5) * 0.3); if (y < 0) y = 30; sp.setY(i, y); } sp.needsUpdate = true; }
