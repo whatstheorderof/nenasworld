@@ -371,3 +371,14 @@ details.advanced[open] > summary::before { transform: rotate(90deg); }
 .confetti { position: fixed; width: 8px; height: 12px; z-index: 6; pointer-events: none; border-radius: 2px; animation: confetti 1.4s cubic-bezier(.2,.7,.4,1) forwards; }
 @keyframes confetti { to { transform: translate(var(--dx), var(--dy)) rotate(var(--r)); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .confetti { display: none; } }
+/* phone sheet handle */
+#grab { display: none; }
+@media (max-width: 700px) {
+  #panel { max-height: none; display: flex; flex-direction: column; overflow: hidden; padding-top: 4px; }
+  #panel[hidden] { display: none; }
+  #panel-body { overflow: auto; flex: 1; min-height: 0; overscroll-behavior: contain; }
+  #panel.tall { bottom: calc(6px + env(safe-area-inset-bottom)); z-index: 6; }
+  #grab { display: flex; justify-content: center; padding: 6px 0 8px; cursor: grab; touch-action: none; flex: none; }
+  #grab i { width: 44px; height: 5px; border-radius: 3px; background: #d8cdb6; }
+  #close { top: 10px; }
+}

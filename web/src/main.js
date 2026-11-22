@@ -574,6 +574,19 @@ async function show(name) {
 }
 document.querySelectorAll('#nav button[data-panel], #tools button[data-panel]').forEach(b => b.onclick = () => (openPanel === b.dataset.panel ? close() : show(b.dataset.panel)));
 const close = () => { openPanel = null; $('panel').hidden = true; };
+// On a phone the panel is a sheet: drag the handle up for more room, down to make it smaller or close it
+{ const panel = $('panel'), grab = $('grab'), phone = matchMedia('(max-width: 700px)');
+  const SNAP = [0.42, 0.64, 0.9]; let snap = 1, drag = null;
+  const setH = (vh, anim) => { panel.style.transition = anim ? 'height .25s ease' : 'none'; panel.style.height = phone.matches ? `${vh * 100}vh` : ''; panel.classList.toggle('tall', vh > 0.8); };
+  new MutationObserver(() => { if (!panel.hidden) { snap = 1; setH(SNAP[1], false); } }).observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+  grab.addEventListener('pointerdown', e => { if (!phone.matches) return; drag = { y: e.clientY, h: panel.getBoundingClientRect().height, moved: false }; grab.setPointerCapture(e.pointerId); });
+  grab.addEventListener('pointermove', e => { if (!drag) return; const dy = drag.y - e.clientY; if (Math.abs(dy) > 4) drag.moved = true; setH(Math.max(0.2, Math.min(0.92, (drag.h + dy) / innerHeight)), false); });
+  const end = e => { if (!drag) return; const h = panel.getBoundingClientRect().height / innerHeight, d = drag; drag = null;
+    if (!d.moved) { snap = (snap + 1) % SNAP.length; return setH(SNAP[snap], true); }   // a tap steps through the sizes
+    if (h < 0.3) return close();
+    snap = SNAP.reduce((b, v, i) => Math.abs(v - h) < Math.abs(SNAP[b] - h) ? i : b, 0); setH(SNAP[snap], true); };
+  grab.addEventListener('pointerup', end); grab.addEventListener('pointercancel', end);
+  phone.addEventListener('change', () => setH(SNAP[snap], false)); }
 $('close').onclick = close;
 
 // ---- camera: follow her, or roam free ----------------------------------------------
