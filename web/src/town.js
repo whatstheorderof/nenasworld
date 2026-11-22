@@ -899,6 +899,21 @@ export function buildTown() {
   function setAway(islet) { isletBoats.forEach((b, i) => { b.visible = islet === i; }); beachBoat.visible = islet == null; }
   function setEvent(show) { festival.visible = !!show; lanternsG.visible = show === 'lanterns'; }
   setHouse(0, 1);
+  // ---- glowing mushrooms: little clumps in the shady spots that light up teal and blue after dark -------------
+  { const spots = [PLACES.bigtree, PLACES.lighthouse, PLACES.river, ...WOODLOT.slice(0, 2).map(([x, z]) => ({ x, z }))], pts = [];
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const blocked = (x, z) => onPath(x, z, 1.4) || Math.hypot(x, z) > WORLD.radius - 3 || riverBand(x, z, 1.5) || OBSTACLES.some(o => Math.hypot(o.x - x, o.z - z) < (o.r || 1) + 0.5);
+    for (const sp of spots) for (let c = 0; c < 3; c++) { let cx, cz, tries = 0; do { const a = rnd() * 6.283, r = 3 + rnd() * 3; cx = sp.x + Math.cos(a) * r; cz = sp.z + Math.sin(a) * r; } while (blocked(cx, cz) && ++tries < 12);
+      if (tries >= 12) continue; const n = 3 + Math.floor(rnd() * 3); for (let i = 0; i < n; i++) { const x = cx + (rnd() - 0.5) * 0.9, z = cz + (rnd() - 0.5) * 0.9; if (!blocked(x, z)) pts.push([x, z, 0.8 + rnd() * 0.8, rnd()]); } }
+    const capMats = [glow(0x58e8d0, 0x8fe3d6), glow(0x6aa8ff, 0xa9c8ff)]; 
+    const stemMat = flat(0xf4eee2), capGeo = new THREE.SphereGeometry(0.16, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), stemGeo = new THREE.CylinderGeometry(0.045, 0.06, 0.22, 6);
+    const caps = capMats.map(m => new THREE.InstancedMesh(capGeo, m, pts.length)), stems = new THREE.InstancedMesh(stemGeo, stemMat, pts.length), mm = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+    const used = [0, 0];
+    pts.forEach(([x, z, s, r], i) => { const k = r < 0.6 ? 0 : 1, tilt = (r - 0.5) * 0.3; q.setFromEuler(e.set(tilt, r * 6, -tilt));
+      stems.setMatrixAt(i, mm.compose(new THREE.Vector3(x, 0.11 * s, z), q, new THREE.Vector3(s, s, s)));
+      caps[k].setMatrixAt(used[k]++, mm.compose(new THREE.Vector3(x, 0.2 * s, z), q, new THREE.Vector3(s, s * 0.8, s))); });
+    caps.forEach((c, k) => { c.count = used[k]; town.add(c); }); town.add(stems); town.userData.mushrooms = pts.length; }
+
   // ---- keepsakes: travellers' postcards pinned to the back of the noticeboard, presents waiting at its foot --
   const keep = new THREE.Group(); town.add(keep); let keepKey = '';
   // the board's model arrives later and replaces its parts, so the keepsakes sit beside it rather than inside it:

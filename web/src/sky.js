@@ -10,7 +10,7 @@ void main() { vDir = normalize(position); vec4 p = modelViewMatrix * vec4(positi
 
 const frag = /* glsl */`
 uniform vec3 uTop, uHorizon, uSunDir, uMoonDir;
-uniform float uDay, uNight, uTime, uStreaks, uStars, uSunVis, uMoonVis, uOceanY, uHaze;
+uniform float uDay, uNight, uTime, uStreaks, uStars, uSunVis, uMoonVis, uOceanY, uHaze, uPhase;
 uniform vec3 uCam;
 varying vec3 vDir;
 float h1(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
@@ -103,9 +103,13 @@ void main() {
     float cr = fbm(o * 70.0 + 3.0), cr2 = fbm(o * 140.0 + 9.0);
     vec3 mc = mix(vec3(0.98, 0.95, 0.66), vec3(0.66, 0.66, 0.42), smoothstep(0.52, 0.62, cr) * 0.9 + smoothstep(0.56, 0.64, cr2) * 0.35);
     mc *= 1.0 - smoothstep(R * 0.4, R, length(o - vec2(R * 0.35, -R * 0.3))) * 0.12;   // a little shading on one side
-    float glow = exp(-max(0.0, r - R) * 28.0) * 0.35 + exp(-max(0.0, r - R) * 7.0) * 0.12;
+    // its phase: 0 new, 0.5 full. The terminator is an ellipse across the disc; the dark part keeps a faint earthshine
+    float k = cos(6.2832 * uPhase), tx = k * sqrt(max(0.0, R * R - o.y * o.y));
+    float lit = uPhase < 0.5 ? smoothstep(tx - 0.003, tx + 0.003, -o.x) : smoothstep(-tx + 0.003, -tx - 0.003, -o.x);   // waxing lit on the right, like the emoji
+    float bright = 0.5 - 0.5 * k;
+    float glow = (exp(-max(0.0, r - R) * 28.0) * 0.35 + exp(-max(0.0, r - R) * 7.0) * 0.12) * (0.25 + 0.75 * bright);
     col += vec3(0.95, 0.93, 0.7) * glow * uMoonVis * (1.0 - disc);
-    col = mix(col, mc, disc * uMoonVis);
+    col = mix(col, mix(col * 0.85 + mc * 0.1, mc, lit), disc * uMoonVis);
   }
   gl_FragColor = vec4(col, 1.0);
   #include <colorspace_fragment>
@@ -120,7 +124,7 @@ export function buildSky(scene) {
     uCam: { value: new THREE.Vector3() }, uOceanY: { value: -900 }, uHaze: { value: 0 },
     uTop: { value: new THREE.Color() }, uHorizon: { value: new THREE.Color() },
     uSunDir: { value: new THREE.Vector3(0, 0.3, -1).normalize() }, uMoonDir: { value: new THREE.Vector3(0, 0.3, 1).normalize() },
-    uDay: { value: 1 }, uNight: { value: 0 }, uTime: { value: 0 }, uStreaks: { value: 1 }, uStars: { value: 0 }, uSunVis: { value: 1 }, uMoonVis: { value: 0 },
+    uDay: { value: 1 }, uNight: { value: 0 }, uTime: { value: 0 }, uStreaks: { value: 1 }, uStars: { value: 0 }, uSunVis: { value: 1 }, uMoonVis: { value: 0 }, uPhase: { value: 0.5 },
   };
   const dome = new THREE.Mesh(new THREE.SphereGeometry(700, 48, 24), new THREE.ShaderMaterial({ uniforms: uni, vertexShader: vert, fragmentShader: frag, side: THREE.BackSide, depthWrite: false, fog: false }));
   dome.renderOrder = -10; dome.frustumCulled = false; scene.add(dome);
@@ -168,6 +172,7 @@ export function buildSky(scene) {
     });
     geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true;
   }
-  return { dome, update };
+  const setMoonPhase = p => { uni.uPhase.value = ((p % 1) + 1) % 1; };
+  return { dome, update, setMoonPhase };
 }
 function smoothstep(a, b, x) { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); }

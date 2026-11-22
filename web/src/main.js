@@ -358,6 +358,9 @@ const NEED_ICONS = { fullness: '🍙', energy: '⚡', wonder: '✨', joy: '💗'
 $('needs').innerHTML = NEEDS.map(k => `<div class="need" id="needbox-${k}" role="meter" aria-label="${k}" aria-valuemin="0" aria-valuemax="100"><svg aria-hidden="true" viewBox="0 0 40 40"><circle class="track" cx="20" cy="20" r="16"/><circle class="fill" id="need-${k}" cx="20" cy="20" r="16" stroke="${NEED_COLORS[k]}" pathLength="100" stroke-dasharray="100" stroke-dashoffset="50"/></svg><span aria-hidden="true">${NEED_ICONS[k]}</span><small aria-hidden="true">${k[0].toUpperCase() + k.slice(1)}</small></div>`).join('');
 const MOOD_FACES = { content: '🙂', curious: '🧐', delighted: '🤩', happy: '😊', hungry: '😋', 'put out': '😤', restless: '😣', sleepy: '🥱', asleep: '😴', unsettled: '😟', 'a little flat': '😔' };
 const WEATHER_ICONS = { clear: '☀️', cloudy: '☁️', rain: '🌧️', storm: '⛈️', wind: '🌬️', heat: '🔥', rainbow: '🌈', snow: '❄️', mist: '🌫️', aurora: '🌌', meteors: '🌠' };
+// the moon goes round its phases every eight days (full on day 4, 12, 20...)
+const moonPhase = day => (((day ?? 1) % 8) + 8) % 8 / 8;
+const moonFace = day => ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'][Math.round(moonPhase(day) * 8) % 8];
 const SEASON_ICONS = { spring: '🌸', summer: '🌿', autumn: '🍂', winter: '❄️' };
 const DOING_ICONS = [[/sleep|nap/, '💤'], [/eat|cook|bake|cookie|cocoa|lolly|drink/, '🍪'], [/fish/, '🎣'], [/read|library|letter/, '📖'], [/draw|paint|art|craft|compose|tune|record/, '🎨'], [/storm|rain/, '⛈️'], [/star|observ|sky|cloud|gaze|wish/, '🔭'], [/garden|flower|plant|crop|harvest|weed|tree/, '🌱'], [/swim|dive|boat|sea|beach|sunbathe/, '🌊'], [/film|cinema/, '🎬'], [/museum|fossil|dig/, '🦴'], [/buy|sell|shop|clothes|turnip|trade/, '🛍️'], [/chat|greet|friend|camper|hobby|gift/, '💬'], [/photo/, '📷'], [/snowman/, '⛄'], [/kite/, '🪁'], [/coin/, '🪙'], [/walk|wander|way|riding|going/, '👣']];
 const doingIcon = (a = {}) => { const s = `${a.action || ''} ${a.label || ''}`; for (const [re, ic] of DOING_ICONS) if (re.test(s)) return ic; return '💭'; };
@@ -378,7 +381,8 @@ function apply(n, snap) {
   target.set(n.pos.x, 0, n.pos.z);
   if (snap) nena.root.position.copy(target);
   const upcoming = n.event ? `${n.event.name} is on!` : (todaysEvent(n.day) ? `${todaysEvent(n.day).name} today` : '');
-  { const w = qs.get('weather') || n.weather; $('clock').innerHTML = `<span>Day ${n.day}</span><span>${SEASON_ICONS[n.season] || ''} ${cap(n.season)} ${n.dayOfSeason}/7</span><span>${n.night ? '🌙' : '🕑'} ${clockText(n.hour)}</span><span>${WEATHER_ICONS[w] || ''} ${cap(WEATHER_WORDS[w] || w)}</span>`; }
+  skyDome.setMoonPhase(qs.has('moon') ? Number(qs.get('moon')) : moonPhase(n.day));
+  { const w = qs.get('weather') || n.weather; $('clock').innerHTML = `<span>Day ${n.day}</span><span>${SEASON_ICONS[n.season] || ''} ${cap(n.season)} ${n.dayOfSeason}/7</span><span>${n.night ? moonFace(n.day) : '🕑'} ${clockText(n.hour)}</span><span>${WEATHER_ICONS[w] || ''} ${cap(WEATHER_WORDS[w] || w)}</span>`; }
   $('mood').textContent = `${MOOD_FACES[n.mood] || '🙂'} ${n.mood}`;
   $('doing-ico').textContent = doingIcon(n.activity);
   { const pr = n.activity.phase === 'doing' && n.activity.progress > 0; $('doing-bar').hidden = !pr; if (pr) $('doing-bar').firstChild.style.width = `${Math.round(n.activity.progress * 100)}%`; }
