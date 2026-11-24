@@ -81,6 +81,12 @@ export function drawPicture(canvas, title, seed) {
     for (const [px, ph, pr] of big ? [[cx, 30, 12]] : [[cx - 18, 14, 6], [cx, 20, 7.5], [cx + 17, 16, 6.5], [cx - 8, 10, 5], [cx + 9, 11, 5]]) {
       stroke([[px, base], [px, base - ph]], '#8fa889', big ? 2.4 : 1.2);
       for (let i = 0; i < (big ? 40 : 18); i++) { const a = i / (big ? 40 : 18) * 6.283; stroke([[px, base - ph - pr * 0.4], [px + Math.cos(a) * pr, base - ph - pr * 0.4 + Math.sin(a) * pr]], i % 2 ? '#b2e23a' : '#e9fbb8', big ? 1.1 : 0.8); } } }
+  if (has('monolith', 'firefly lights', 'lit trees')) { drew = true;
+    if (has('monolith')) { stroke([[cx - 5, base], [cx - 4, base - 46], [cx, base - 50], [cx + 4, base - 46], [cx + 5, base]], '#1d2025', 1.2, true, '#2c3036');
+      for (let i = 0; i < 10; i++) { const a = i / 10 * 6.283; stroke([[cx + Math.cos(a) * 3, base - 50 + Math.sin(a) * 3], [cx + Math.cos(a) * 9, base - 50 + Math.sin(a) * 9]], '#eef6ff', 0.7); } }
+    for (const [tx, th] of [[cx - 30, 30], [cx + 28, 34], [cx - 14, 22], [cx + 13, 24]]) { stroke([[tx, base], [tx, base - th * 0.5]], '#2a2430', 2);
+      for (let k = 0; k < 7; k++) { const a = -Math.PI / 2 + (k - 3) * 0.38, L = th * 0.55; const ex = tx + Math.cos(a) * L, ey = base - th * 0.5 + Math.sin(a) * L; stroke([[tx, base - th * 0.5], [ex, ey]], '#2a2430', 1);
+        for (let j = 1; j <= 5; j++) blob(tx + (ex - tx) * j / 5, base - th * 0.5 + (ey - base + th * 0.5) * j / 5, 0.9, 0.9, '#fff2cf', '#fff8e4'); } } }
   if (has('orange room', 'stone house')) { drew = true; const w = 34, h = 16, by = base - 3;
     stroke([[4, base], [8, base - 26], [18, base - 22], [20, base]], '#5a4337', 1.2, true, '#7b5d4a'); stroke([[96, base], [92, base - 28], [82, base - 24], [80, base]], '#5a4337', 1.2, true, '#7b5d4a');
     for (const dx of [-12, -4, 4, 12]) stroke([[cx + dx, base], [cx + dx, by]], '#d8cbb0', 0.9);

@@ -2,7 +2,8 @@
 // each with one small sign of what lives there: smoke and a red glow on the
 // volcano, tiny lights in the forest, and light coming up through the hole in the ice.
 import * as THREE from 'three';
-import { SKY_ISLANDS, TOWN_ISLANDS, BLOOM_ISLE, RUIN_ISLE, POMPOM_ISLE, PAVILION_ISLE, townPos, islePos, isleTurn } from '../../shared/world.js';
+import { SKY_ISLANDS, TOWN_ISLANDS, BLOOM_ISLE, RUIN_ISLE, POMPOM_ISLE, PAVILION_ISLE, GROVE_ISLE, townPos, islePos, isleTurn } from '../../shared/world.js';
+import { buildGrove } from './grove.js';
 import { waterMaterial } from './water.js';
 import { kitParts, kitBoxes } from './kit.js';
 import { buildRoots } from './roots.js';
@@ -120,8 +121,10 @@ export function buildFarIslands(scene) {
     pav.updateMatrixWorld(true); const inv = pav.matrixWorld.clone().invert(), bb = new THREE.Box3();
     m.traverse(o => { if (o.isMesh && o.material === pavWarm) { o.geometry.computeBoundingBox(); bb.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld).applyMatrix4(inv)); } });
     if (!bb.isEmpty()) { pavRoom.box = bb; pavRoom.x = pavRoom.tx = (bb.min.x + bb.max.x) / 2; } });
+  // the Lantern Grove: lit trees and the monolith (built in code, see grove.js)
+  const GV = GROVE_ISLE, grove = buildGrove(); grove.group.position.set(Math.cos(GV.a) * GV.r, GV.y, Math.sin(GV.a) * GV.r); grove.group.scale.setScalar(GV.scale); grove.group.rotation.y = isleTurn(GV); scene.add(grove.group);
   // landing pads for the balloon on the islands she can fly to
-  whenKit(() => { for (const [g, I] of [[ruin, RUIN_ISLE], [pom, POMPOM_ISLE], [pav, PAVILION_ISLE]]) { const pad = kitModel('Sky_Pad'); if (!pad || !I.spots?.pad) continue; pad.scale.setScalar(1.55 / I.scale); pad.position.set(I.spots.pad[0], 0.02, -I.spots.pad[1]); g.add(pad); } });
+  whenKit(() => { for (const [g, I] of [[ruin, RUIN_ISLE], [pom, POMPOM_ISLE], [pav, PAVILION_ISLE], [grove.group, GROVE_ISLE]]) { const pad = kitModel('Sky_Pad'); if (!pad || !I.spots?.pad) continue; pad.scale.setScalar(1.55 / I.scale); pad.position.set(I.spots.pad[0], 0.02, -I.spots.pad[1]); g.add(pad); } });
   // gulls wheeling round the Old Hotel
   const gulls = [], gullMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide, flatShading: true });
   const wingGeo = new THREE.BufferGeometry(); wingGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, -0.3, 0, 0, 0.3, 1.5, 0.15, -0.05], 3)); wingGeo.computeVertexNormals();
@@ -163,6 +166,7 @@ export function buildFarIslands(scene) {
 
   const tmp = new THREE.Color(), tickM4 = new THREE.Matrix4(), tickQ = new THREE.Quaternion(), tickV = new THREE.Vector3(), tickV2 = new THREE.Vector3();
   function update(t, night, dayTint) {
+    grove.update(t, night);
     for (const [m, c] of mats) m.color.copy(tmp.set(c).lerp(dayTint, 0.25).multiplyScalar(1 - night * 0.55));
     glows.forEach(m => { m.opacity = 0.25 + night * 0.65; });
     towns.children.forEach((g, i) => { g.position.y = g.userData.isl.y + Math.sin(t * 0.1 + i * 1.7) * 1.2; });

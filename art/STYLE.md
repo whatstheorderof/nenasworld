@@ -252,3 +252,9 @@ The kit ships as two files so the home island shows quickly:
 After exporting from Blender and compressing (`gltf-transform meshopt island_raw.glb island_full.glb --level medium`), split it:
 `node art/tools/split-glb.mjs island_full.glb web/public/models/island.glb web/public/models/far.glb`
 A new far island must have a root named `Island<Name>` and be added to the `FAR` pattern in that script.
+
+## The Lantern Grove (built in code)
+`web/src/grove.js`, not Blender: great bare trees branched procedurally, with fireflies along every branch as one
+points shader (each light twinkles on its own and they glow far brighter after dark), little firs hung with cool
+white lights, and a dark square monolith in a ring of slow fog with a pale halo at its tip. Island data and spots
+are `GROVE_ISLE` in `shared/world.js`; it is on the chart, a balloon destination, and counts for Sky Hopper.

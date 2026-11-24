@@ -134,7 +134,13 @@ export const PAVILION_ISLE = { id: 'pavilion', name: 'the Quarry House', a: 1.75
   spots: { pad: [0, -9.6], glass: [0.4, -5.2, { does: 'looking in through the big glass windows', draw: 'the glowing orange room in the quarry' }],
     wall: [-7.6, -3.0, { does: 'tapping at the quarry wall', find: 'travertine chip' }], blocks: [7.4, -5.0, { does: 'turning over the fallen blocks', find: 'quartz crystal' }],
     fig: [-5.6, -7.0, { does: 'picking figs from the little tree in the quarry', food: 'figs' }], cliff: [5.6, 1.0, { does: 'sitting under the cliffs in the quiet', draw: 'the stone house on its columns' }] } };
-export const LONE_ISLES = [{ ...BLOOM_ISLE, chart: '#9aa6e8' }, { ...RUIN_ISLE, chart: '#efe4cc' }, { ...POMPOM_ISLE, chart: '#b6e43c' }, { ...PAVILION_ISLE, chart: '#ff8a3a' }];
+export const GROVE_ISLE = { id: 'grove', name: 'the Lantern Grove', a: 4.0, r: 250, y: 0, scale: 1.6, size: 30,
+  about: 'A dark island of great bare trees with fireflies on every branch, so they shine like fairy lights at night, little glowing firs, and a tall black monolith standing in the fog at its heart.',
+  resources: ['night glass', 'lantern seed'],
+  spots: { pad: [0, -24], monolith: [1.5, 1.5, { does: 'standing at the foot of the monolith', draw: 'the dark monolith in the fog' }],
+    lights: [-9, -6, { does: 'walking under the trees full of lights', draw: 'the trees full of firefly lights' }], firs: [8, -10, { does: 'counting the little glowing fir trees', find: 'lantern seed' }],
+    stone: [5, 6, { does: 'looking for glassy black stones near the monolith', find: 'night glass' }], hush: [-11, 9, { does: 'sitting quietly in the fog', draw: 'fog between the lit trees' }] } };
+export const LONE_ISLES = [{ ...BLOOM_ISLE, chart: '#9aa6e8' }, { ...RUIN_ISLE, chart: '#efe4cc' }, { ...POMPOM_ISLE, chart: '#b6e43c' }, { ...PAVILION_ISLE, chart: '#ff8a3a' }, { ...GROVE_ISLE, chart: '#3d4a5c' }];
 export const SKY_ISLANDS = [
   { id: 'ember', name: 'the smoking island', theme: 'volcano and desert', a: 3.75, r: 405, y: -6, scale: 1.6, size: 58, resources: ['obsidian', 'fire opal', 'sand glass', 'cactus fruit'],
     spots: { pad: [0, -31], oasis: [12.5, -12, { does: 'picking dates by the oasis', food: 'dates' }], cactus: [-14, -12, { does: 'picking prickly pears (carefully)', food: 'cactus fruit' }],
@@ -155,7 +161,7 @@ export const FORAGE = ['dates', 'cactus fruit', 'wild berries', 'honeycomb', 'mu
 export const isleTurn = isl => Math.atan2(-Math.cos(isl.a), -Math.sin(isl.a));
 export const islePos = isl => ({ x: Math.cos(isl.a) * isl.r, y: isl.y, z: Math.sin(isl.a) * isl.r });
 // everywhere the balloon can take her
-export const TRIP_ISLES = [...SKY_ISLANDS, BLOOM_ISLE, RUIN_ISLE, POMPOM_ISLE, PAVILION_ISLE];
+export const TRIP_ISLES = [...SKY_ISLANDS, BLOOM_ISLE, RUIN_ISLE, POMPOM_ISLE, PAVILION_ISLE, GROVE_ISLE];
 export function isleSpot(isl, key) {
   const [bx, by] = isl.spots[key], s = isl.scale, th = isleTurn(isl), lx = bx * s, lz = -by * s, c = islePos(isl);
   return { x: c.x + lx * Math.cos(th) + lz * Math.sin(th), y: c.y + (key === 'pad' ? 0.4 : 0), z: c.z - lx * Math.sin(th) + lz * Math.cos(th) };
