@@ -27,7 +27,7 @@ function strand(curve, r0, r1, segs, radial, phase, colour, out) {
 
 // shape: { top: y of the underside's flat bottom, bottomR: its radius, sideTop/sideR: where the sloping side starts }
 // count/segs/radial: how many strands and how finely they're made (lighter for the far islands); innerR leaves a hole in the curtain
-export function buildRoots(parent, { top = -8.6, bottomR = 42, sideY = -4.5, sideR = 52, seed = 7, count = 95, segs = 18, radial = 5, thick = 16, innerR = 0, under = null, lenK = 1 } = {}) {
+export function buildRoots(parent, { top = -8.6, bottomR = 42, sideY = -4.5, sideR = 52, seed = 7, count = 95, segs = 18, radial = 5, thick = 16, innerR = 0, under = null, lenK = 1, thickR = null, outK = 1 } = {}) {
   // under(r): the height of the underside at radius r, for islands that taper to a point (strands start right on it)
   let s = seed; const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
   const out = { pos: [], along: [], phase: [], col: [], idx: [] };
@@ -41,7 +41,7 @@ export function buildRoots(parent, { top = -8.6, bottomR = 42, sideY = -4.5, sid
   };
   // 1. thick gnarled roots curling out from the sloping side and down, each fraying into strands
   for (let i = 0; i < thick; i++) {
-    const a = i / thick * Math.PI * 2 + rnd() * 0.3, r = sideR - rnd() * 4, y = under ? under(r) + 1.2 : sideY - rnd() * 2, out1 = 4 + rnd() * 5, drop = 8 + rnd() * 10;
+    const a = i / thick * Math.PI * 2 + rnd() * 0.3, r = (thickR ?? sideR) - rnd() * 4, y = under ? under(r) + 1.2 : sideY - rnd() * 2, out1 = (4 + rnd() * 5) * outK, drop = 8 + rnd() * 10;
     const p0 = V(Math.cos(a) * r, y, Math.sin(a) * r), p1 = V(Math.cos(a) * (r + out1 * 0.6), y - drop * 0.25, Math.sin(a) * (r + out1 * 0.6)), p2 = V(Math.cos(a + 0.04) * (r + out1), y - drop * 0.7, Math.sin(a + 0.04) * (r + out1)), p3 = V(Math.cos(a + 0.06) * (r + out1 * 0.8), y - drop, Math.sin(a + 0.06) * (r + out1 * 0.8));
     strand(new THREE.CatmullRomCurve3([p0, p1, p2, p3]), 1.3 + rnd() * 0.6, 0.35, Math.min(16, segs), Math.min(6, radial + 1), rnd() * 6.28, dark[i % 3], out);
     for (let k = 0; k < (count < 60 ? 2 : 4); k++) hang(p3.x + (rnd() - 0.5) * 1.2, p3.y + 0.5, p3.z + (rnd() - 0.5) * 1.2, 6 + rnd() * 16, 0.28, pale[k % 4], 0.6);

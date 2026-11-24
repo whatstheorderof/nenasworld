@@ -70,7 +70,7 @@ export function buildFarIslands(scene) {
       const rg = new THREE.Group(); rg.scale.setScalar(k); g.add(rg);
       const rimY = -1.6 / k, botY = bottom / k, RR = R / k;   // the underside tapers from the rim (r = R) down to its lowest point (r = 0)
       const under = r => botY + (rimY - botY) * Math.min(1, r / RR) ** 1.4;
-      buildRoots(rg, { top: botY, bottomR: RR * 0.8, sideY: rimY, sideR: RR * 0.82, seed: 11 + t.a * 7, count: 18, segs: 8, radial: 4, thick: 8, innerR: t.id === 'hoop' ? 7.6 / k : 0, under, lenK: 0.6 }); });   // Hoopstead: none in its hole
+      buildRoots(rg, { top: botY, bottomR: RR * 0.8, sideY: rimY, sideR: RR * 0.82, seed: 11 + t.a * 7, count: 18, segs: 8, radial: 4, thick: 8, innerR: t.id === 'hoop' ? 7.6 / k : 0, under, lenK: 0.6, thickR: RR * (t.id === 'hoop' ? 0.72 : 0.6), outK: 0.3 }); });   // thick roots start well under the town and hang down, not out past its rim   // Hoopstead: none in its hole
   }
 
   // Bluebell Isle: rolling blue flower hills, a marbled gold-and-teal river, and goats wandering about

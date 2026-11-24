@@ -58,35 +58,35 @@ export const NEIGHBOURS = [
 ];
 // Travellers who sometimes pitch up at the campsite for a day.
 export const CAMPERS = [
-  { name: 'Odo', kind: 'otter', home: 'fountain', from: 'Fountain Round, the town with the pool in the middle', says: 'i swim the pool every morning. twice if nobody is looking.' },
-  { name: 'Mirren', kind: 'hare', home: 'gable', from: 'Little Gable, two cottages and a tower', says: 'there are only four of us. we take turns raising the flag.' },
+  { name: 'Odo', kind: 'otter', home: 'fountain', from: 'Fountain, the town with the pool in the middle', says: 'i swim the pool every morning. twice if nobody is looking.' },
+  { name: 'Mirren', kind: 'hare', home: 'gable', from: 'Gable, two cottages and a tower', says: 'there are only four of us. we take turns raising the flag.' },
   { name: 'Tuck', kind: 'owl', home: 'hoop', from: 'the spire on Hoopstead', says: 'the trick is to like the dark first. the hole in the middle helps.' },
   { name: 'Fen', kind: 'walrus', home: 'snowcap', from: 'Snowcap, the stone house under the snow', says: 'your pond is a good size. i checked.' },
   { name: 'Lark', kind: 'hare', home: 'hoop', from: 'Hoopstead, the town built round a hole in the sky', says: 'you can walk all the way round and end up home. we do it for fun.' },
-  { name: 'Bryn', kind: 'fox', home: 'gable', from: 'Little Gable, by the windmill', says: 'i mind the windmill. mostly i mind it going round.' },
-  { name: 'Pip', kind: 'puffin', home: 'fountain', from: 'Fountain Round, the stall with the stripy roof', says: 'market day is every day if you have enough jam.' },
+  { name: 'Bryn', kind: 'fox', home: 'gable', from: 'Gable, by the windmill', says: 'i mind the windmill. mostly i mind it going round.' },
+  { name: 'Pip', kind: 'puffin', home: 'fountain', from: 'Fountain, the stall with the stripy roof', says: 'market day is every day if you have enough jam.' },
   { name: 'Sorrel', kind: 'seal', home: 'snowcap', from: 'Snowcap, out by the frozen pond', says: 'i skate. badly. it is still skating.' },
-  { name: 'Hob', kind: 'badger', home: 'gable', from: 'Little Gable, the vegetable beds', says: 'carrots take ages. i talk to them. it does not help but i like it.' },
-  { name: 'Prickle', kind: 'hedgehog', home: 'fountain', from: 'Fountain Round, under the café umbrellas', says: 'i only came for the cake. and the view. mostly the cake.' },
+  { name: 'Hob', kind: 'badger', home: 'gable', from: 'Gable, the vegetable beds', says: 'carrots take ages. i talk to them. it does not help but i like it.' },
+  { name: 'Prickle', kind: 'hedgehog', home: 'fountain', from: 'Fountain, under the café umbrellas', says: 'i only came for the cake. and the view. mostly the cake.' },
   { name: 'Rook', kind: 'raccoon', home: 'hoop', from: 'Hoopstead, the lanterns over the hole', says: 'i light the lanterns at dusk. someone has to and i have the hands.' },
-  { name: 'Mossy', kind: 'frog', home: 'fountain', from: 'Fountain Round, the pool in the middle', says: 'your pond is nice. not as nice as mine. but nice.' },
-  { name: 'Dabble', kind: 'duck', home: 'gable', from: 'Little Gable, the duck pond', says: 'i sailed a leaf all the way across the pond once. i am a sailor now.' },
+  { name: 'Mossy', kind: 'frog', home: 'fountain', from: 'Fountain, the pool in the middle', says: 'your pond is nice. not as nice as mine. but nice.' },
+  { name: 'Dabble', kind: 'duck', home: 'gable', from: 'Gable, the duck pond', says: 'i sailed a leaf all the way across the pond once. i am a sailor now.' },
   { name: 'Willow', kind: 'deer', home: 'snowcap', from: 'Snowcap, between the snowy pines', says: 'it is quiet up there. you can hear the snow land.' },
   { name: 'Barnaby', kind: 'bear', home: 'snowcap', from: 'Snowcap, the stone house', says: 'i stacked the wood pile. it took all week. i am proud of it.' },
 ];
 // Neighbouring islands with towns on them, near enough to see from hers. The travellers who
 // pitch up at her campsite come from these. Models are in art/island.blend.
 export const TOWN_ISLANDS = [
-  { id: 'gable', name: 'Little Gable', model: 'IslandCottage', a: 1.15, r: 300, y: 4, scale: 2.3, about: 'Two cottages and a tower with a flag, inside a picket fence.' },
+  { id: 'gable', name: 'Gable', model: 'IslandCottage', a: 1.15, r: 300, y: 4, scale: 2.3, about: 'Two cottages and a tower with a flag, inside a picket fence.' },
   { id: 'snowcap', name: 'Snowcap', model: 'IslandRock', a: 3.15, r: 290, y: -3, scale: 2.3, about: 'A great stone house under a cap of snow, a dome tower and a red cottage.' },
-  { id: 'fountain', name: 'Fountain Round', model: 'IslandPlaza', a: 5.95, r: 330, y: 6, scale: 2.1, about: 'A round town square with a pool in the middle, houses all round it and topiary outside the fence.' },
+  { id: 'fountain', name: 'Fountain', model: 'IslandPlaza', a: 5.95, r: 330, y: 6, scale: 2.1, about: 'A round town square with a pool in the middle, houses all round it and topiary outside the fence.' },
   { id: 'hoop', name: 'Hoopstead', model: 'IslandRing', a: 4.45, r: 320, y: 12, scale: 2.1, about: 'A town built in a ring round a hole in the sky, with a tall slate spire.' },
 ];
 // A small island of rolling blue flower hills with a marbled gold-and-teal river, where goats roam.
 // Model: art/island.blend IslandBloom (radius 12 in model units). hills: [x, y, half-width x, half-width y, top] in model units.
-export const BLOOM_ISLE = { id: 'bloom', name: 'Bluebell Isle', a: 5.6, r: 180, y: 3, scale: 3.0, size: 36,
+export const BLOOM_ISLE = { id: 'bloom', name: 'Bluebell', a: 5.6, r: 180, y: 3, scale: 3.0, size: 36,
   about: 'A small island of rolling blue flower hills with a marbled gold and teal river running through it. Old stone terraces of bluebells climb to snowy pines. Goats live there.', resources: ['bluebells', 'goat wool'],
-  spots: { pad: [0, -10.4], goats: [-5.8, 4.9, { does: 'sitting in the flowers with the goats', draw: 'the goats on Bluebell Isle', food: 'goat cheese' }], flowers: [4.0, 2.5, { does: 'picking bluebells', find: 'bluebells' }],
+  spots: { pad: [0, -10.4], goats: [-5.8, 4.9, { does: 'sitting in the flowers with the goats', draw: 'the goats on Bluebell', food: 'goat cheese' }], flowers: [4.0, 2.5, { does: 'picking bluebells', find: 'bluebells' }],
     river: [-8.9, -0.1, { does: 'drawing the gold river', draw: 'the gold river through the blue flowers' }], wool: [0.6, -6.2, { does: 'collecting tufts of goat wool off the flowers', find: 'goat wool' }],
     terraces: [-1.28, 6.3, { does: 'sitting by the pool under the bluebell terraces', draw: 'the stone terraces of bluebells and the snowy pines' }] },
   hills: [[-7.84,5.35,1.92,1.76,0.56],[-2.93,7.07,1.53,1.4,0.45],[-0.96,-2.76,1.54,1.41,0.45],[2.34,-5.34,1.86,1.7,0.54],[-2.46,3.78,1.32,1.21,0.39],[-2.82,-3.38,2.0,1.83,0.59],[9.37,-3.26,2.19,2.0,0.64],[-2.5,9.42,2.41,2.21,0.71],[-0.64,-7.15,1.33,1.22,0.39],[-2.61,-6.49,2.13,1.95,0.62],[-7.45,-5.89,2.36,2.16,0.69],[-4.71,3.12,1.82,1.66,0.53],[6.53,-6.65,2.56,2.34,0.75],[-0.48,-5.01,1.49,1.36,0.44],[1.9,-3.03,1.39,1.27,0.41],[-4.93,-4.9,1.79,1.63,0.52],[2.76,-9.72,1.93,1.77,0.57],[4.45,-4.09,1.61,1.47,0.47]],
@@ -111,7 +111,7 @@ export const ISLETS = [
 // spots are in model units (x, y on the model, front = the landing pad side, toward her island).
 // An old hotel standing empty on its own island, a slab of round windows with faded olive awnings,
 // the far end fallen in and ivy climbing the rest. One window is always lit. Model: IslandRuin (radius 12), front faces her island.
-export const RUIN_ISLE = { id: 'ruin', name: 'the Old Hotel', a: 0.55, r: 230, y: -1, scale: 2.4, size: 30,
+export const RUIN_ISLE = { id: 'ruin', name: 'Hotel Isle', a: 0.55, r: 230, y: -1, scale: 2.4, size: 30,
   about: 'A tall old hotel with rows of round windows and faded green awnings, standing empty on its own island. The far end has fallen in and ivy climbs the rest. One window is always lit.',
   resources: ['old room key', 'hotel postcard', 'brass bell'],
   spots: { pad: [3.2, -9.4], doors: [-0.5, -5.2, { does: 'peering in through the hotel doors', find: 'old room key' }], rubble: [8.6, -3.2, { does: 'picking through the fallen end of the hotel', find: 'brass bell' }],
@@ -121,20 +121,20 @@ export const RUIN_ISLE = { id: 'ruin', name: 'the Old Hotel', a: 0.55, r: 230, y
 // add a new one here (or to ISLETS / TOWN_ISLANDS / SKY_ISLANDS) and shared/chart.js features() picks it up.
 // `chart` is the ink colour it gets on the chart.
 // A field of lime-green pom-pom flowers on tall ribbed stalks, one giant towering over them all. Model: IslandPompom (radius 12).
-export const POMPOM_ISLE = { id: 'pompom', name: 'Pompom Meadow', a: 2.5, r: 230, y: 2, scale: 2.4, size: 30,
+export const POMPOM_ISLE = { id: 'pompom', name: 'Pompom', a: 2.5, r: 230, y: 2, scale: 2.4, size: 30,
   about: 'A meadow of fluffy lime-green pom-pom flowers on tall stalks, with one giant pom-pom towering over them all. The sun shines through them.',
   resources: ['pom-pom fluff', 'giant seed'],
   spots: { pad: [0, -9.8], giant: [0.6, -0.6, { does: 'lying under the giant pom-pom, looking up through it', draw: 'looking up at the giant pom-pom flower' }],
     fluff: [3.4, -5.2, { does: 'gathering pom-pom fluff', find: 'pom-pom fluff' }], seeds: [-3.6, -3.4, { does: 'hunting for a fallen seed', find: 'giant seed' }],
     nectar: [-5.4, 1.8, { does: 'sipping nectar from the low pom-poms', food: 'pom nectar' }], meadow: [5.2, 2.6, { does: 'wandering among the tall stalks', draw: 'a meadow of glowing green pom-poms' }] } };
 // A quarry island with one building on it: a travertine box on slim columns, its whole front glass, glowing orange inside. Model: IslandPavilion (radius 12).
-export const PAVILION_ISLE = { id: 'pavilion', name: 'the Quarry House', a: 1.75, r: 245, y: -2, scale: 2.4, size: 30,
+export const PAVILION_ISLE = { id: 'pavilion', name: 'Quarry Isle', a: 1.75, r: 245, y: -2, scale: 2.4, size: 30,
   about: 'A quarry island with a single house: a pale stone box lifted on thin columns, its front all glass, glowing orange inside, with a round chair, a daybed and a lamp.',
   resources: ['travertine chip', 'quartz crystal'],
   spots: { pad: [0, -9.6], glass: [0.4, -5.2, { does: 'looking in through the big glass windows', draw: 'the glowing orange room in the quarry' }],
     wall: [-7.6, -3.0, { does: 'tapping at the quarry wall', find: 'travertine chip' }], blocks: [7.4, -5.0, { does: 'turning over the fallen blocks', find: 'quartz crystal' }],
     fig: [-5.6, -7.0, { does: 'picking figs from the little tree in the quarry', food: 'figs' }], cliff: [5.6, 1.0, { does: 'sitting under the cliffs in the quiet', draw: 'the stone house on its columns' }] } };
-export const GROVE_ISLE = { id: 'grove', name: 'the Lantern Grove', a: 4.0, r: 250, y: 0, scale: 1.6, size: 30,
+export const GROVE_ISLE = { id: 'grove', name: 'Lantern Isle', a: 4.2, r: 240, y: 0, scale: 1.6, size: 30,
   about: 'A dark island of great bare trees with fireflies on every branch, so they shine like fairy lights at night, little glowing firs, and a tall black monolith standing in the fog at its heart.',
   resources: ['night glass', 'lantern seed'],
   spots: { pad: [0, -24], monolith: [0.5, -1.4, { does: 'standing at the foot of the monolith', draw: 'the dark monolith in the fog' }],
@@ -142,15 +142,15 @@ export const GROVE_ISLE = { id: 'grove', name: 'the Lantern Grove', a: 4.0, r: 2
     stone: [5, 6, { does: 'looking for glassy black stones near the monolith', find: 'night glass' }], hush: [-11, 9, { does: 'sitting quietly in the fog', draw: 'fog between the lit trees' }] } };
 export const LONE_ISLES = [{ ...BLOOM_ISLE, chart: '#9aa6e8' }, { ...RUIN_ISLE, chart: '#efe4cc' }, { ...POMPOM_ISLE, chart: '#b6e43c' }, { ...PAVILION_ISLE, chart: '#ff8a3a' }, { ...GROVE_ISLE, chart: '#3d4a5c' }];
 export const SKY_ISLANDS = [
-  { id: 'ember', name: 'the smoking island', theme: 'volcano and desert', a: 3.75, r: 405, y: -6, scale: 1.6, size: 58, resources: ['obsidian', 'fire opal', 'sand glass', 'cactus fruit'],
+  { id: 'ember', name: 'Ember Isle', theme: 'volcano and desert', a: 3.75, r: 405, y: -6, scale: 1.6, size: 58, resources: ['obsidian', 'fire opal', 'sand glass', 'cactus fruit'],
     spots: { pad: [0, -31], oasis: [12.5, -12, { does: 'picking dates by the oasis', food: 'dates' }], cactus: [-14, -12, { does: 'picking prickly pears (carefully)', food: 'cactus fruit' }],
       obsidian: [-19, 7, { does: 'hunting for obsidian', find: 'obsidian' }], volcano: [0, -4, { does: 'drawing the volcano from its foot', draw: 'the smoking volcano from its foot' }],
       opal: [18, 6, { does: 'digging for fire opals', find: 'fire opal' }], village: [6, -21, { does: 'visiting the little dome huts', draw: 'the dome huts in the sand', find: 'sand glass' }] } },
-  { id: 'wood', name: 'the forest island', theme: 'ancient fairy forest', a: 5.25, r: 410, y: 4, scale: 1.6, size: 58, resources: ['glow moss', 'silver bark', 'fairy dust', 'giant acorn'],
+  { id: 'wood', name: 'Elderwood', theme: 'ancient fairy forest', a: 5.25, r: 410, y: 4, scale: 1.6, size: 58, resources: ['glow moss', 'silver bark', 'fairy dust', 'giant acorn'],
     spots: { pad: [0, -31], door: [0, 5, { does: 'knocking on the door in the giant tree', draw: 'the door in the giant tree', find: 'silver bark' }], berries: [-14, -12, { does: 'picking wild berries', food: 'wild berries' }],
       hive: [14, -11, { does: 'taking a little honeycomb (the bees allowed it)', food: 'honeycomb' }], mushrooms: [-17, 8, { does: 'gathering mushrooms in the glade', food: 'mushroom', find: 'glow moss' }],
       ring: [15, 12, { does: 'sitting very still in the fairy ring', draw: 'the fairy ring at dusk', find: 'fairy dust' }], acorns: [5, -20, { does: 'rolling a giant acorn', find: 'giant acorn' }] } },
-  { id: 'glass', name: 'the ice island', theme: 'ice crust over water, with drowned ruins below', a: 2.2, r: 400, y: -2, scale: 1.6, size: 58, resources: ['clear ice', 'old coins', 'pearl', 'sunken tile'],
+  { id: 'glass', name: 'Frost Isle', theme: 'ice crust over water, with drowned ruins below', a: 2.2, r: 400, y: -2, scale: 1.6, size: 58, resources: ['clear ice', 'old coins', 'pearl', 'sunken tile'],
     spots: { pad: [0, -31], fishing: [9.5, -14.5, { does: 'ice fishing by the little hut', food: 'ice fish' }], ruins: [-12, 5, { does: 'drawing the drowned ruins', draw: 'the drowned ruins poking through the ice', find: 'old coins' }],
       spires: [15, 9, { does: 'chipping clear ice from the spires', find: 'clear ice' }], clams: [-14, -14, { does: 'looking for pearls in the clam beds', find: 'pearl' }],
       berries: [3, 18, { does: 'picking snow berries', food: 'snow berries' }], hole: [0, -6, { does: 'peering into the big hole in the ice', draw: 'the light under the ice', find: 'sunken tile' }] } },

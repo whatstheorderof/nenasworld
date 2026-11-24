@@ -127,7 +127,7 @@ function draw() {
       if (hole) { ctx.beginPath(); ctx.arc(px, py, r * 0.52, 0, 7); ctx.fillStyle = '#e7d3a0'; ctx.fill(); ctx.stroke(); }
       if (f.id === 'fountain') { ctx.beginPath(); ctx.arc(px, py, r * 0.5, 0, 7); ctx.fillStyle = '#ead7a6'; ctx.fill(); ctx.beginPath(); ctx.arc(px, py, r * 0.16, 0, 7); ctx.fillStyle = '#8fb6c8'; ctx.fill(); ctx.stroke(); }
       if (f.id === 'snowcap') { ctx.beginPath(); ctx.arc(px, py - r * 0.15, r * 0.32, 0, 7); ctx.fillStyle = '#fbf8ee'; ctx.fill(); ctx.stroke(); }
-      if (f.id === 'bloom') { ctx.fillStyle = '#9aa6e8'; blob(px, py, r * 0.95, seed, 24); ctx.fill(); ctx.strokeStyle = '#c9a43a'; ctx.lineWidth = Math.max(2, r * 0.12); ctx.beginPath(); ctx.moveTo(px - r * 0.9, py + r * 0.3); ctx.quadraticCurveTo(px, py - r * 0.4, px + r * 0.9, py - r * 0.2); ctx.stroke(); continue; }
+      if (f.id === 'bloom') { ctx.fillStyle = '#9aa6e8'; blob(px, py, r * 0.95, seed, 24); ctx.fill(); ctx.strokeStyle = '#c9a43a'; ctx.lineWidth = Math.max(2, r * 0.12); ctx.beginPath(); ctx.moveTo(px - r * 0.9, py + r * 0.3); ctx.quadraticCurveTo(px, py - r * 0.4, px + r * 0.9, py - r * 0.2); ctx.stroke(); }
       if (f.id === 'ruin') { const w = r * 1.1, h = r * 0.62; ctx.fillStyle = '#efe4cc'; ctx.fillRect(px - w / 2, py - h / 2, w, h); ctx.strokeStyle = INK; ctx.lineWidth = 1.6; ctx.strokeRect(px - w / 2, py - h / 2, w, h);
         ctx.fillStyle = '#8c8a30'; for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) if (!(i === 3 && j === 0)) ctx.fillRect(px - w / 2 + w * (0.08 + i * 0.23), py - h / 2 + h * (0.14 + j * 0.3), w * 0.14, h * 0.16); }
       const n = f.lone ? 0 : f.id === 'gable' ? 3 : hole ? 8 : 6, rr = hole ? r * 0.76 : f.id === 'fountain' ? r * 0.72 : r * 0.5;

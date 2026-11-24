@@ -75,7 +75,7 @@ export const STAMPS = [
   { id: 'cocoa', name: 'Regular', hint: 'have 10 cocoas', coins: 150, test: s => (s.n.drink_cocoa || 0) >= 10 },
   { id: 'flyer', name: 'Far Flyer', hint: 'fly the balloon to all three big islands', coins: 500, test: s => ['ember', 'wood', 'glass'].every(k => s.farVisited?.[k]) },
   { id: 'skyhopper', name: 'Sky Hopper', hint: 'fly the balloon to every island', coins: 600, test: s => ['ember', 'wood', 'glass', 'bloom', 'ruin', 'pompom', 'pavilion', 'grove'].every(k => s.farVisited?.[k]) },
-  { id: 'goats', name: 'Goat Friend', hint: 'fly to Bluebell Isle and sit with the goats', coins: 150, test: s => !!s.farVisited?.bloom },
+  { id: 'goats', name: 'Goat Friend', hint: 'fly to Bluebell and sit with the goats', coins: 150, test: s => !!s.farVisited?.bloom },
   { id: 'sailor', name: 'Sea Legs', hint: 'row out 5 times', coins: 300, test: s => (s.n.boat_trip || 0) >= 5 },
   { id: 'songs', name: 'Record Collection', hint: 'collect 5 records', coins: 300, test: s => s.songs.length >= 5 },
   { id: 'party', name: 'Never Misses A Party', hint: 'go to 5 events', coins: 300, test: s => (s.n.event || 0) >= 5 },
