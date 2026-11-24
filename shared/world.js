@@ -137,8 +137,8 @@ export const PAVILION_ISLE = { id: 'pavilion', name: 'the Quarry House', a: 1.75
 export const GROVE_ISLE = { id: 'grove', name: 'the Lantern Grove', a: 4.0, r: 250, y: 0, scale: 1.6, size: 30,
   about: 'A dark island of great bare trees with fireflies on every branch, so they shine like fairy lights at night, little glowing firs, and a tall black monolith standing in the fog at its heart.',
   resources: ['night glass', 'lantern seed'],
-  spots: { pad: [0, -24], monolith: [1.5, 1.5, { does: 'standing at the foot of the monolith', draw: 'the dark monolith in the fog' }],
-    lights: [-9, -6, { does: 'walking under the trees full of lights', draw: 'the trees full of firefly lights' }], firs: [8, -10, { does: 'counting the little glowing fir trees', find: 'lantern seed' }],
+  spots: { pad: [0, -24], monolith: [0.5, -1.4, { does: 'standing at the foot of the monolith', draw: 'the dark monolith in the fog' }],
+    lights: [-7, -3, { does: 'walking under the trees full of lights', draw: 'the trees full of firefly lights' }], firs: [6, -7, { does: 'counting the little glowing fir trees', find: 'lantern seed' }],
     stone: [5, 6, { does: 'looking for glassy black stones near the monolith', find: 'night glass' }], hush: [-11, 9, { does: 'sitting quietly in the fog', draw: 'fog between the lit trees' }] } };
 export const LONE_ISLES = [{ ...BLOOM_ISLE, chart: '#9aa6e8' }, { ...RUIN_ISLE, chart: '#efe4cc' }, { ...POMPOM_ISLE, chart: '#b6e43c' }, { ...PAVILION_ISLE, chart: '#ff8a3a' }, { ...GROVE_ISLE, chart: '#3d4a5c' }];
 export const SKY_ISLANDS = [
