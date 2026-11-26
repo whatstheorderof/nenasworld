@@ -96,11 +96,12 @@ export class World {
     if (action === 'voyage') {   // which big island, and the spots she will visit there (one at least for food)
       const seen = this.life?.s?.farVisited || {}, isl = [...TRIP_ISLES].sort((x, y) => (seen[x.id] || 0) - (seen[y.id] || 0) + (Math.random() - 0.5) * 0.8)[0];
       const keys = Object.keys(isl.spots).filter(k => k !== 'pad'), food = keys.filter(k => isl.spots[k][2]?.food), rest = keys.filter(k => !food.includes(k)).sort(() => Math.random() - 0.5);
-      const first = food[Math.floor(Math.random() * food.length)]; a.isle = isl.id; a.route = [first, ...rest.slice(0, 3)].sort(() => Math.random() - 0.5);
+      const first = food[Math.floor(Math.random() * food.length)]; a.isle = isl.id; a.route = [first, ...rest.slice(0, first ? 3 : 4)].filter(Boolean).sort(() => Math.random() - 0.5);   // some islands have nothing to eat
       a.label = `flying the balloon to ${isl.name}`; }
     a.path = route(this.pos, target);
     let len = 0, prev = this.pos; for (const p of a.path) { len += Math.hypot(p.x - prev.x, p.z - prev.z); prev = p; }
-    a.ride = len > RIDE_OVER;
+    // the robot for the long way round, or when she is tired; most shorter trips she walks
+    a.ride = len > 75 || (len > RIDE_OVER && (this.needs.energy < 0.35 || Math.random() < 0.3));
     this.activity = a;
     return true;
   }

@@ -21,6 +21,8 @@ export function chooseFallback(options, needs, recent, interests = [], guide = n
     if (['event', 'read_mail', 'pop_balloon', 'open_bottle', 'wish', 'donate', 'sell_turnips', 'decorate', 'pick_coins', 'harvest', 'buy_art', 'trade_pearl', 'bury_coins', 'visit_camper', 'greet_visitors'].includes(o.action)) s += 0.7;   // things that will not wait
     if (['puddle_jump', 'chase_rainbow', 'fly_kite', 'watch_storm', 'ice_lolly', 'observe', 'buy_clothes', 'join_hobby', 'water_flowers', 'dig_fossil', 'craft', 'buy_turnips', 'pay_home', 'give_gift'].includes(o.action)) s += 0.3;
     if (o.action === 'wander') s -= 0.25;
+    if (o.action === 'voyage') s += 0.75;    // the far islands are worth the trip: she should go and see them
+    if (o.action === 'boat_trip') s += 0.3;
     if (o.action === last) s -= 0.8 + 0.4 * vary;
     if (recent.includes(o.action)) s -= 0.3 + 0.35 * vary;   // 'too repetitive' feedback widens the gap between repeats
     s += guide?.boost?.[o.action] || 0;                     // 'more fishing', 'less reading'
