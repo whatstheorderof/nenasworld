@@ -3,7 +3,7 @@
 // Blender (kit.js) replace them as soon as they load. Positions come from shared/world.js
 // so the mind and the picture agree.
 import * as THREE from 'three';
-import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, WOODLOT, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, SQUARE_SEATS, BOARD, RING, OBSTACLES, BALLOON, onPath, STREAM, STREAM_A, nearRiver as riverBand } from '../../shared/world.js';
+import { PLACES, WORLD, RIVER, BEACH, NEIGHBOURS, ORCHARD_TREES, WOODLOT, ISLETS, BIG_ROCK, CLOCK, isletPos, site, PATHS, SQUARE, SQUARE_SEATS, BOARD, FLAG, RING, OBSTACLES, BALLOON, onPath, STREAM, STREAM_A, nearRiver as riverBand } from '../../shared/world.js';
 import { drawPicture } from './art.js';
 import { pastel } from './palette.js';
 import { waterMaterial } from './water.js';
@@ -698,6 +698,15 @@ export function buildTown() {
   { const mb = [box(0.2, 1.1, 0.2, P.woodDark, 1.5, 0.55, -0.6), box(0.7, 0.5, 0.95, 0xe8452c, 1.5, 1.3, -0.6)];
     whenKit(() => { const m = kitModel('Mailbox'); if (!m) return; m.position.set(1.5, 0, -0.6); town.add(m); for (const o of mb) town.remove(o); });
     town.userData.flag = box(0.08, 0.5, 0.3, 0xffd93b, 1.9, 1.5, -0.6); }
+  // the flag of the Nena Republic on its tall pole in the middle of the square (the picture is painted by art/tools/paint-flag.py)
+  whenKit(() => {
+    const tex = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/nena-flag.png`);
+    tex.flipY = false; tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    const cloth = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide }); cloth.userData.key = 'mirror';
+    cloth.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>',   // the back reads the right way round too
+      'vec4 sampledDiffuseColor = texture2D(map, vec2(gl_FrontFacing ? vMapUv.x : 1.0 - vMapUv.x, vMapUv.y)); diffuseColor *= sampledDiffuseColor;'); };
+    const m = kitModel('TownFlag', { tex_nenaflag: cloth }); if (!m) return;
+    m.position.set(FLAG.x, 0, FLAG.z); m.rotation.y = 0.5; town.add(m); });
   // the square: four double-globe posts round the edge
   // benches and round flower planters round the edge of the square, between the paths (SQUARE_SEATS)
   for (const { x, z, a, kind } of SQUARE_SEATS) {

@@ -175,6 +175,7 @@ export const WOODLOT = [[4.6, 2.6], [-4.8, 1.0], [1.4, 5.6], [4.2, -4.6]].map(([
 export const BIG_ROCK = { x: PLACES.rock.x - 2, z: PLACES.rock.z };
 export const CLOCK = { x: 3.4, z: SQUARE + 2.6 };   // the clocktower, just off the square
 export const BOARD = { x: 9.2, z: 2.3 };            // the noticeboard, on the square
+export const FLAG = { x: -2.2, z: 1.6 };            // the flag of the Nena Republic, on its tall pole in the middle of the square
 
 // Benches and flower planters round the edge of the square, kept clear of every path that comes in.
 export const SQUARE_SEATS = (() => {
@@ -194,6 +195,7 @@ export const OBSTACLES = [
   { key: 'bigrock', ...BIG_ROCK, r: 1.3 },
   { key: 'clock', ...CLOCK, r: 1.5 },
   { key: 'board', ...BOARD, r: 0.9 },
+  { key: 'flag', ...FLAG, r: 0.9 },
   { key: 'balloon', ...BALLOON, r: 4.4 },
   ...SQUARE_SEATS.map(q => ({ key: q.kind, x: q.x, z: q.z, r: 0.8 })),
   ...ORCHARD_TREES.map(([x, z]) => ({ key: 'tree', x, z, r: 0.9 })),

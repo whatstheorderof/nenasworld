@@ -30,6 +30,15 @@ function loading(frac, done, bytes = 0) {
 }
 
 // Compressed models store positions as packed integers; unpack to plain floats before transforming.
+// The glTF export drops UVs, so a picture-carrying part (material named tex_…, a flat sheet facing z)
+// gets them back from its own extent: u along x from the hoist, v down from the top (textures load with flipY off).
+function flatUV(g) {
+  g.computeBoundingBox(); const { min, max } = g.boundingBox, p = g.attributes.position, uv = new Float32Array(p.count * 2);
+  const w = Math.max(1e-4, max.x - min.x), h = Math.max(1e-4, max.y - min.y);
+  for (let i = 0; i < p.count; i++) { uv[i * 2] = (p.getX(i) - min.x) / w; uv[i * 2 + 1] = (max.y - p.getY(i)) / h; }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+}
+
 function plain(geo) {
   const g = geo.index ? geo.toNonIndexed() : geo.clone(), out = new THREE.BufferGeometry();
   for (const k of ['position', 'normal']) {
@@ -71,12 +80,13 @@ const FLUTTER = /(_Bunt\d+|_Flag\d*|DomeFlag)$/;
 export const flutter = { uT: { value: 0 }, uW: { value: 0.3 } };
 function clothWeights(g, name, poles) {
   const pos = g.attributes.position, n = pos.count, box = new THREE.Box3().setFromBufferAttribute(pos), w = new Float32Array(n);
-  const c = box.getCenter(new THREE.Vector3()); let pole = null, best = 1.5;
+  const c = box.getCenter(new THREE.Vector3()); let pole = null, best = Math.max(1.5, (box.max.x - box.min.x) * 0.6, (box.max.z - box.min.z) * 0.6);
   if (!/Bunt/.test(name)) for (const b of poles) { const pc = b.getCenter(new THREE.Vector3()), d = Math.hypot(pc.x - c.x, pc.z - c.z); if (d < best && c.y > b.min.y && c.y < b.max.y + 0.5) { best = d; pole = pc; } }
   if (pole) {   // flag: tied along the pole, the far end flaps most
     let far = 0; for (let i = 0; i < n; i++) far = Math.max(far, Math.hypot(pos.getX(i) - pole.x, pos.getZ(i) - pole.z));
     let near = far; for (let i = 0; i < n; i++) near = Math.min(near, Math.hypot(pos.getX(i) - pole.x, pos.getZ(i) - pole.z));
-    for (let i = 0; i < n; i++) w[i] = (Math.hypot(pos.getX(i) - pole.x, pos.getZ(i) - pole.z) - near) / Math.max(0.01, far - near);
+    const big = Math.max(1, (far - near) * 0.3);   // a big flag swings further than a little pennant
+    for (let i = 0; i < n; i++) w[i] = (Math.hypot(pos.getX(i) - pole.x, pos.getZ(i) - pole.z) - near) / Math.max(0.01, far - near) * big;
   } else { const h = Math.max(0.01, box.max.y - box.min.y); for (let i = 0; i < n; i++) w[i] = (box.max.y - pos.getY(i)) / h; }   // pennant: hangs from its string
   g.setAttribute('flut', new THREE.BufferAttribute(w, 1));
 }
@@ -84,13 +94,13 @@ const flutMats = new Map();
 function flutterMat(base) {
   if (flutMats.has(base)) return flutMats.get(base);
   const m = base.clone(); m.side = THREE.DoubleSide;
-  m.onBeforeCompile = sh => { Object.assign(sh.uniforms, flutter);
+  m.onBeforeCompile = (sh, r) => { base.onBeforeCompile(sh, r); Object.assign(sh.uniforms, flutter);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float flut; uniform float uT, uW;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         float ph = uT * (3.0 + uW * 5.0) + position.x * 2.3 + position.y * 1.7;
         transformed.z += (sin(ph) * 0.7 + sin(ph * 2.3 + 1.0) * 0.3) * flut * (0.05 + uW * 0.16);
         transformed.y -= flut * flut * (1.0 - uW) * 0.03;`); };
-  m.customProgramCacheKey = () => 'flutter';
+  m.customProgramCacheKey = () => 'flutter' + (base.userData.key || '');
   flutMats.set(base, m); return m;
 }
 
@@ -151,6 +161,7 @@ export function kitModel(name, swap = {}, keep = []) {
     root.traverse(o => { if (!o.isMesh || kept(o)) return;
       const g = plain(o.geometry); g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
       if (WADDLE.test(o.name)) { waddlers.push({ g, src: o.material, body: /penguin$/.test(o.name) }); return; }
+      if (/^tex_/.test(o.material.name)) flatUV(g);
       const fl = FLUTTER.test(o.name); if (fl) clothWeights(g, o.name, poles);
       (byMat[(fl ? '~' : '') + o.material.name] ||= { src: o.material, fl, geos: [] }).geos.push(g); });
     if (waddlers.length) waddleCentres(waddlers, byMat);
