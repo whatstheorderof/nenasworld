@@ -4,6 +4,8 @@
 // creator key is set there.
 import { WorldLog, dayText, FEEDBACK_TAGS } from '../../shared/worldlog.js';
 import { guidanceFrom } from '../../shared/guidance.js';
+import { inject } from '@vercel/analytics';
+inject();   // Vercel Web Analytics: page views and visitors, no cookies
 
 const MIND = (import.meta.env.VITE_MIND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const $ = id => document.getElementById(id);

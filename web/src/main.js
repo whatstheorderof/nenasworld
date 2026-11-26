@@ -9,6 +9,9 @@ import { PLACES, NEEDS, ISLETS, WORLD, SKY_ISLANDS, TRIP_ISLES, LONE_ISLES, BALL
 import { kitModel as kitM, whenKit as whenK, flutter, snowCover } from './kit.js';
 import { showGuide, guideSeen } from './guide.js';
 import { report, setGpu } from './report.js';
+import { inject } from '@vercel/analytics';
+inject();   // Vercel Web Analytics: page views and visitors, no cookies
+
 import { buildWildlife } from './wildlife.js';
 import { icon } from './icons.js';
 import { WEATHER_WORDS, FLAGS, SCARVES, HATS, GLASSES, SKY as SKY_LIST, SKY_RARE, CATS, SPECIES, STAMPS, BLOOMS, ACTIONS, todaysEvent } from '../../shared/data.js';
