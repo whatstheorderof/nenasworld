@@ -13,7 +13,7 @@ const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } cat
 
 export function startLocalMind(onFeed, onChat = () => {}) {
   const life = new Life({ load: () => load('nena-life', null), save: v => save('nena-life', v) });
-  const world = new World(load('nena-world', null), 3600, life);
+  const world = new World(load('nena-world', null), 43200, life);   // a 12-hour day
   const log = new WorldLog({ load: () => load('nena-worldlog', null), save: v => save('nena-worldlog', v) });   // the world diary
   const recent = [], feed = load('nena-feed', []), chat = load('nena-chat', []);
   const addChat = item => { item = { id: Math.random().toString(36).slice(2, 9), at: Date.now(), day: world.day, hour: world.hour, ...item }; chat.push(item); if (chat.length > 120) chat.shift(); save('nena-chat', chat); log.chat(item, world.view()); onChat(item); };

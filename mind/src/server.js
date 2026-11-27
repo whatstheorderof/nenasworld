@@ -26,7 +26,7 @@ const { Brain } = await import('./brain.js');
 const { provider, usage } = await import('./models.js');
 
 const PORT = Number(process.env.PORT || 8787);
-const DAY_SECONDS = Number(process.env.DAY_SECONDS || 3600);
+const DAY_SECONDS = Number(process.env.DAY_SECONDS || 43200);
 const DATA_DIR = path.resolve(here, '..', process.env.DATA_DIR || './data');
 
 // first boot on a fresh volume: copy in her starting character sheet

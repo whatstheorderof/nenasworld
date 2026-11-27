@@ -192,7 +192,7 @@ export class Life {
       case 'design_flag': { s.look.flag = ((s.look.flag || 0) + rint(1, FLAGS.length - 1)) % FLAGS.length; s.look.flagDay = day; return { text: 'designed a new flag for the square', say: 'that is our flag now.', lift: 0.2 }; }
       case 'compose_tune': { const syl = ['do', 'la', 'pip', 'bo', 'su', 'mi', 'na', 'ne', 'fa', 'lo']; s.tune = Array.from({ length: 6 }, () => pick(syl)).join('-'); s.tuneDay = day; return { text: `made up a new island tune: ${s.tune}`, remember: `the island tune goes ${s.tune}` }; }
       case 'voyage': {   // a day out on a big island: wild food, rare finds, and things to draw later
-        const isl = TRIP_ISLES.find(x => x.id === a.isle) || SKY_ISLANDS[0], seen = (s.farVisited ||= {}); s.voyDay = day; seen[isl.id] = (seen[isl.id] || 0) + 1;
+        const isl = TRIP_ISLES.find(x => x.id === a.isle) || SKY_ISLANDS[0], seen = (s.farVisited ||= {}); s.voyDay = day; s.voyAt = day * 24 + (w?.hour ?? 12); seen[isl.id] = (seen[isl.id] || 0) + 1;
         const got = [], did = [];
         for (const k of a.route || []) { const sp = isl.spots[k]?.[2]; if (!sp) continue; did.push(sp.does);
           if (sp.food) { const n = rint(2, 3); this.add(sp.food, n); got.push(`${n} ${sp.food}`); }

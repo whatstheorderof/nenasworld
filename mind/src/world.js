@@ -15,7 +15,10 @@ const uid = () => Math.random().toString(36).slice(2, 8);
 export class World {
   constructor(saved, daySeconds, life) {
     this.daySeconds = daySeconds; this.life = life;
-    this.bornAt = saved?.bornAt || Date.now();
+    this.k = daySeconds / 3600;            // how much longer her day is than the old one-hour day: slow things (hunger, weather, balloons) stretch with it
+    this.bornAt = saved?.bornAt || Date.now() - daySeconds * 1000 / 3;   // a new world starts at 8 in the morning, not in the dark
+    if (saved?.bornAt) { const was = saved.daySeconds || 3600;   // the day length changed: keep today's day number and hour where they were
+      if (was !== daySeconds) this.bornAt = Date.now() - (Date.now() - saved.bornAt) / was * daySeconds; }
     if (saved && saved.layout !== WORLD.layout) saved = { bornAt: saved.bornAt, needs: saved.needs };   // the island changed shape: start her at home
     this.pos = saved?.pos || { x: PLACES.home.x, z: PLACES.home.z };
     this.heading = saved?.heading || 0;
@@ -36,6 +39,7 @@ export class World {
   get day() { return Math.floor(this.age / this.daySeconds) + 1; }
   get hour() { return ((this.age % this.daySeconds) / this.daySeconds) * 24; }
   get isNight() { const h = this.hour; return h >= 21 || h < 6; }
+  get deepNight() { const h = this.hour; return h >= 22 || h < 5.5; }   // bedtime: sleep wins and she doesn't get up
   get cal() { return calendar(this.day); }
   get event() { return currentEvent(this.day, this.hour); }
 
@@ -63,7 +67,7 @@ export class World {
   // ---- what the brain may choose from ----------------------------------
   ctx(mail = 0) {
     const out = this.npcs.filter(n => n.out);
-    return { n: this.needs, day: !this.isNight, night: this.isNight, hour: this.hour, dayN: this.day, weather: this.weather, cal: this.cal, event: this.event, life: this.life, mail,
+    return { n: this.needs, day: !this.isNight, night: this.isNight, deep: this.deepNight, hour: this.hour, dayN: this.day, weather: this.weather, cal: this.cal, event: this.event, life: this.life, mail,
       has: kind => this.spots.some(s => s.kind === kind), npc: this.nearest(out), out: name => out.some(n => n.name === name), visitors: this.visitors, painter: painterIn(this.cal, this.hour) };
   }
   options(mail) {
@@ -71,6 +75,7 @@ export class World {
     for (const [action, def] of Object.entries(ACTIONS)) {
       let ok = false; try { ok = def.ok(c); } catch { ok = false; }
       if (!ok) continue;
+      if (c.deep && action !== 'sleep') continue;   // bedtime: off to bed
       if (c.weather === 'storm' && !(STORM_SAFE.includes(def.place) || def.anim === 'inside')) continue;   // nobody goes far in a storm
       const e = action === 'event' ? c.event : null;
       const where = e ? PLACES[e.place].label : def.place ? PLACES[def.place].label : def.target === 'npc' ? `wherever ${c.npc.name} is` : 'around the island';
@@ -111,12 +116,12 @@ export class World {
   // ---- 20Hz tick -------------------------------------------------------
   tick(dt) {
     const asleep = this.activity?.action === 'sleep' && this.activity.phase === 'doing';
-    for (const k of NEEDS) this.needs[k] = clamp01(this.needs[k] - DRAIN[k] * dt * (asleep ? 0.3 : 1));
+    for (const k of NEEDS) this.needs[k] = clamp01(this.needs[k] - DRAIN[k] * dt / this.k * (asleep ? 0.3 : 1));
     this.lift *= Math.exp(-dt / 120);
     this.dailySpots();
 
     this.tickWeather(dt);
-    if (!this.isNight && !this.spots.some(s => s.kind === 'balloon') && Math.random() < dt / 2400) this.spawn('balloon');
+    if (!this.isNight && !this.spots.some(s => s.kind === 'balloon') && Math.random() < dt / (2400 * this.k)) this.spawn('balloon');
 
     this.tickNeighbours(dt);
 
@@ -133,9 +138,11 @@ export class World {
     } else {
       const def = ACTIONS[a.action];
       if (a.ref && def.target === 'npc') { const n = this.npcs.find(x => x.name === a.ref); if (n) { this.heading = Math.atan2(n.x - this.pos.x, n.z - this.pos.z); n.heading = this.heading + Math.PI; } }
-      for (const [k, total] of Object.entries(def.effects)) this.needs[k] = clamp01(this.needs[k] + (total / def.dur) * dt);
+      for (const [k, total] of Object.entries(def.effects)) this.needs[k] = clamp01(this.needs[k] + (total / def.dur) * dt / (total < 0 && a.action !== 'sleep' ? this.k : 1));   // costs stretch with the day, like hunger
       a.left -= dt;
-      const sleptEnough = a.action === 'sleep' && this.needs.energy > 0.97;
+      const deep = this.deepNight;   // at night she sleeps on till morning, however rested she is
+      if (a.action === 'sleep' && deep) a.left = Math.max(a.left, 1);
+      const sleptEnough = a.action === 'sleep' && this.needs.energy > 0.97 && !deep;
       if (a.left <= 0 || sleptEnough) { if (a.ref) { const n = this.npcs.find(x => x.name === a.ref); if (n) n.hold = 0; } this.finished.push(a); this.activity = null; }
     }
   }
@@ -148,7 +155,7 @@ export class World {
       let next = pool[Math.floor(Math.random() * pool.length)];
       if ((was === 'rain' || was === 'storm') && !night && Math.random() < 0.8) next = 'rainbow';   // the sun out after rain: most times, rainbows
       this.weather = next;
-      this.weatherUntil = Date.now() + (next === 'rainbow' ? 300 + Math.random() * 300 : 300 + Math.random() * 600) * 1000;
+      this.weatherUntil = Date.now() + (next === 'rainbow' ? 300 + Math.random() * 300 : 300 + Math.random() * 600) * 1000 * Math.min(this.k, 4);
     }
     if (!night && (this.weather === 'aurora' || this.weather === 'meteors')) this.weather = 'clear';
     if (night && (this.weather === 'rainbow' || this.weather === 'heat')) this.weather = 'clear';
@@ -230,6 +237,6 @@ export class World {
   }
 
   snapshot() {
-    return { layout: WORLD.layout, bornAt: this.bornAt, pos: this.pos, heading: this.heading, needs: this.needs, lift: this.lift, weather: this.weather, spots: this.spots, spotDay: this.spotDay };
+    return { layout: WORLD.layout, bornAt: this.bornAt, daySeconds: this.daySeconds, pos: this.pos, heading: this.heading, needs: this.needs, lift: this.lift, weather: this.weather, spots: this.spots, spotDay: this.spotDay };
   }
 }

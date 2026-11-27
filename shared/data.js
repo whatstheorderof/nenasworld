@@ -1,6 +1,6 @@
 // What there is to find, make and celebrate on the island, and everything Nena can do.
 
-// ---- calendar: 1 real hour = 1 day, 7 days = a season, 28 days = a year ----------
+// ---- calendar: 12 real hours = 1 day (DAY_SECONDS), 7 days = a season, 28 days = a year ----------
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 // What the sky does in each season (picked at random every few game-hours).
 export const SEASON_WEATHER = [
@@ -152,7 +152,7 @@ const any = () => true;
 const wet = c => c.weather === 'rain' || c.weather === 'storm';
 export const ACTIONS = {
   // everyday
-  sleep:      A('sleeping', 'home', 420, { energy: 1.0, calm: 0.3, fullness: -0.15 }, 'inside', c => c.n.energy < 0.3 || (c.night && c.n.energy < 0.75), 'tired', ['eyes heavy. home.', 'the day is full enough. sleep now.']),
+  sleep:      A('sleeping', 'home', 420, { energy: 1.0, calm: 0.3, fullness: -0.15 }, 'inside', c => c.n.energy < 0.3 || (c.night && c.n.energy < 0.75) || c.deep, 'tired', ['eyes heavy. home.', 'the day is full enough. sleep now.']),
   rest:       A('resting at home', 'home', 45, { energy: 0.18, calm: 0.25 }, 'sit', c => c.n.energy < 0.6 || c.n.calm < 0.4, 'a quiet sit at home', ['sit a while. nothing has to happen.']),
   eat:        A('eating fish', 'fish', 35, { fullness: 0.7, joy: 0.1 }, 'peck', c => c.n.fullness < 0.75, 'the fish stall', ['belly says fish.', 'i can smell the stall from here.']),
   cook:       A('cooking at home', 'home', 50, { fullness: 0.6, joy: 0.2, calm: 0.1 }, 'inside', c => c.n.fullness < 0.8 && c.life.food() > 0, 'cook something she caught or picked', ['i caught it. i should cook it.', 'the kitchen has been quiet too long.']),
@@ -219,7 +219,7 @@ export const ACTIONS = {
   furnish_home: A('arranging her house', 'home', 45, { calm: 0.3, joy: 0.2 }, 'inside', c => c.life.count('furnishing') > 0, 'she has something new for the house', ['this goes by the window. no. there.']),
   design_flag: A('designing the island flag', 'studio', 60, { joy: 0.3, wonder: 0.15 }, 'flap', c => c.dayN - (c.life.s.look.flagDay || -9) > 5, 'the flag in the square could change', ['the flag should look like how the island feels.']),
   compose_tune: A('making up the island tune', 'home', 50, { joy: 0.3, wonder: 0.2 }, 'inside', c => c.dayN - (c.life.s.tuneDay || -9) > 7, 'the island could have a new tune', ['there is a tune in my head and it belongs to nobody else.']),
-  voyage:     A('flying the balloon to a far island', 'lookout', 260, { wonder: 0.85, joy: 0.35, fullness: 0.35, energy: -0.45 }, 'voyage', c => c.day && c.hour >= 7 && c.hour < 16 && ['clear', 'wind', 'heat', 'rainbow', 'cloudy', 'mist'].includes(c.weather) && c.n.energy > 0.4 && c.dayN - (c.life.s.voyDay ?? -9) >= 2, 'the balloon at the lookout can take her to any far island: the goats on Bluebell, the empty Hotel Isle, the pom-pom flowers on Pompom, the glass house on Quarry Isle, the lit trees and the monolith on Lantern Isle, or the big wild islands Ember Isle, Elderwood and Frost Isle. Wild food, rarer finds and new things to draw, and she has not been to some of them yet', ['the balloon is ready. i want to see the big islands up close.', 'i need something new to draw. the far islands have it.']),
+  voyage:     A('flying the balloon to a far island', 'lookout', 260, { wonder: 0.85, joy: 0.35, fullness: 0.35, energy: -0.45 }, 'voyage', c => c.day && c.hour >= 7 && c.hour < 16 && ['clear', 'wind', 'heat', 'rainbow', 'cloudy', 'mist'].includes(c.weather) && c.n.energy > 0.4 && c.dayN * 24 + c.hour - (c.life.s.voyAt ?? (c.life.s.voyDay ?? -9) * 24) >= 5, 'the balloon at the lookout can take her to any far island: the goats on Bluebell, the empty Hotel Isle, the pom-pom flowers on Pompom, the glass house on Quarry Isle, the lit trees and the monolith on Lantern Isle, or the big wild islands Ember Isle, Elderwood and Frost Isle. Wild food, rarer finds and new things to draw, and she has not been to some of them yet', ['the balloon is ready. i want to see the big islands up close.', 'i need something new to draw. the far islands have it.']),
   boat_trip:  A('out in the rowing boat', 'beach', 110, { wonder: 0.55, joy: 0.2, energy: -0.2 }, 'sail', c => c.day && c.hour < 16 && c.weather === 'clear' && c.cal.season !== 3 && c.n.energy > 0.5 && c.life.s.boatDay !== c.dayN, 'the rowing boat is on the sand and there are little islands out there', ['i want to see what is out past the foam.']),
   water_flowers: A('watering her flower patches', '@patch', 30, { calm: 0.3, joy: 0.12 }, 'peck', c => c.life.patches().length > 0 && !['snow', 'rain', 'storm'].includes(c.weather) && c.life.s.waterDay !== c.dayN, 'the flowers she planted want water (colours growing close together sometimes cross)', ['if the red ones and the white ones are friends, something happens.']),
   visit_camper: A('visiting the campsite', 'camp', 45, { wonder: 0.4, joy: 0.25 }, 'stand', c => !!c.life.s.camper && c.day && c.life.s.campDay !== c.dayN, 'someone is camping on the island today', ['there is a new tent. someone from somewhere else.']),
